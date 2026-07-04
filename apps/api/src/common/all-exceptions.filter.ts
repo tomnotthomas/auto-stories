@@ -52,6 +52,14 @@ export class AllExceptionsFilter implements ExceptionFilter {
         CODE_BY_STATUS[status] ??
         (status >= SERVER_ERROR_FLOOR ? 'upstream_error' : 'invalid_request');
       message = extractMessage(exception) ?? DEFAULT_MESSAGE[code];
+    } else if (httpErrorStatus(exception) !== undefined) {
+      // http-errors-style failures thrown by middleware (e.g. express's
+      // body-parser 413) carry a numeric status but aren't HttpExceptions.
+      status = httpErrorStatus(exception) as number;
+      code =
+        CODE_BY_STATUS[status] ??
+        (status >= 500 ? 'upstream_error' : 'invalid_request');
+      message = DEFAULT_MESSAGE[code];
     } else {
       // Unknown/non-HTTP error: log the real cause, surface a safe generic.
       this.logger.error(
@@ -64,6 +72,18 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const body: ErrorResponse = { error: { code, message } };
     res.status(status).json(body);
   }
+}
+
+/** The numeric status on an http-errors-style error, if it has one. */
+function httpErrorStatus(err: unknown): number | undefined {
+  if (typeof err !== 'object' || err === null) return undefined;
+  const { status, statusCode } = err as {
+    status?: unknown;
+    statusCode?: unknown;
+  };
+  if (typeof status === 'number') return status;
+  if (typeof statusCode === 'number') return statusCode;
+  return undefined;
 }
 
 /** Pull a user-safe string out of an HttpException's response payload. */
