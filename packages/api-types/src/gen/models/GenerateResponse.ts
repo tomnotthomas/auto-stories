@@ -3,7 +3,7 @@
 * Do not edit manually.
 */
 
-import type { Frame } from "./Frame";
+import type { Frame } from "./Frame.js";
 
 export type GenerateResponse = {
     /**
