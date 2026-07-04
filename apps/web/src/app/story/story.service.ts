@@ -199,10 +199,12 @@ export class StoryService {
   }
 
   /** Refine: drop a photo from the story, keeping ≥ MIN_PHOTOS so it stays a
-   * story (1.11). No-op when already at the minimum. */
+   * story (1.11). No-op when already at the minimum. Also drops it from the pool
+   * so a later "Regenerate story" doesn't bring it back. */
   dropPhoto(photoId: string): void {
     if (this._frames().length <= MIN_PHOTOS) return;
     this._frames.update((frames) => reindex(frames.filter((frame) => frame.photoId !== photoId)));
+    this.removePhoto(photoId);
   }
 
   /** Mark the first-time refine coach mark as seen so it shows only once (5.9). */

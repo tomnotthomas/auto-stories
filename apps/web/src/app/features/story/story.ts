@@ -2,9 +2,12 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+
 import { StoryService, FramePlacement } from '../../story/story.service';
 import { GenerationService } from '../../story/generation.service';
 import { CaptionEditor } from '../refine/caption-editor/caption-editor';
+import { RefineFilmstrip } from '../refine/filmstrip/filmstrip';
 
 /** A frame resolved for display: the picked photo plus its editable state. */
 interface ViewFrame {
@@ -24,7 +27,7 @@ interface ViewFrame {
  */
 @Component({
   selector: 'app-story',
-  imports: [MatButtonModule, MatIconModule, CaptionEditor],
+  imports: [MatButtonModule, MatIconModule, MatProgressSpinnerModule, CaptionEditor, RefineFilmstrip],
   templateUrl: './story.html',
 })
 export class Story {
@@ -43,6 +46,8 @@ export class Story {
   protected readonly editingPhotoId = signal<string | null>(null);
   /** True while a per-caption regenerate is in flight. */
   protected readonly regenBusy = signal(false);
+  /** True while a whole-story rebuild (Regenerate story / Add photo) is in flight. */
+  protected readonly storyBusy = signal(false);
 
   /** Frames in narrative order, each resolved to its picked photo. */
   protected readonly frames = computed<ViewFrame[]>(() => {
@@ -120,6 +125,23 @@ export class Story {
       await this.generation.regenerateCaption(id);
     } finally {
       this.regenBusy.set(false);
+    }
+  }
+
+  /** Jump the viewer to the frame the user tapped in the filmstrip. */
+  protected selectFrame(index: number): void {
+    this.index.set(index);
+  }
+
+  /** Rebuild the whole story from the current picks (Regenerate story, or after
+   * adding a photo). A rebuild resets placement — it's a new story. */
+  protected async regenerateStory(): Promise<void> {
+    if (this.storyBusy()) return;
+    this.storyBusy.set(true);
+    try {
+      await this.generation.generate();
+    } finally {
+      this.storyBusy.set(false);
     }
   }
 
