@@ -139,6 +139,29 @@ describe('AllExceptionsFilter', () => {
     expect(json.mock.calls[0][0].error.code).toBe('upstream_error');
   });
 
+  it('maps an http-errors-style 413 (body-parser) to payload_too_large', () => {
+    const { host, status, json } = mockHost();
+
+    // express's body-parser throws a plain Error with a numeric status.
+    const tooLarge = Object.assign(new Error('request entity too large'), {
+      status: 413,
+      statusCode: 413,
+    });
+    filter.catch(tooLarge, host);
+
+    expect(status).toHaveBeenCalledWith(413);
+    expect(json.mock.calls[0][0].error.code).toBe('payload_too_large');
+  });
+
+  it('maps an http-errors-style 5xx to upstream_error', () => {
+    const { host, status, json } = mockHost();
+
+    filter.catch(Object.assign(new Error('bad gateway'), { status: 502 }), host);
+
+    expect(status).toHaveBeenCalledWith(502);
+    expect(json.mock.calls[0][0].error.code).toBe('upstream_error');
+  });
+
   it('maps an unknown error to a safe upstream_error (503) and logs it', () => {
     const { host, status, json } = mockHost();
     const logSpy = jest
