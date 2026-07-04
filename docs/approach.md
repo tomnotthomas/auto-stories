@@ -125,8 +125,8 @@ The technical decisions for building Phase 1 (create the story).
 ### 2.7 Latency UX
 - **Problem:** Generation is one call that takes a few seconds; the wait shouldn't feel broken.
 - **Options:** single spinner; staged loader copy; stream/progressively reveal frames.
-- **Decision:** One call with a staged loader ("reading photos… ordering… writing captions…"); streaming is a later enhancement.
-- **Why:** A single structured call can't reveal frames mid-flight without added complexity. Staged copy makes the wait feel purposeful for a few-second Flash response, with no extra engineering.
+- **Decision:** For Phases 1–2, one call with a staged preloader that names each step ("reading photos… ordering… writing captions…"). Streaming (revealing frames as they generate) is deferred to Phase 3 as an optional polish.
+- **Why:** The wait is only a few seconds, and a single structured call can't reveal frames mid-flight without reworking the call. Weighing that added complexity against the small gain on a short wait, streaming isn't worth it now — the easy route saves time for a take-home. A staged preloader makes the wait feel purposeful with no extra engineering.
 
 ### 2.8 App state
 - **Problem:** Where does the in-progress story live in the app?
