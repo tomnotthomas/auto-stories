@@ -4,6 +4,10 @@ node_modules/
 .claude/
 .vscode/
 
+# Build + test artifacts (NestJS backend)
+dist/
+coverage/
+
 # OpenAPI build artifact (regenerate with `npm run openapi:bundle`)
 openapi/openapi.bundled.yaml
 __pycache__/
