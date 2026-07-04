@@ -204,6 +204,12 @@ The technical decisions for building Phase 1 (create the story).
 - **Decision:** Responsive web app. This reframes 3.1, 3.5, and 3.6 above.
 - **Why:** A native app can't run in a Linux container or be opened at a URL by reviewers, so it fails the brief. A responsive web app deploys to a URL, runs in a container, needs no install, and keeps the whole Phase 1 core unchanged. What changes is the shell (upload instead of camera roll; download / Web Share instead of a native Instagram deep-link); the AI story generation — the graded part — does not.
 
+### 3.14 Contract-first API, authored as a modular OpenAPI spec
+- **Problem:** Frontend and backend need to agree on the request/response shapes before either is built, and the API description shouldn't become one unreadable file as routes are added.
+- **Options for the contract:** infer it as we code each side; generate OpenAPI from NestJS decorators at runtime (backend must exist first); hand-write an OpenAPI spec as the source of truth first. **For file layout:** one monolithic `openapi.yaml`; split across files with `$ref` and bundle to flatten.
+- **Decision:** Write the OpenAPI 3.1 spec first as the source of truth (`/openapi`, at the repo root — it belongs to neither app), and author it **modularly**: root file wires it together, one file per path (`paths/`), one per schema (`components/schemas/`), reusable error responses in `components/responses/`. Tooling: Redocly (lint + bundle), openapi-typescript (generate shared TS types both apps import), Prism (mock server from the examples), Scalar (rendered reference for onboarding).
+- **Why:** Contract-first lets both sides be built in parallel — the frontend develops against the Prism mock while the backend is still being written, and generated types make a contract change break compilation on both sides instead of failing at runtime. Generating from decorators was rejected because it needs the backend to exist first, defeating the parallelism. Modular files mean you open the one route or schema you're changing instead of scanning thousands of lines, and reusable responses stop every route re-declaring the same error shapes; `redocly bundle` still produces a single flat file when a tool needs one. Verified equivalence: bundling, linting, type generation, and the Prism mock all work on the split spec, and the generated types are unchanged except for the reusable responses now being named.
+
 ---
 
 # Chapter 4 — Production readiness
