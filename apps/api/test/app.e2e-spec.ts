@@ -123,4 +123,67 @@ describe('App (e2e)', () => {
       expect(res.body.error.code).toBe('payload_too_large');
     });
   });
+
+  describe('fair-use guardrails', () => {
+    // Config is read at module init, so set env before boot() and restore after.
+    const original = {
+      perHour: process.env.RATE_LIMIT_PER_HOUR,
+      dailyCap: process.env.DAILY_GENERATION_CAP,
+    };
+
+    afterEach(() => {
+      restoreEnv('RATE_LIMIT_PER_HOUR', original.perHour);
+      restoreEnv('DAILY_GENERATION_CAP', original.dailyCap);
+    });
+
+    const story = () => ({
+      story: 'beach day with the crew',
+      photos: photos(3),
+    });
+
+    it('returns rate_limited (429) once an IP exceeds the hourly limit', async () => {
+      process.env.RATE_LIMIT_PER_HOUR = '1';
+      process.env.DAILY_GENERATION_CAP = '1000';
+      await boot();
+
+      await request(app.getHttpServer())
+        .post('/api/v1/generate')
+        .send(story())
+        .expect(200);
+
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/generate')
+        .send(story())
+        .expect(429);
+      expect(res.body.error.code).toBe('rate_limited');
+    });
+
+    it('returns quota_exhausted (503) once the daily budget is spent', async () => {
+      process.env.RATE_LIMIT_PER_HOUR = '1000';
+      process.env.DAILY_GENERATION_CAP = '1';
+      await boot();
+
+      await request(app.getHttpServer())
+        .post('/api/v1/generate')
+        .send(story())
+        .expect(200);
+
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/generate')
+        .send(story())
+        .expect(503);
+      expect(res.body.error.code).toBe('quota_exhausted');
+      // The model is only called for the request that stayed within budget.
+      expect(generateContent).toHaveBeenCalledTimes(1);
+    });
+  });
 });
+
+/** Restore an env var to a prior value, deleting it if it was unset. */
+function restoreEnv(key: string, value: string | undefined): void {
+  if (value === undefined) {
+    delete process.env[key];
+  } else {
+    process.env[key] = value;
+  }
+}
