@@ -1,0 +1,51 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Resilient — one photo dropped</title>
+<link rel="stylesheet" href="./base.css">
+<style>
+  .screen{color-scheme:dark}
+  .story{flex:1;position:relative;display:flex;flex-direction:column;background:#000}
+  .story .photo{position:absolute;inset:0}
+  .top{position:relative;z-index:3;padding:44px 12px 0}
+  .row{display:flex;align-items:center;gap:10px;padding:12px}
+  .row .name{color:#fff;font:var(--mat-sys-label-large)}
+  .row .name small{display:block;color:rgba(255,255,255,.75);font-weight:400}
+  /* top banner — sits in the empty headroom, never over the caption */
+  .banner{position:absolute;z-index:5;top:104px;left:14px;right:14px;display:flex;align-items:center;gap:10px;background:rgba(28,20,17,.86);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:11px 8px 11px 14px;box-shadow:0 8px 22px rgba(0,0,0,.4)}
+  .banner .lead{font-size:20px;color:var(--mat-sys-primary)}
+  .banner .t{flex:1;color:#fff;font:var(--mat-sys-body-medium);line-height:1.35}
+  .banner .x{width:30px;height:30px;border-radius:50%;border:none;background:transparent;color:rgba(255,255,255,.75);display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none}
+  .banner .x .material-symbols-outlined{font-size:18px}
+  .caption{position:absolute;z-index:3;left:20px;right:20px;bottom:118px;color:#fff}
+  .cap{font-weight:700;font-size:28px;line-height:1.14;text-shadow:0 2px 16px rgba(0,0,0,.55)}
+  .actions{position:absolute;z-index:4;left:16px;right:16px;bottom:24px;display:flex}
+  .actions .mat-btn{flex:1}
+</style></head>
+<body>
+<div class="device">
+  <div class="statusbar" style="color:#fff;position:absolute;z-index:6;width:100%"><span>9:41</span><span>􀙱 􀖙 100%</span></div>
+  <div class="screen">
+    <div class="story">
+      <div class="photo ph-cousins"></div>
+      <div class="scrim"></div>
+      <div class="top">
+        <div class="segs"><span class="seg now"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span></div>
+        <div class="row">
+          <div class="avatar">M</div>
+          <div class="name">Maya turns one<small>Your story · frame 1 of 4</small></div>
+        </div>
+      </div>
+      <div class="banner">
+        <span class="material-symbols-outlined lead">auto_fix_high</span>
+        <span class="t">1 photo didn't fit the story — we used 7 of 8.</span>
+        <button class="x"><span class="material-symbols-outlined">close</span></button>
+      </div>
+      <div class="caption">
+        <div class="cap">Everybody made it to the lake before noon.</div>
+      </div>
+      <div class="actions">
+        <button class="mat-btn mat-filled lg block"><span class="material-symbols-outlined">tune</span>Refine story</button>
+      </div>
+    </div>
+  </div>
+</div>
+</body></html>

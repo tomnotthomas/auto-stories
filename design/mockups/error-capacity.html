@@ -1,0 +1,53 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Error — at capacity</title>
+<link rel="stylesheet" href="./base.css">
+<style>
+  .screen{color-scheme:dark;background:var(--mat-sys-surface)}
+  .wrap{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:32px 32px 40px}
+  .pet{width:150px;height:150px;border-radius:50%;background:var(--mat-sys-surface-container-high);display:flex;align-items:center;justify-content:center;margin-bottom:24px;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+  .pet svg{width:112px;height:112px;overflow:visible}
+  .title{font:var(--mat-sys-headline-small);font-weight:700;color:var(--mat-sys-on-surface)}
+  .body{font:var(--mat-sys-body-large);color:var(--mat-sys-on-surface-variant);margin-top:10px;max-width:310px;line-height:1.5}
+  .note{font:var(--mat-sys-body-small);color:var(--mat-sys-on-surface-variant);display:inline-flex;align-items:center;gap:6px;margin-top:18px}
+  .note .material-symbols-outlined{font-size:15px}
+  .foot{flex:none;padding:0 24px 24px}
+</style></head>
+<body>
+<div class="device">
+  <div class="statusbar"><span>9:41</span><span>􀙱 􀖙 100%</span></div>
+  <div class="screen">
+    <div class="wrap">
+      <div class="pet">
+        <svg viewBox="0 0 120 120" role="img" aria-label="Lazy sloth">
+          <rect x="12" y="9" width="96" height="7" rx="3.5" fill="#7a5c3a"/>
+          <!-- hooked arm holding the branch -->
+          <path d="M80 14 q 15 8 8 30" stroke="#a38765" stroke-width="11" fill="none" stroke-linecap="round"/>
+          <g>
+            <!-- slow chill sway -->
+            <animateTransform attributeName="transform" type="rotate" values="-4 60 66;4 60 66;-4 60 66" dur="4.6s" repeatCount="indefinite"/>
+            <circle cx="60" cy="62" r="34" fill="#b79b78"/>
+            <ellipse cx="47" cy="60" rx="11" ry="15" fill="#6b5640" transform="rotate(-14 47 60)"/>
+            <ellipse cx="73" cy="60" rx="11" ry="15" fill="#6b5640" transform="rotate(14 73 60)"/>
+            <circle cx="47" cy="62" r="3.8" fill="#241812"><animate attributeName="r" values="3.8;3.8;0.5;3.8" keyTimes="0;0.92;0.95;1" dur="4.6s" repeatCount="indefinite"/></circle>
+            <circle cx="73" cy="62" r="3.8" fill="#241812"><animate attributeName="r" values="3.8;3.8;0.5;3.8" keyTimes="0;0.92;0.95;1" dur="4.6s" repeatCount="indefinite"/></circle>
+            <ellipse cx="60" cy="74" rx="5" ry="4" fill="#4a3826"/>
+            <path d="M52 82 Q60 89 68 82" stroke="#4a3826" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+            <!-- lazy waving arm -->
+            <g transform="translate(30 86)">
+              <animateTransform attributeName="transform" type="rotate" additive="sum" values="10;-26;10" dur="2.8s" repeatCount="indefinite"/>
+              <rect x="-7" y="-6" width="13" height="34" rx="6.5" fill="#a38765"/>
+              <path d="M-7 26 l -5 6 M-1 28 l -4 7 M5 26 l 3 7" stroke="#5a4632" stroke-width="2.6" stroke-linecap="round" fill="none"/>
+            </g>
+          </g>
+        </svg>
+      </div>
+      <div class="title">We're maxed out right now</div>
+      <div class="body">So many stories are being made that we're full. Take it slow like this guy and try again in a few minutes.</div>
+      <div class="note"><span class="material-symbols-outlined">info</span>Free tier — shared with everyone today.</div>
+    </div>
+    <div class="foot">
+      <button class="mat-btn mat-filled lg block"><span class="material-symbols-outlined">refresh</span>Try again</button>
+    </div>
+  </div>
+</div>
+</body></html>
