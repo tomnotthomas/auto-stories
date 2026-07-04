@@ -238,3 +238,30 @@ Resolving the production-readiness gaps the engineering review surfaced — what
 - **Options:** warn-on-unload only; a sessionStorage draft; an IndexedDB draft (state + images); server + accounts (cross-device).
 - **Decision:** Persist a local draft — **story state + downscaled proxies** — to **IndexedDB**, restored on next open in the same browser, plus a `beforeunload` warning. **Sequenced to Phase 2**, not Phase 1. Cross-device sync needs accounts → Phase 3.
 - **Why:** sessionStorage is the wrong tool (≈5 MB, strings only, dies on tab close); IndexedDB stores blobs, has large quota, and survives both refresh and accidental close. Persisting state + proxies restores the preview instantly at low cost (full-res originals re-added if needed). It's Phase 2 because losing a draft is robustness/polish, not the graded story-generation core — Phase 1 proves the value, Phase 2 hardens the session. Cross-device genuinely can't work without server-side accounts, so it lands with Phase 3.
+
+> Decisions 4.7–4.11 are baseline engineering hygiene — standard, low-controversy things a stable MVP needs from day one, so they're all Phase 1.
+
+### 4.7 Health-check endpoint
+- **Problem:** Render (and any monitor) needs to know the app is up; without it, a dead container isn't detectable.
+- **Decision:** `GET /healthz` returns 200 + minimal JSON (`status`, `model`) — a shallow **liveness** check (process is up), no auth, and no Gemini call.
+- **Why:** Standard readiness probe. Shallow on purpose — a deep check that called Gemini would burn free-tier quota on every ping.
+
+### 4.8 Story-line input hardening
+- **Problem:** The "What's the story?" text goes straight into the prompt — unbounded length and prompt-injection risk.
+- **Decision:** Server caps the length (~300 chars), trims, and rejects empty; the prompt **delimits the user text as data, not instructions**. Tone is a fixed enum (chips), so it has no injection surface.
+- **Why:** Cheap hygiene. Low stakes for a journal, so basic bounding + delimiting is enough — no heavy content filtering.
+
+### 4.9 CI/CD
+- **Problem:** Tests and builds need to run automatically, and deploys should be repeatable.
+- **Decision:** **GitHub Actions** on every PR/push — install → lint → typecheck → unit/component/contract tests → build the Angular app + Docker image. `main` deploys to Render (its git integration auto-deploys the same image).
+- **Why:** Standard pipeline; catches regressions before merge and makes deploys push-button. The tests already specified (Chapter 3) only pay off if CI runs them.
+
+### 4.10 Client-side error capture
+- **Problem:** Server errors are logged, but client-side failures (upload, decode, render) are invisible and can show a blank crash.
+- **Decision:** A global Angular `ErrorHandler` + `window.unhandledrejection` hook POSTs errors to a server log endpoint, and the UI shows a "something went wrong — retry" fallback instead of a white screen.
+- **Why:** Makes client breakage visible (pairs with the server's structured logs) and keeps a failure recoverable. A hosted tool (Sentry) is a later upgrade, not needed for the MVP.
+
+### 4.11 Security headers
+- **Problem:** A public web app with no security headers is exposed to clickjacking, MIME-sniffing, and mixed-content issues.
+- **Decision:** Apply **`helmet`** on NestJS — CSP, `X-Content-Type-Options`, frame-ancestors, `Referrer-Policy`, HSTS. CSP stays simple because the app and API share one origin (`default-src 'self'`, plus `img-src 'self' data: blob:` for the photos).
+- **Why:** One middleware covers the standard header set; same-origin keeps the CSP tight without special-casing external hosts.
