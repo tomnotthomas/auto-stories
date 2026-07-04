@@ -19,8 +19,8 @@ Making Instagram stories takes too much effort — choosing text and a narrative
 **The hard part, and the whole point of Phase 1:** given a batch of photos, decide **which photo goes first, second, third**, and **write the captions that tie them into a story**. Everything else waits.
 
 **In scope:**
-- **Pick photos + state intent** — the user uploads 3–10 photos (3 is the minimum for a story) and adds a line of intent/vibe. Upload is one tap: on mobile the file input opens the **native photo picker** (multi-select, Recents-first); on desktop it's drag-drop / click-to-browse / paste. Voice is fixed to a personal-journal tone.
-- **Story assembly (the core value)** — the app chooses which photos to use, orders them into a narrative (beginning → tension/context → payoff), and writes captions that connect them.
+- **Pick photos + say what the story is** — the user uploads 3–10 photos (3 is the minimum for a story) and answers one line: **"What's the story?"** (what happened, or the feeling they want). Upload is one tap: on mobile the file input opens the **native photo picker** (multi-select, Recents-first); on desktop it's drag-drop / click-to-browse / paste. Voice is fixed to a personal-journal tone.
+- **Story assembly (the core value)** — the app chooses which photos to use and orders them into a narrative — strongest hook first → build → payoff — driven by the story the user described, not photo timestamps, and writes captions that connect them.
 - **Fast preview, full-res result** — the app sends a **downscaled copy** of each photo (~1024px long edge, JPEG ~80%, aspect preserved) to the model for a fast response; the returned captions are placed on the **full-resolution originals** the user actually sees. The model reads a small proxy; the story uses the real photos.
 - **Hook in the first frame** — strongest visual + text hook up front, so viewers don't tap past.
 - **AI text overlay, user-placed** — AI writes each caption; the app drops it in a smart default position (lower third + legibility background) and lets the user drag/resize it. Static emoji count as text.
@@ -39,7 +39,7 @@ Making Instagram stories takes too much effort — choosing text and a narrative
 
 Value-first: the finished story is the first real output. (≤3-step flows complete ~72% vs ~16% at 7 steps — [source](https://userpilot.com/blog/aha-moment/).)
 
-1. **Express + pick** — The user picks a batch of photos (one tap → native photo picker on mobile; drag-drop on desktop) and adds a line of intent or vibe. This is the custom feel: the user tells the app what they want, it isn't guessed.
+1. **What's the story? + pick** — The user picks a batch of photos (one tap → native photo picker on mobile; drag-drop on desktop) and answers one line: what's the story (what happened, or the feeling they want). This is the custom feel and the ordering signal: the user tells the app what the story is, it isn't guessed.
 2. **Payoff: the story** — The app generates a coherent, ordered, captioned story, then lets the user review & refine in place: regenerate, swap/drop photos, edit or regenerate a caption, and drag/resize the text. **This is the wow moment.** Phase 1 ends here: a finished story on screen.
 
 **Design note:** show a finished example story instead of an empty state on first open.

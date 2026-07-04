@@ -29,7 +29,7 @@ The browser never holds the API key. The NestJS server is stateless — no datab
 
 **Frontend (Angular + Angular Material, responsive)** — tailored to look great on laptop, tablet, or phone:
 - Photo **upload** — `<input type="file" accept="image/*" multiple>`: on mobile this opens the OS **native photo picker** (multi-select, Recents-first — feels native, no library-scan permission needed); on desktop, drag-drop + click-to-browse + paste.
-- **EXIF timestamps** read client-side (`exifr`) for chronological ordering + caption context.
+- **EXIF timestamps** read client-side (`exifr`) as an optional soft ordering hint + caption context (ordering is narrative-first, not timestamp-first — see approach 3.1).
 - **Downscale** in the browser (canvas / `browser-image-compression`) to the proxy sent to the server.
 - Preview: ordered photos with a draggable/resizable caption layer (Angular **CDK drag-drop**). No pixel baking in Phase 1.
 - State in a small Angular **service (signals)**.
@@ -51,7 +51,7 @@ The browser never holds the API key. The NestJS server is stateless — no datab
 { "frames": [ { "photoId": "p1", "order": 1, "caption": "..." } ] }
 ```
 
-The model may **select a subset** and **reorder**, returning only chosen photos with an explicit `order`. The prompt: use timestamps for chronology, write specific (not generic) captions grounded in what's visible + the intent, aim for a beginning → middle → payoff arc.
+The model may **select a subset** and **reorder**, returning only chosen photos with an explicit `order`. The prompt: order by the story in the intent + what's visible (strongest hook first → payoff), using timestamps only as a soft hint; write specific (not generic) captions grounded in what's visible + the intent.
 
 ## Data model (client)
 

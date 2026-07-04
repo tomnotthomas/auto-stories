@@ -4,8 +4,7 @@ Grouped by kind. Product questions shape the core value; the production-readines
 list came out of the engineering review and covers what would break in production.
 
 ## Product / core value
-1. **How do we put the story in the right order?** The hard part — turning a pile of photos into a well-sequenced story. What signals decide the order (time, content, arc)?
-   - **Fallback when timestamps are missing:** ordering leans on EXIF `takenAt`, but real uploads often have it stripped (screenshots, messaging-app images, re-downloads). What orders the story when `takenAt` is absent?
+1. ~~**How do we put the story in the right order?**~~ **Resolved (approach 3.1):** narrative-first. The user's one line ("What's the story?") plus the images drive the order into an arc — strongest hook first → build → payoff. Timestamps are an optional soft hint only, so missing EXIF is a non-event; manual drag-to-reorder is the refine escape hatch.
 2. **How does the AI get enough context for good captions?** The model sees pixels + a one-line intent. What extra context do we give it (more questions, EXIF time/place, etc.) so captions feel true, not generic?
 3. **What hooks the user on first open?** What moment in creating the first story makes a first-time user want to stay and come back?
 4. **Should we show a quick demo video on first open?** A short clip showing how fast a story is made, to hook the user before they do anything.
