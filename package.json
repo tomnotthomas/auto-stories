@@ -9,8 +9,8 @@
     "apps/*"
   ],
   "scripts": {
-    "openapi:lint": "redocly lint openapi/openapi.yaml --config packages/api-types/redocly.yaml",
-    "openapi:bundle": "redocly bundle openapi/openapi.yaml --config packages/api-types/redocly.yaml -o openapi/openapi.bundled.yaml",
+    "openapi:lint": "redocly lint openapi/openapi.yaml --config openapi/redocly.yaml",
+    "openapi:bundle": "redocly bundle openapi/openapi.yaml --config openapi/redocly.yaml -o openapi/openapi.bundled.yaml",
     "openapi:preview": "scalar document serve openapi/openapi.yaml",
     "openapi:mock": "prism mock openapi/openapi.yaml",
     "openapi:types": "kubb generate --config packages/api-types/kubb.config.ts",
