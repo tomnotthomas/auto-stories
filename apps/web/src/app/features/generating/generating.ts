@@ -3,14 +3,13 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatIconModule } from '@angular/material/icon';
 
 import { StoryService } from '../../story/story.service';
-import { StoryGateway } from '../../story/story.gateway';
-import { ImageService } from '../../story/image.service';
+import { GenerationService } from '../../story/generation.service';
 
 /**
- * The model is building the story. This screen owns the generate call: it
- * downscales the picked photos, POSTs them, and lands the flow on the payoff
- * or a specific error (4.3). While it waits it narrates the real work over the
- * user's own photos (5.7) — a ticker advances the steps and cycles the images.
+ * The model is building the story. The generate round trip lives in
+ * GenerationService (shared with refine); this screen kicks it off and, while it
+ * waits, narrates the real work over the user's own photos (5.7) — a ticker
+ * advances the steps and cycles the images.
  */
 @Component({
   selector: 'app-generating',
@@ -19,8 +18,7 @@ import { ImageService } from '../../story/image.service';
 })
 export class Generating implements OnDestroy {
   private readonly story = inject(StoryService);
-  private readonly images = inject(ImageService);
-  private readonly gateway = inject(StoryGateway);
+  private readonly generation = inject(GenerationService);
 
   protected readonly steps = [
     'Reading your photos',
@@ -40,31 +38,10 @@ export class Generating implements OnDestroy {
   private readonly timer = setInterval(() => this.tick.update((t) => t + 1), 1600);
 
   constructor() {
-    void this.run();
+    void this.generation.generate();
   }
 
   ngOnDestroy(): void {
     clearInterval(this.timer);
-  }
-
-  private async run(): Promise<void> {
-    try {
-      const photos = await this.images.toProxies(this.story.photos());
-      const outcome = await this.gateway.generate({
-        story: this.story.storyLine().trim(),
-        tone: this.story.tone() ?? undefined,
-        photos,
-      });
-      if (outcome.ok) {
-        this.story.completeStory(outcome.response.frames, outcome.response.partial ?? false);
-      } else {
-        this.story.failStory({ code: outcome.code, message: outcome.message });
-      }
-    } catch {
-      this.story.failStory({
-        code: 'network',
-        message: 'Something went wrong. Please try again.',
-      });
-    }
   }
 }
