@@ -8,12 +8,12 @@ Make the app something the user comes back to — it documents their life on a r
 ## Scope
 
 **In scope:**
-- **Connect the account / streamline posting** — reduce the posting friction from Phase 2 for repeat use.
-- **Posting cadence** — the user sets a frequency (every 2 days / weekly / monthly).
-- **Auto-surface candidate photos** — on each cycle, the app pulls photos from that time window (e.g. last week if weekly) and nudges the user: "here's last week — make a story." The user still picks and reviews.
-- **Persist preferences** — remember the user's settings so nothing is re-entered each time.
+- **Cadence + reminders** — the user sets a frequency (every 2 days / weekly / monthly); the app sends email/push reminders to make a story for that period.
+- **One-tap re-upload on the nudge** — the reminder returns the user to the upload step. A web app can't auto-scan a photo library, but on mobile the file input opens the **native photo picker** (multi-select, Recents-first), so grabbing the period's photos is a tap and a few selections — not a chore. This replaces the native "auto-surface" idea.
+- **Accounts + persistence** — save the user's cadence and past stories (Phase 1's server is stateless; Phase 3 adds light persistence + auth).
+- **Streamlined re-posting** — reduce Phase 2's hand-off friction for repeat use.
 
-**Guiding principle:** sourcing candidates from the current time window (not the whole library) keeps it a living journal.
+**Guiding principle:** the app documents life on a rhythm — it nudges, the user taps and picks the period's photos from the native picker (Recents-first makes "last week" fast).
 
 ## Open questions
 See [`open-questions.md`](open-questions.md) in this folder — notably how cadence works given posting is a manual hand-off (Phase 2).
