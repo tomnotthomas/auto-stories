@@ -92,6 +92,13 @@ The decisions that make the generated story *good*: which photo leads, how the p
 - **Why:** Chronological-first breaks silently when EXIF is stripped (common on screenshots and messaging-app uploads) and the user can't tell why it's wrong. Strict time order also tells a worse story — the chronologically-first photo is often the most boring, when a Story needs the most attention-grabbing photo first to hook the viewer. Order is already emergent from the single call (3.3), so this is a prompt-design choice, not a new pipeline. The mode-picker (option C) was cut: it adds a choice most users won't touch, Timeline reproduces the boring-first-photo problem, and Story flow feels more custom — the better fit for the MVP. (A Timeline mode is a possible later add, not now.)
 - **Also:** the step-1 field is renamed from the vague "intent/vibe" to **"What's the story?"** — one plain line about what happened and the feeling, which drives both ordering and captions.
 
+### 2.2 How does the AI get enough context for good captions?
+- **Problem:** A good caption references what actually happened (names, occasion, place, tone), but the model only sees pixels + the one "What's the story?" line. Is that enough, or does it write generic captions?
+- **Options:** rely on pixels + the one line; add a couple of typed questions up front; keep one **guided** line ("What's the story?") with an example placeholder + one **optional tone chip**.
+- **Decision:** One guided "What's the story?" line with an example placeholder that coaxes specifics (names/occasion/place), plus one optional tone chip (Funny / Heartfelt / Hype / Chill). No multi-question form.
+- **Why:** We don't want to ask the user too many questions, and we don't want a generic result. More questions add friction before the payoff (against 1.1) and tend to collect generic answers ("fun") that just duplicate the story line. A guided line trains a specific answer at zero added friction, and one tone chip adds the undertone free text usually omits in a single tap. One question — "What's the story?" — with an undertone is enough customization for a nice story.
+- **Later (Phase 3, optional):** learn the user's voice from the captions they edit/regenerate in the refine step (first-party signal). Reading their Instagram to learn voice was considered and dropped — it needs Instagram access we don't have (same wall as posting).
+
 ---
 
 # Chapter 3 — Locking the Phase 1 architecture
