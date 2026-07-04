@@ -1,0 +1,10 @@
+{
+  "name": "landing",
+  "version": "0.0.0",
+  "description": "Auto Stories marketing landing page — a self-contained, scroll-driven story served at the site root.",
+  "private": true,
+  "license": "UNLICENSED",
+  "scripts": {
+    "build": "python3 build.py"
+  }
+}
