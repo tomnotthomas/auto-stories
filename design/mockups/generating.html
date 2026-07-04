@@ -1,0 +1,86 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Generating — building your story</title>
+<link rel="stylesheet" href="./base.css">
+<style>
+  .screen{color-scheme:dark}
+  .gen{flex:1;position:relative;background:#000;overflow:hidden;display:flex;flex-direction:column}
+  .slides{position:absolute;inset:0}
+  .slides .photo{position:absolute;inset:0;opacity:0;animation:cycle 12s infinite}
+  .slides .photo:nth-child(1){animation-delay:0s}
+  .slides .photo:nth-child(2){animation-delay:3s}
+  .slides .photo:nth-child(3){animation-delay:6s}
+  .slides .photo:nth-child(4){animation-delay:9s}
+  @keyframes cycle{0%{opacity:0;transform:scale(1.12)}4%{opacity:1}25%{opacity:1}29%{opacity:0;transform:scale(1)}100%{opacity:0}}
+  .scrim{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.5) 0%,rgba(0,0,0,.2) 30%,rgba(0,0,0,.55) 60%,rgba(0,0,0,.95) 100%)}
+
+  .content{position:relative;z-index:3;margin-top:auto;padding:24px 24px 40px;color:#fff}
+  /* live "typewriter" caption — previews the payoff (writing captions happening now) */
+  .preview{min-height:30px;margin-bottom:12px}
+  .type{display:inline-block;overflow:hidden;white-space:nowrap;vertical-align:bottom;border-right:2px solid var(--mat-sys-primary);font-weight:700;font-size:21px;color:#fff;width:0;animation:typing 6s steps(26,end) infinite, caret .7s step-end infinite}
+  @keyframes typing{0%{width:0}38%{width:26ch}62%{width:26ch}100%{width:0}}
+  @keyframes caret{50%{border-color:transparent}}
+  .title{font-weight:700;font-size:24px;line-height:1.14;color:rgba(255,255,255,.92)}
+  .linebar{height:4px;border-radius:4px;background:rgba(255,255,255,.22);overflow:hidden;position:relative;margin:20px 0 22px}
+  .linebar::after{content:"";position:absolute;top:0;left:-45%;width:45%;height:100%;background:var(--mat-sys-primary);border-radius:4px;animation:indet 1.3s cubic-bezier(.4,0,.2,1) infinite}
+  @keyframes indet{0%{left:-45%}100%{left:100%}}
+
+  .steps{display:flex;flex-direction:column;gap:16px}
+  .step{display:flex;align-items:center;gap:12px;font:var(--mat-sys-body-large)}
+  .step .lbl{color:rgba(255,255,255,.5)}
+  .ic{width:24px;height:24px;position:relative;flex:none}
+  .ic>*{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+  .dotp{opacity:0}
+  .dotp b{width:9px;height:9px;border-radius:50%;border:2px solid rgba(255,255,255,.35);display:block}
+  .spin{width:19px;height:19px;border-radius:50%;border:2.5px solid rgba(255,255,255,.22);border-top-color:var(--mat-sys-primary);opacity:0;animation:spinrot .9s linear infinite}
+  .chk{opacity:0}
+  .chk .material-symbols-outlined{font-size:24px;color:var(--mat-sys-primary)}
+  @keyframes spinrot{to{transform:rotate(360deg)}}
+
+  /* 9s looping sequence: step1 active 0-30%, step2 30-60%, step3 60-90%, hold 90-100% */
+  .step1 .spin{animation:spinrot .9s linear infinite, a1 9s infinite}
+  .step1 .chk{animation:d1 9s infinite}
+  .step2 .dotp{animation:p2 9s infinite}
+  .step2 .spin{animation:spinrot .9s linear infinite, a2 9s infinite}
+  .step2 .chk{animation:d2 9s infinite}
+  .step2 .lbl{animation:t2 9s infinite}
+  .step3 .dotp{animation:p3 9s infinite}
+  .step3 .spin{animation:spinrot .9s linear infinite, a3 9s infinite}
+  .step3 .chk{animation:d3 9s infinite}
+  .step3 .lbl{animation:t3 9s infinite}
+  @keyframes a1{0%{opacity:1}30%{opacity:1}33%{opacity:0}100%{opacity:0}}
+  @keyframes d1{0%{opacity:0}30%{opacity:0}34%{opacity:1}100%{opacity:1}}
+  @keyframes p2{0%{opacity:1}30%{opacity:1}33%{opacity:0}100%{opacity:0}}
+  @keyframes a2{0%{opacity:0}33%{opacity:0}36%{opacity:1}60%{opacity:1}63%{opacity:0}100%{opacity:0}}
+  @keyframes d2{0%{opacity:0}63%{opacity:0}66%{opacity:1}100%{opacity:1}}
+  @keyframes t2{0%,33%{color:rgba(255,255,255,.5)}36%,100%{color:#fff}}
+  @keyframes p3{0%{opacity:1}60%{opacity:1}63%{opacity:0}100%{opacity:0}}
+  @keyframes a3{0%{opacity:0}63%{opacity:0}66%{opacity:1}90%{opacity:1}93%{opacity:0}100%{opacity:0}}
+  @keyframes d3{0%{opacity:0}90%{opacity:0}93%{opacity:1}100%{opacity:1}}
+  @keyframes t3{0%,63%{color:rgba(255,255,255,.5)}66%,100%{color:#fff}}
+</style></head>
+<body>
+<div class="device">
+  <div class="statusbar" style="color:#fff;position:absolute;z-index:5;width:100%"><span>9:41</span><span>􀙱 􀖙 100%</span></div>
+  <div class="screen">
+    <div class="gen">
+      <div class="slides">
+        <div class="photo ph-cake"></div>
+        <div class="photo ph-cousins"></div>
+        <div class="photo ph-sparkler"></div>
+        <div class="photo ph-lake"></div>
+      </div>
+      <div class="scrim"></div>
+      <div class="content">
+        <div class="preview"><span class="type">We all made it to the lake</span></div>
+        <div class="title">Building your story…</div>
+        <div class="linebar"></div>
+        <div class="steps">
+          <div class="step step1"><span class="ic"><span class="spin"></span><span class="chk"><span class="material-symbols-outlined">check_circle</span></span></span><span class="lbl" style="color:#fff">Reading your 8 photos</span></div>
+          <div class="step step2"><span class="ic"><span class="dotp"><b></b></span><span class="spin"></span><span class="chk"><span class="material-symbols-outlined">check_circle</span></span></span><span class="lbl">Finding the story — strongest hook first</span></div>
+          <div class="step step3"><span class="ic"><span class="dotp"><b></b></span><span class="spin"></span><span class="chk"><span class="material-symbols-outlined">check_circle</span></span></span><span class="lbl">Writing the captions</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body></html>
