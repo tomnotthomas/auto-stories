@@ -333,6 +333,13 @@ Resolving the production-readiness gaps the engineering review surfaced — what
 - **Decision:** Primary CTA "Open the live example" → the app's first-open interactive example Story (swipeable, no account, nothing to upload); "Start with my photos" kept as a secondary button.
 - **Why:** Same reasoning as the first-open interactive demo ([2.3](#23-first-open-experience)): an interactive example gets users to value before asking for anything, and users who hit one are far likelier to complete the next step. Leading with upload asks for commitment before the visitor has seen it work; the example removes that friction and the landing story hands off directly into the product.
 
+### 5.4 Two entry routes (`/example`, `/create`), and the landing lives in the app
+- **Problem:** The landing needs two doors — one for "let me check it out" and one for "I'm sold, let me start" — and it wasn't decided where the marketing landing page itself is served.
+- **Options (routing):** one entry that upload-or-example forks internally; two top-level routes.
+- **Options (serving the landing):** serve the self-contained motion artifact as a static file from NestJS at `/`; give it its own marketing host; make `/` a normal Angular route.
+- **Decision:** Two routes — `/example` (no-login example) and `/create` (upload) — mirroring the landing's two CTAs. `/` is a plain **Angular Landing route** inside the SPA; the motion page stays a standalone shareable artifact, not the served front door. Unknown routes redirect to `/`.
+- **Why:** Two named routes make each door linkable and let the funnel branch cleanly. Serving the landing as an Angular route keeps it inside the app's Tailwind + Material conventions and needs no special backend path — the motion artifact deliberately breaks those rules (custom keyframes, 3D, inlined JS), so bolting it onto NestJS at `/` would have pushed rule-breaking markup into the deploy for no product gain. Keeping the artifact separate preserves it as a marketing showcase without compromising the app.
+
 # Chapter 6 — Lessons learned
 
 Working notes about *how* I worked on this, kept so I don't repeat the mistakes.
