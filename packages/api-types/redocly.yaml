@@ -3,4 +3,4 @@ extends:
 
 apis:
   auto-stories@v1:
-    root: openapi/openapi.yaml
+    root: ../../openapi/openapi.yaml
