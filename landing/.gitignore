@@ -1,0 +1,4 @@
+# regenerable build intermediates (build.py fetches/derives these)
+assets/scaled/
+assets/roboto.css
+assets/roboto-latin.woff2
