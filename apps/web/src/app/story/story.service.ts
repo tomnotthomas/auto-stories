@@ -1,4 +1,5 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, computed, signal } from '@angular/core';
+import type { Tone } from '@auto-stories/api-types';
 
 /**
  * The screen the flow is currently on. Phase 1 is one linear, in-memory flow
@@ -11,25 +12,100 @@ import { Injectable, signal } from '@angular/core';
  */
 export type StoryPhase = 'example' | 'create' | 'generating' | 'story' | 'error';
 
+/** A photo the user has picked, before it's downscaled for the model. */
+export interface PickedPhoto {
+  /** Client-assigned id, echoed back on the matching frame (contract Photo.id). */
+  readonly id: string;
+  /** The original full-res file — downscaled to a proxy only at generate time. */
+  readonly file: File;
+  /** Object URL for showing the photo in the picker grid. */
+  readonly previewUrl: string;
+}
+
+/** A story needs a beginning, middle, and payoff — so at least 3 frames (1.11). */
+export const MIN_PHOTOS = 3;
+/** Google recommends ≤10 images for good understanding; matches a Story's length (3.4). */
+export const MAX_PHOTOS = 10;
+/** The story line is one guided sentence; a soft cap keeps it focused (5.6). */
+export const MAX_STORY_LENGTH = 150;
+
 /**
  * Holds the in-progress story in signals and drives the flow between screens.
- * A single root singleton (approach 3.8) — no NgRx, no router. Grows a field
- * per screen as the flow is built out; today it owns the phase machine.
+ * A single root singleton (approach 3.8) — no NgRx, no router. It is the model
+ * for the create step too: the picker and story field read/write these signals
+ * directly rather than a separate form.
  */
 @Injectable({ providedIn: 'root' })
 export class StoryService {
   private readonly _phase = signal<StoryPhase>('example');
+  private readonly _photos = signal<readonly PickedPhoto[]>([]);
+  private readonly _storyLine = signal('');
+  private readonly _tone = signal<Tone | null>(null);
+  private seq = 0;
 
   /** The screen the flow shell should render. */
   readonly phase = this._phase.asReadonly();
+  /** The picked photos, in pick order. */
+  readonly photos = this._photos.asReadonly();
+  /** The user's "What's the story?" line. */
+  readonly storyLine = this._storyLine.asReadonly();
+  /** The optional tone chip, or null. */
+  readonly tone = this._tone.asReadonly();
+
+  /** How many photos are picked. */
+  readonly photoCount = computed(() => this._photos().length);
+  /** True once the max is reached, so the picker hides the Add tile. */
+  readonly isFull = computed(() => this._photos().length >= MAX_PHOTOS);
+  /** Generate is allowed once there are enough photos and a non-empty story line. */
+  readonly canGenerate = computed(
+    () => this._photos().length >= MIN_PHOTOS && this._storyLine().trim().length > 0,
+  );
 
   /** Leave the first-open example and begin creating a story. */
   startCreating(): void {
     this._phase.set('create');
   }
 
-  /** Return to the first-open example (start over). */
+  /** Add picked files — images only, capped at MAX_PHOTOS total. */
+  addPhotos(files: readonly File[]): void {
+    const room = MAX_PHOTOS - this._photos().length;
+    if (room <= 0) return;
+    const added = files
+      .filter((file) => file.type.startsWith('image/'))
+      .slice(0, room)
+      .map((file) => ({ id: `photo-${++this.seq}`, file, previewUrl: URL.createObjectURL(file) }));
+    if (added.length) this._photos.update((photos) => [...photos, ...added]);
+  }
+
+  /** Remove a picked photo and release its preview URL. */
+  removePhoto(id: string): void {
+    const photo = this._photos().find((p) => p.id === id);
+    if (!photo) return;
+    URL.revokeObjectURL(photo.previewUrl);
+    this._photos.update((photos) => photos.filter((p) => p.id !== id));
+  }
+
+  /** Set the story line, trimmed to the soft max length. */
+  setStoryLine(value: string): void {
+    this._storyLine.set(value.slice(0, MAX_STORY_LENGTH));
+  }
+
+  /** Select a tone chip, or pass null to clear it (tone is optional). */
+  setTone(tone: Tone | null): void {
+    this._tone.set(tone);
+  }
+
+  /** Submit the create step and move to the generating screen. */
+  startGenerating(): void {
+    this._phase.set('generating');
+  }
+
+  /** Clear everything and return to the first-open example (start over). */
   reset(): void {
+    for (const photo of this._photos()) URL.revokeObjectURL(photo.previewUrl);
+    this._photos.set([]);
+    this._storyLine.set('');
+    this._tone.set(null);
     this._phase.set('example');
   }
 }
