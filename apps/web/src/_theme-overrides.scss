@@ -1,0 +1,34 @@
+// Golden Hour — global Angular Material component overrides.
+//
+// This is the ONE place to bend Material components to the Golden Hour design.
+// Set a component's design tokens here, once, and every instance app-wide
+// inherits it — so component templates stay free of styling (per CLAUDE.md:
+// standard Material components, no component CSS, no inline styles, Tailwind
+// only for layout).
+//
+// Rule of thumb: if a screen needs a Material component to look different from
+// the M3 default, add the token override HERE, not in the component. Colours
+// reference the theme's own --mat-sys-* system variables so light/dark and any
+// future palette change flow through automatically.
+//
+// Most of Golden Hour already comes for free: mat.theme() emits the full
+// --mat-sys-* token set (see _theme-colors.scss), and the mockups were built
+// from that same set — so M3 defaults already match. Only genuine divergences
+// belong below.
+@use '@angular/material' as mat;
+
+@mixin overrides {
+  // Chips — the selected state uses the primary (coral) container instead of
+  // the M3 default secondary, so the tone chips ("Funny / Heartfelt / …") read
+  // as the Golden Hour accent. See design/mockups/step2-pick-story.html.
+  @include mat.chips-overrides(
+    (
+      elevated-selected-container-color: var(--mat-sys-primary-container),
+      selected-label-text-color: var(--mat-sys-on-primary-container),
+      with-icon-selected-icon-color: var(--mat-sys-on-primary-container),
+      selected-trailing-icon-color: var(--mat-sys-on-primary-container),
+      selected-focus-state-layer-color: var(--mat-sys-on-primary-container),
+      selected-hover-state-layer-color: var(--mat-sys-on-primary-container),
+    )
+  );
+}
