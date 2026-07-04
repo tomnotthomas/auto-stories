@@ -327,6 +327,12 @@ Resolving the production-readiness gaps the engineering review surfaced — what
 - **Decision:** The only place colors are defined is the generated SCSS: source colors → tonal palettes (`apps/web/src/_theme-colors.scss`, via Material's own color utilities, the engine behind `ng generate @angular/material:theme-color`) → `mat.theme()` in `material-theme.scss`. Nothing hand-lists hexes. The mockups import `tokens.css`, which is *compiled from that same SCSS theme* (not typed by hand), so they style with `var(--mat-sys-primary)` etc. — the exact variables the app uses.
 - **Why:** One source of truth. A raw named-color CSS file duplicated from the theme isn't properly done — it silently drifts the moment the source colors change. Compiling the theme to tokens means a mockup can't promise a color the app can't render (verified: `--mat-sys-primary: light-dark(#ae310e, #ffb4a1)`). Theme ships light + dark (`color-scheme: light dark`) for free. M3 behavior to note: the *primary role* is tone 40/80, not the source swatch — the bright coral surfaces as containers/accents, which is how Material guarantees AA contrast.
 
+### 5.3 Landing-page CTA lands on the no-login example, not upload
+- **Problem:** The motion landing page closed on "Try it with your photos," sending a first-time visitor straight to upload — a commitment step — with no path to just look at the product.
+- **Options:** single CTA to upload; single CTA to a live example; both, with the example as the primary action.
+- **Decision:** Primary CTA "Open the live example" → the app's first-open interactive example Story (swipeable, no account, nothing to upload); "Start with my photos" kept as a secondary button.
+- **Why:** Same reasoning as the first-open interactive demo ([2.3](#23-first-open-experience)): an interactive example gets users to value before asking for anything, and users who hit one are far likelier to complete the next step. Leading with upload asks for commitment before the visitor has seen it work; the example removes that friction and the landing story hands off directly into the product.
+
 # Chapter 6 — Lessons learned
 
 Working notes about *how* I worked on this, kept so I don't repeat the mistakes.
