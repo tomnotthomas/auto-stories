@@ -5,22 +5,25 @@
     }
     <div class="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/80"></div>
 
-    <!-- Tap zones: left third goes back, right advances (Stories convention) -->
-    <button
-      type="button"
-      aria-label="Previous frame"
-      (click)="prev()"
-      class="absolute bottom-32 left-0 top-20 z-10 w-2/5"
-    ></button>
-    <button
-      type="button"
-      aria-label="Next frame"
-      (click)="next()"
-      class="absolute bottom-32 right-0 top-20 z-10 w-3/5"
-    ></button>
+    <!-- Tap zones: left third goes back, right advances (Stories convention).
+         Off in refine so a tap edits the caption instead of paging. -->
+    @if (!refining()) {
+      <button
+        type="button"
+        aria-label="Previous frame"
+        (click)="prev()"
+        class="absolute bottom-32 left-0 top-20 z-10 w-2/5"
+      ></button>
+      <button
+        type="button"
+        aria-label="Next frame"
+        (click)="next()"
+        class="absolute bottom-32 right-0 top-20 z-10 w-3/5"
+      ></button>
+    }
 
     <header class="relative z-20 flex gap-1 px-3 pt-11">
-      @for (f of frames(); track $index) {
+      @for (f of frames(); track f.photoId) {
         <span
           class="h-[3px] flex-1 rounded bg-white"
           [class.opacity-40]="$index > currentIndex()"
@@ -28,7 +31,7 @@
       }
     </header>
 
-    @if (partial() && !bannerDismissed()) {
+    @if (partial() && !bannerDismissed() && !refining()) {
       <div
         class="absolute inset-x-3.5 top-[104px] z-30 flex items-center gap-2.5 rounded-2xl border border-white/10 bg-surface-container-high p-3 shadow-lg"
       >
@@ -36,21 +39,88 @@
         <span class="mat-label-large flex-1 text-on-surface"
           >1 photo didn't fit the story — we used {{ frameCount() }} of {{ pickedCount() }}.</span
         >
-        <button type="button" aria-label="Dismiss notice" (click)="dismissBanner()" class="text-on-surface-variant">
+        <button
+          type="button"
+          aria-label="Dismiss notice"
+          (click)="dismissBanner()"
+          class="text-on-surface-variant"
+        >
           <mat-icon>close</mat-icon>
         </button>
       </div>
     }
 
-    <div class="absolute inset-x-5 bottom-28 z-20">
-      <p class="story-caption inline-block rounded-2xl bg-black/40 px-4 py-3">{{ frame.caption }}</p>
+    <!-- The caption, at the placement the user gave it. In refine it becomes a
+         tappable, editable-looking layer; the editor overlay opens on tap. -->
+    <div
+      class="absolute z-20 w-[78%] max-w-[320px] -translate-x-1/2 -translate-y-1/2"
+      [style.left.%]="frame.placement.xPct"
+      [style.top.%]="frame.placement.yPct"
+    >
+      @if (refining()) {
+        @if (!coachSeen()) {
+          <div
+            class="mat-label-large absolute -top-12 left-1/2 flex -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-full bg-primary px-3 py-1.5 text-on-primary shadow-lg"
+          >
+            <mat-icon class="h-[18px] w-[18px] text-[18px] leading-none">touch_app</mat-icon>
+            Tap to edit &amp; move
+          </div>
+        }
+        <button
+          type="button"
+          (click)="editCaption(frame.photoId)"
+          class="story-caption relative block w-full rounded-2xl border-[1.5px] border-dashed border-white/60 text-center font-bold leading-tight text-white"
+          [class]="frame.legibility ? 'bg-black/40 px-4 py-3' : 'px-4 py-3'"
+          [style.fontSize.px]="frame.placement.scale * 24"
+        >
+          {{ frame.caption }}
+          <mat-icon
+            class="absolute -right-2.5 -top-2.5 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-[16px] text-on-primary shadow-lg"
+            >edit</mat-icon
+          >
+        </button>
+      } @else {
+        <p
+          class="story-caption text-center font-bold leading-tight text-white"
+          [class]="frame.legibility ? 'rounded-2xl bg-black/40 px-4 py-3' : ''"
+          [style.fontSize.px]="frame.placement.scale * 24"
+        >
+          {{ frame.caption }}
+        </p>
+      }
     </div>
 
-    <div class="absolute inset-x-4 bottom-6 z-30">
-      <button matButton="filled" class="w-full" (click)="startOver()">
-        <mat-icon>refresh</mat-icon>
-        Start over
-      </button>
-    </div>
+    <!-- Bottom action bar -->
+    @if (refining()) {
+      <div class="absolute inset-x-4 bottom-6 z-20 flex gap-3">
+        <button matButton="filled" class="flex-1" (click)="exitRefine()">
+          <mat-icon>check</mat-icon>
+          Done
+        </button>
+      </div>
+    } @else {
+      <div class="absolute inset-x-4 bottom-6 z-20 flex flex-col gap-1">
+        <button matButton="filled" class="w-full" (click)="enterRefine()">
+          <mat-icon>tune</mat-icon>
+          Refine story
+        </button>
+        <button matButton class="w-full text-white" (click)="startOver()">Start over</button>
+      </div>
+    }
+
+    <!-- Caption editor overlay -->
+    @if (editingFrame(); as editing) {
+      <app-caption-editor
+        [caption]="editing.caption"
+        [placement]="editing.placement"
+        [legibility]="editing.legibility"
+        [busy]="regenBusy()"
+        (captionChange)="onCaption($event)"
+        (placementChange)="onPlacement($event)"
+        (legibilityToggle)="onLegibility()"
+        (regenerate)="regenerateCaption()"
+        (done)="closeEditor()"
+      />
+    }
   }
 </section>

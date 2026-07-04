@@ -24,24 +24,35 @@
     </div>
   </header>
 
-  <!-- Caption: coach mark + the editable-looking text layer (approach 5.5) -->
-  <div class="absolute inset-x-5 bottom-[150px] z-10">
-    <div
-      class="mat-label-large mb-3.5 inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-on-primary shadow-lg"
+  <!-- Caption: coach mark + the editable text layer (approach 5.5 / 5.9). Tapping
+       it opens the same editor the real flow uses, so the first open teaches it. -->
+  <div
+    class="absolute z-10 w-[78%] max-w-[320px] -translate-x-1/2 -translate-y-1/2"
+    [style.left.%]="placement().xPct"
+    [style.top.%]="placement().yPct"
+  >
+    @if (!coachSeen()) {
+      <div
+        class="mat-label-large absolute -top-12 left-1/2 flex -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-full bg-primary px-3 py-1.5 text-on-primary shadow-lg"
+      >
+        <mat-icon class="h-[18px] w-[18px] text-[18px] leading-none">touch_app</mat-icon>
+        Tap to edit &amp; move
+      </div>
+    }
+    <button
+      type="button"
+      (click)="editCaption()"
+      class="story-caption relative block w-full rounded-2xl border-[1.5px] border-dashed border-white/60 text-center font-bold leading-tight text-white"
+      [class]="legibility() ? 'bg-black/40 px-4 py-3' : 'px-4 py-3'"
+      [style.fontSize.px]="fontSize()"
     >
-      <mat-icon class="h-[18px] w-[18px] text-[18px] leading-none">touch_app</mat-icon>
-      Tap to edit &amp; move
-    </div>
-    <p
-      class="story-caption relative inline-block rounded-2xl border-[1.5px] border-dashed border-white/60 bg-black/40 px-4 py-3"
-    >
-      {{ caption }}
-    </p>
+      {{ caption() }}
+      <mat-icon
+        class="absolute -right-2.5 -top-2.5 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-[16px] text-on-primary shadow-lg"
+        >edit</mat-icon
+      >
+    </button>
   </div>
-
-  <p class="mat-label-medium absolute inset-x-0 bottom-28 z-10 text-center text-white/85">
-    Tap the photo to see how it flows ›
-  </p>
 
   <!-- Primary CTA, pinned 24px from the bottom (approach 5.6) -->
   <div class="absolute inset-x-4 bottom-6 z-20">
@@ -50,4 +61,18 @@
       Try it with your photos
     </button>
   </div>
+
+  <!-- Caption editor overlay (demo mode: no Regenerate) -->
+  @if (editing()) {
+    <app-caption-editor
+      [demo]="true"
+      [caption]="caption()"
+      [placement]="placement()"
+      [legibility]="legibility()"
+      (captionChange)="onCaption($event)"
+      (placementChange)="onPlacement($event)"
+      (legibilityToggle)="onLegibility()"
+      (done)="closeEditor()"
+    />
+  }
 </section>

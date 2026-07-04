@@ -31,4 +31,20 @@ describe('Example', () => {
     await harness.clickCta();
     expect(story.phase()).toBe('create');
   });
+
+  it('opens the caption editor in demo mode when the caption is tapped', async () => {
+    expect(await harness.getEditor()).toBeNull();
+    await harness.tapCaption();
+    const editor = await harness.getEditor();
+    expect(editor).not.toBeNull();
+    // Demo mode hides Regenerate — the example teaches, it doesn't call the API.
+    expect(await editor!.hasRegenerate()).toBe(false);
+  });
+
+  it('reflects an edited example caption', async () => {
+    await harness.tapCaption();
+    const editor = await harness.getEditor();
+    await editor!.setCaption('My own words');
+    expect(await harness.getCaptionText()).toContain('My own words');
+  });
 });
