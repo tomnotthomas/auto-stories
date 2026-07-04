@@ -63,6 +63,8 @@ Story  { id, intent, frames: Frame[], createdAt }
 
 ## Deployment
 
+![Deployment: one Docker image from the repo runs on Render (live URL) and in a reviewer's container; browser hits Render over HTTPS; Render calls Gemini Flash](diagrams/deployment.png)
+
 - **App:** one NestJS server serves the built Angular app (`dist/`) and the `/api/v1/generate` endpoint. Provide a **`docker-compose.yml`** so reviewers can `docker compose up` in a fresh Linux container, and host the same image **free on Render** (spins down when idle; ~30-50s cold start on first hit) for a live URL — both required by the brief.
 - **Secrets:** `GEMINI_API_KEY` and `MODEL` are server-side env vars only. The browser bundle contains no key.
 
