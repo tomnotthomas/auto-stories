@@ -4,17 +4,23 @@
   "private": true,
   "description": "Auto Stories — turn a pile of photos into an ordered, captioned Instagram Story.",
   "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
   "scripts": {
     "openapi:lint": "redocly lint openapi/openapi.yaml",
     "openapi:bundle": "redocly bundle openapi/openapi.yaml -o openapi/openapi.bundled.yaml",
     "openapi:preview": "scalar document serve openapi/openapi.yaml",
     "openapi:mock": "prism mock openapi/openapi.yaml",
-    "openapi:types": "openapi-typescript"
+    "openapi:types": "openapi-typescript",
+    "typecheck": "npm run typecheck --workspaces --if-present"
   },
   "devDependencies": {
     "@redocly/cli": "^2.37.0",
     "@scalar/cli": "^1.3.2",
     "@stoplight/prism-cli": "^5.14.2",
-    "openapi-typescript": "^7.13.0"
+    "openapi-typescript": "^7.13.0",
+    "typescript": "^6.0.3"
   }
 }

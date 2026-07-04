@@ -1,0 +1,20 @@
+{
+  "name": "@auto-stories/api-types",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Shared API types generated from the OpenAPI contract. Imported by both the Angular frontend and the NestJS backend.",
+  "type": "module",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  }
+}
