@@ -1,0 +1,387 @@
+openapi: 3.1.0
+info:
+  title: Auto Stories API
+  version: 1.0.0
+  summary: Turn a pile of photos into an ordered, captioned Instagram Story.
+  description: |
+    Contract between the Auto Stories web client and the NestJS backend.
+
+    One core route turns 3–10 photos plus the user's one-line "What's the story?"
+    answer into an ordered, captioned story. This spec is the **source of truth**:
+    the backend conforms to it, the frontend generates a typed client from it, and
+    a mock server (Prism) serves the examples below so both sides can be built in
+    parallel before either is finished.
+
+    Reasoning lives in `docs/approach.md` (Chapter 3); the request/response shapes
+    mirror `docs/phase-1/architecture.md`.
+  contact:
+    name: Auto Stories
+    url: https://github.com/tomnotthomas/my-take-home
+  license:
+    name: MIT
+    identifier: MIT
+
+servers:
+  - url: /
+    description: Same origin — the NestJS server serves the built Angular app and this API.
+
+# Phase 1 has no authentication: the endpoints are public and abuse is bounded
+# by a per-IP rate limit and a global daily budget cap (see approach 4.1), not
+# by credentials. Per-account limits arrive with accounts in Phase 3. An empty
+# requirement declares "no security" explicitly.
+security: []
+
+tags:
+  - name: story
+    description: Create a story from photos.
+  - name: ops
+    description: Operational endpoints.
+
+paths:
+  /api/v1/generate:
+    post:
+      operationId: generateStory
+      tags: [story]
+      summary: Generate an ordered, captioned story from a batch of photos.
+      description: |
+        Takes 3–10 downscaled photos plus the user's story line (and optional
+        tone) and returns the chosen photos in narrative order with a caption
+        each. The model may select a subset and reorder. Every client-side check
+        (type, count, size) is re-validated here — the server is the authority.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateRequest'
+            examples:
+              birthday:
+                summary: Heartfelt birthday, three photos
+                description: The guided story line plus a tone chip — the common happy path.
+                value:
+                  story: Maya's 1st birthday at the lake house, all the cousins came
+                  tone: heartfelt
+                  photos:
+                    - id: p1
+                      b64: /9j/4AAQSkZJRgABAQ...<truncated downscaled jpeg>...2Q==
+                      takenAt: '2026-07-04T09:12:00Z'
+                    - id: p2
+                      b64: /9j/4AAQSkZJRgABAQ...<truncated downscaled jpeg>...9k=
+                      takenAt: '2026-07-04T11:40:00Z'
+                    - id: p3
+                      b64: /9j/4AAQSkZJRgABAQ...<truncated downscaled jpeg>...8A=
+                      takenAt: '2026-07-04T16:05:00Z'
+              minimal:
+                summary: No tone, no timestamps
+                description: Tone is optional; EXIF `takenAt` is optional. This is the smallest valid request.
+                value:
+                  story: Morning surf session with the crew before the storm rolled in
+                  photos:
+                    - id: a
+                      b64: /9j/4AAQSkZJRgABAQ...<truncated downscaled jpeg>...1Q==
+                    - id: b
+                      b64: /9j/4AAQSkZJRgABAQ...<truncated downscaled jpeg>...2A=
+                    - id: c
+                      b64: /9j/4AAQSkZJRgABAQ...<truncated downscaled jpeg>...3C=
+      responses:
+        '200':
+          description: A generated story.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenerateResponse'
+              examples:
+                success:
+                  summary: Full story, all photos used
+                  value:
+                    frames:
+                      - photoId: p2
+                        order: 1
+                        caption: The moment she saw the cake — pure disbelief.
+                      - photoId: p1
+                        order: 2
+                        caption: One year old and already running the lake house.
+                      - photoId: p3
+                        order: 3
+                        caption: Cousins, sunset, and a very sticky victory lap.
+                    partial: false
+                partial:
+                  summary: Partial story, one photo dropped
+                  description: One photo was safety-filtered but a story was still produced from the rest.
+                  value:
+                    frames:
+                      - photoId: a
+                        order: 1
+                        caption: First light, glassy sets, nobody else out.
+                      - photoId: c
+                        order: 2
+                        caption: Last wave before the sky turned on us.
+                    partial: true
+        '400':
+          description: Invalid request — failed server-side validation (type, count, size, or story line).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                tooFewPhotos:
+                  summary: Fewer than three photos
+                  value:
+                    error:
+                      code: invalid_request
+                      message: A story needs at least 3 photos.
+                nonImage:
+                  summary: A non-image slipped past the client
+                  value:
+                    error:
+                      code: invalid_request
+                      message: Only JPEG, PNG, WebP, or HEIC images are accepted.
+        '413':
+          description: Request body too large.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                oversized:
+                  summary: Upload exceeds the body-size cap
+                  value:
+                    error:
+                      code: payload_too_large
+                      message: That upload was too large — try fewer or smaller photos.
+        '422':
+          description: Request was valid but no story could be shaped (e.g. too few usable photos after safety filtering).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                emptyResult:
+                  summary: Nothing usable came back
+                  value:
+                    error:
+                      code: empty_result
+                      message: Couldn't shape a story — try different photos.
+        '429':
+          description: Per-IP rate limit hit — slow down and retry shortly.
+          headers:
+            Retry-After:
+              description: Seconds to wait before retrying.
+              schema:
+                type: integer
+              example: 30
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                rateLimited:
+                  summary: Too many requests from this IP
+                  value:
+                    error:
+                      code: rate_limited
+                      message: Slow down a moment — try again shortly.
+        '503':
+          description: At capacity — the global daily budget cap is reached or the model is temporarily unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                dailyCap:
+                  summary: Global daily budget cap reached
+                  value:
+                    error:
+                      code: quota_exhausted
+                      message: At capacity today — try later.
+                upstreamDown:
+                  summary: Model temporarily unavailable
+                  value:
+                    error:
+                      code: upstream_error
+                      message: The story engine is unavailable — retry in a moment.
+        '504':
+          description: The model call timed out.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                timeout:
+                  summary: Generation exceeded the hard timeout
+                  value:
+                    error:
+                      code: timeout
+                      message: The story engine timed out — retry.
+
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [ops]
+      summary: Liveness probe.
+      description: Shallow readiness check for the host (Render). Does not call the model.
+      responses:
+        '200':
+          description: The server is up.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              examples:
+                ok:
+                  summary: Healthy
+                  value:
+                    status: ok
+        '503':
+          description: The server is not ready to serve traffic.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              examples:
+                unavailable:
+                  summary: Not ready
+                  value:
+                    status: error
+
+components:
+  schemas:
+    Tone:
+      type: string
+      description: Optional tone chip the user can pick to color the captions.
+      enum: [funny, heartfelt, hype, chill]
+      examples:
+        - heartfelt
+
+    Photo:
+      type: object
+      description: One downscaled photo proxy (~1024px long edge, JPEG ~80%) sent to the model.
+      required: [id, b64]
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          description: Client-assigned id, echoed back on the matching frame.
+          minLength: 1
+          maxLength: 64
+          examples:
+            - p1
+        b64:
+          type: string
+          description: Base64-encoded downscaled image bytes (no data-URI prefix).
+          minLength: 1
+          examples:
+            - /9j/4AAQSkZJRgABAQ...<truncated downscaled jpeg>...2Q==
+        takenAt:
+          type: string
+          format: date-time
+          description: Optional EXIF capture time — a soft ordering hint only.
+          examples:
+            - '2026-07-04T09:12:00Z'
+
+    GenerateRequest:
+      type: object
+      required: [story, photos]
+      additionalProperties: false
+      properties:
+        story:
+          type: string
+          description: The user's one-line "What's the story?" answer — drives ordering and grounds captions.
+          minLength: 1
+          maxLength: 280
+          examples:
+            - Maya's 1st birthday at the lake house, all the cousins came
+        tone:
+          $ref: '#/components/schemas/Tone'
+        photos:
+          type: array
+          description: 3–10 downscaled photos.
+          minItems: 3
+          maxItems: 10
+          items:
+            $ref: '#/components/schemas/Photo'
+
+    Frame:
+      type: object
+      description: One chosen photo in narrative order, with its caption.
+      required: [photoId, order, caption]
+      additionalProperties: false
+      properties:
+        photoId:
+          type: string
+          description: The id of the chosen photo (matches a Photo.id from the request).
+          examples:
+            - p2
+        order:
+          type: integer
+          description: 1-based position in the story.
+          minimum: 1
+          examples:
+            - 1
+        caption:
+          type: string
+          description: Caption grounded in the story line and what's visible.
+          examples:
+            - The moment she saw the cake — pure disbelief.
+
+    GenerateResponse:
+      type: object
+      required: [frames]
+      additionalProperties: false
+      properties:
+        frames:
+          type: array
+          description: The chosen photos in order. May be a subset of the request.
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/Frame'
+        partial:
+          type: boolean
+          description: True when some photos were dropped (e.g. safety-filtered) but a story was still produced.
+          examples:
+            - false
+
+    ErrorResponse:
+      type: object
+      description: Every non-2xx response uses this shape.
+      required: [error]
+      additionalProperties: false
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          additionalProperties: false
+          properties:
+            code:
+              $ref: '#/components/schemas/ErrorCode'
+            message:
+              type: string
+              description: Human-readable message safe to surface to the user.
+              examples:
+                - Slow down a moment — try again shortly.
+
+    ErrorCode:
+      type: string
+      description: Stable machine-readable outcome so the client can branch without parsing prose.
+      enum:
+        - invalid_request
+        - payload_too_large
+        - empty_result
+        - rate_limited
+        - quota_exhausted
+        - upstream_error
+        - safety_blocked
+        - timeout
+      examples:
+        - rate_limited
+
+    HealthResponse:
+      type: object
+      required: [status]
+      additionalProperties: false
+      properties:
+        status:
+          type: string
+          enum: [ok, error]
+          examples:
+            - ok
