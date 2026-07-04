@@ -1,8 +1,13 @@
-<!-- The flow is a phone-first immersive Story UI (5.4). On wider screens keep it
-     a centered phone-width column instead of stretching full-bleed, so it stays
-     a Story on laptop/tablet too (responsive web app). -->
-<div class="story-surface flex min-h-dvh justify-center">
-  <div class="w-full max-w-[430px]">
+<!-- The flow is a phone-first immersive Story UI (5.4). This app is made and
+     consumed on a phone (Instagram Stories), so on wider screens we show it
+     inside a fixed phone-shaped device frame instead of stretching full-height
+     — the honest preview of the product (approach 5.10). On a real phone the
+     frame is full-bleed. This wrapper is the one sized container; each screen
+     fills it with `h-full`. -->
+<div class="story-surface flex min-h-dvh items-center justify-center sm:p-6">
+  <div
+    class="relative h-dvh w-full overflow-hidden sm:h-[min(100dvh-3rem,880px)] sm:w-[min(100vw-3rem,406px)] sm:rounded-[2.75rem] sm:shadow-2xl sm:ring-1 sm:ring-white/10"
+  >
     @switch (story.phase()) {
       @case ('create') {
         <app-create />
