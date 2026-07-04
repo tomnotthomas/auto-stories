@@ -7,6 +7,8 @@ How this project was thought through, in chapters, so a reader can jump to the p
 2. [How the core value is created](#chapter-2--how-the-core-value-is-created)
 3. [Locking the Phase 1 architecture](#chapter-3--locking-the-phase-1-architecture)
 4. [Production readiness](#chapter-4--production-readiness)
+5. [Design system](#chapter-5--design-system)
+6. [Lessons learned](#chapter-6--lessons-learned)
 
 ---
 
@@ -308,3 +310,35 @@ Resolving the production-readiness gaps the engineering review surfaced — what
 - **Options:** keep one workflow that always runs everything; path-scope each job so only the changed area runs.
 - **Decision:** Path-scope the workflow. A lightweight `changes` job (`dorny/paths-filter`) detects which area changed and gates three independent jobs: **contract** (`openapi/**`, `packages/api-types/**`), **backend** (`apps/api/**`), **frontend** (`apps/web/**`). A shared root change (deps, the workflow itself) runs all three. A contract change runs only the contract job — the shared type package is deliberately not listed under the apps.
 - **Why:** CI exists to develop fast with AI and is a must-have for production, so it has to stay cheap enough to run on every push. Each area is isolated: change the package → test the package; change the frontend → test the frontend; change the backend → test the backend. If a change to one area could break another, that coupling is the real problem to fix — it shouldn't be papered over by always running everything. Isolated jobs also point the failure at the area that broke. Skipped jobs still report as passing, so branch protection keeps working. E2E (frontend + backend together) is the one deliberately cross-cutting job, added later.
+
+---
+
+# Chapter 5 — Design system
+
+### 5.1 Color direction — "Golden Hour"
+- **Problem:** The M3 theme needs source colors before any screen can be designed. The palette sets the app's whole feel.
+- **Options:** "Golden Hour" (warm coral-amber primary, cream/warm-charcoal neutrals, plum tertiary); "Instagram Lineage" (vibrant magenta→orange, IG-adjacent); "Editorial Calm" (muted terracotta + sage, magazine restraint).
+- **Decision:** Golden Hour. Source colors: primary `#F0603A`, tertiary `#B5476B`.
+- **Why:** Two concrete constraints from the Phase 1 spec force it. (1) Photos are the hero ("native, low-production feel") — a warm off-white surface (`#fff8f6`) lets photos read; pure white (Instagram Lineage) competes with them for brightness. (2) The app hands off *to* Instagram, it isn't Instagram — coral-amber sits in the warm family (still reads "for Stories") but is distinct from IG's magenta core, so it's ownable, not borrowed. Warm-vs-cool within those constraints is a taste call; warm also fits "private memory journal" (nostalgia register). Editorial Calm is warm too but too muted for a first-open wow.
+
+### 5.2 One color source: the SCSS theme; everything else reads `--mat-sys-*` tokens
+- **Problem:** A design palette that only lives in mockups drifts from the app. The colors must not exist as a hand-maintained list of hex values anywhere — that duplicates the theme and rots.
+- **Options:** hand-author a palette CSS/hex list and reuse it in mockups; OR generate the M3 tonal palettes once into the SCSS theme and have both the app and the mockups consume the `--mat-sys-*` CSS custom properties that `mat.theme()` compiles out.
+- **Decision:** The only place colors are defined is the generated SCSS: source colors → tonal palettes (`apps/web/src/_theme-colors.scss`, via Material's own color utilities, the engine behind `ng generate @angular/material:theme-color`) → `mat.theme()` in `material-theme.scss`. Nothing hand-lists hexes. The mockups import `tokens.css`, which is *compiled from that same SCSS theme* (not typed by hand), so they style with `var(--mat-sys-primary)` etc. — the exact variables the app uses.
+- **Why:** One source of truth. A raw named-color CSS file duplicated from the theme isn't properly done — it silently drifts the moment the source colors change. Compiling the theme to tokens means a mockup can't promise a color the app can't render (verified: `--mat-sys-primary: light-dark(#ae310e, #ffb4a1)`). Theme ships light + dark (`color-scheme: light dark`) for free. M3 behavior to note: the *primary role* is tone 40/80, not the source swatch — the bright coral surfaces as containers/accents, which is how Material guarantees AA contrast.
+
+# Chapter 6 — Lessons learned
+
+Working notes about *how* I worked on this, kept so I don't repeat the mistakes.
+
+### 6.1 One Claude session at a time, not many in parallel
+- **Problem:** Running multiple Claude sessions at once to move faster.
+- **Options:** several parallel sessions; a single session.
+- **Decision:** Work with one session at a time.
+- **Why:** Parallel sessions can edit — or accidentally edit — the same files. Even when they don't, splitting attention across them disperses my focus and I lose the order I need to think clearly. This matters most later on, when concentration is already looser.
+
+### 5.2 End a session before the context grows too large
+- **Problem:** Letting one session run until its context window is huge.
+- **Options:** keep one long session going; break the work into smaller tasks and stop the session early.
+- **Decision:** Break tasks down and end the session before the context gets too big.
+- **Why:** Past a point the growing context just wastes tokens and slows the session down a lot, without adding value. Stopping early — or splitting the work — keeps each session fast and cheap.
