@@ -5,12 +5,11 @@ All the product / core-value questions are resolved (see `approach.md`, Chapter 
 ## Production readiness — remaining (from the eng review)
 
 **P2 — realistic breakage**
-1. **Mobile memory.** Ten large HEIC images through `heic2any` + canvas downscale can crash a low-end phone tab. Process sequentially / add a guardrail.
-2. **Lost work on refresh.** Stateless + story-in-memory means an accidental refresh nukes uploads and the generated story. At least warn-on-unload or a sessionStorage draft.
+1. **Lost work on refresh.** Stateless + story-in-memory means an accidental refresh nukes uploads and the generated story. At least warn-on-unload or a local draft.
 
 **P3 — production hygiene**
-3. **Health-check endpoint** (`/health` or `/api/health`) for Render/container readiness.
-4. **Story-line input** — length cap + basic prompt-injection hygiene (it goes straight into the prompt).
-5. **CI** to run the specified tests; the quality eval needs a baseline/rubric that doesn't exist yet.
-6. **Client-side error capture** and a defined log destination/retention in production.
-7. **Security headers** (CSP, etc.).
+2. **Health-check endpoint** (`/health` or `/api/health`) for Render/container readiness.
+3. **Story-line input** — length cap + basic prompt-injection hygiene (it goes straight into the prompt).
+4. **CI** to run the specified tests; the quality eval needs a baseline/rubric that doesn't exist yet.
+5. **Client-side error capture** and a defined log destination/retention in production.
+6. **Security headers** (CSP, etc.).

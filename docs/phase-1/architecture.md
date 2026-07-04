@@ -30,7 +30,7 @@ The browser never holds the API key. The NestJS server is stateless — no datab
 **Frontend (Angular + Angular Material, responsive)** — tailored to look great on laptop, tablet, or phone:
 - Photo **upload** — `<input type="file" accept="image/*" multiple>`: on mobile this opens the OS **native photo picker** (multi-select, Recents-first — feels native, no library-scan permission needed); on desktop, drag-drop + click-to-browse + paste.
 - **EXIF timestamps** read client-side (`exifr`) as an optional soft ordering hint + caption context (ordering is narrative-first, not timestamp-first — see approach 2.1).
-- **Downscale** in the browser (canvas / `browser-image-compression`) to the proxy sent to the server.
+- **Downscale** in the browser (canvas / `browser-image-compression`) to the proxy sent to the server — images processed **one at a time** (decode → downscale → release) so peak memory stays flat on low-end phones.
 - Preview: ordered photos with a draggable/resizable caption layer (Angular **CDK drag-drop**). No pixel baking in Phase 1.
 - State in a small Angular **service (signals)**.
 
