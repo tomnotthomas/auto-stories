@@ -101,3 +101,29 @@ The technical decisions for building Phase 1 (create the story).
 - **Options:** send originals as-is; cap the count and downscale before sending.
 - **Decision:** Cap the pick at ~10 photos; downscale each to **~1024px long edge, JPEG ~80%, aspect preserved** before sending; keep the full-res originals on the device.
 - **Why:** Google recommends ≤10 images for good image *understanding*, which also matches a Story's natural length. 1024px is ~2 of Gemini's 768px tiles (~500 tokens/image), so ten photos is trivial against the free-tier budget — the real saving is upload speed, the biggest lever on how fast the story appears. It's also enough detail for the model to get the gist (below ~512px, faces and in-photo text blur and captions get less accurate). Downscaling normalizes every camera to one size. The originals stay on device: the model reads a small proxy, but captions are placed on the real photos the user sees and later posts (Phase 2).
+
+> Decisions 2.5–2.8 were made while I was on a break; confirm or override them. Full architecture in [`phase-1/architecture.md`](phase-1/architecture.md).
+
+### 2.5 App framework
+- **Problem:** Need one mobile app for iOS and Android with photo picking, EXIF, and image resizing.
+- **Options:** bare React Native; Expo (React Native).
+- **Decision:** Expo.
+- **Why:** One codebase for both platforms, and the exact libraries Phase 1 needs are first-party and boring (`expo-image-picker`, `expo-media-library`, `expo-image-manipulator`). Fastest path to a running app; EAS handles builds.
+
+### 2.6 Backend host
+- **Problem:** The thin backend (2.1) needs somewhere to run.
+- **Options:** always-on server; a stateless serverless HTTP function (Vercel, or Google Cloud Run).
+- **Decision:** A stateless serverless function, one `/generate` endpoint; default Vercel.
+- **Why:** No state to keep in Phase 1, so scale-to-zero serverless is cheapest and simplest to deploy. Vercel is fastest to ship; Cloud Run is the alternative if I want the backend in the same Google ecosystem as Gemini. Reversible — it's just one HTTP endpoint.
+
+### 2.7 Latency UX
+- **Problem:** Generation is one call that takes a few seconds; the wait shouldn't feel broken.
+- **Options:** single spinner; staged loader copy; stream/progressively reveal frames.
+- **Decision:** One call with a staged loader ("reading photos… ordering… writing captions…"); streaming is a later enhancement.
+- **Why:** A single structured call can't reveal frames mid-flight without added complexity. Staged copy makes the wait feel purposeful for a few-second Flash response, with no extra engineering.
+
+### 2.8 App state
+- **Problem:** Where does the in-progress story live in the app?
+- **Options:** a state library (Redux/Zustand); local React state.
+- **Decision:** Local React state, no heavy store.
+- **Why:** Phase 1 is a single linear flow (pick → generate → refine) with one story in memory. A global store would be premature; local state is enough and simpler.
