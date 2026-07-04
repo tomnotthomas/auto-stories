@@ -1,12 +1,20 @@
-import { Component, signal } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
-import { MatToolbarModule } from '@angular/material/toolbar';
+import { Component, inject } from '@angular/core';
 
+import { StoryService } from './story/story.service';
+import { Example } from './features/example/example';
+import { Create } from './features/create/create';
+import { Generating } from './features/generating/generating';
+
+/**
+ * Flow shell — renders the current screen for the story flow's phase
+ * (approach 3.17). The whole flow is an always-dark, immersive story surface
+ * (approach 5.4), so `story-surface` wraps it once here.
+ */
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, MatToolbarModule],
+  imports: [Example, Create, Generating],
   templateUrl: './app.html',
 })
 export class App {
-  protected readonly title = signal('Auto Stories');
+  protected readonly story = inject(StoryService);
 }

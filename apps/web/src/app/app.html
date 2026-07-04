@@ -1,7 +1,13 @@
-<mat-toolbar>
-  <span class="font-medium">{{ title() }}</span>
-</mat-toolbar>
-
-<main class="mx-auto max-w-3xl p-4">
-  <router-outlet />
-</main>
+<div class="story-surface min-h-dvh">
+  @switch (story.phase()) {
+    @case ('create') {
+      <app-create />
+    }
+    @case ('generating') {
+      <app-generating />
+    }
+    @default {
+      <app-example />
+    }
+  }
+</div>

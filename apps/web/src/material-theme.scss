@@ -1,33 +1,53 @@
-// Include theming for Angular Material with `mat.theme()`.
-// This Sass mixin will define CSS variables that are used for styling Angular Material
-// components according to the Material 3 design spec.
-// Learn more about theming and how to use it for your application's
-// custom components at https://material.angular.dev/guide/theming
+// Golden Hour — Auto Stories' Angular Material M3 theme.
+//
+// This file is the single source of truth for the app's look. It has three
+// jobs, in order:
+//   1. Theme      — mat.theme() emits the full --mat-sys-* design-token set
+//                   (colour / typography / shape / elevation) from the Golden
+//                   Hour palettes in _theme-colors.scss.
+//   2. Overrides  — global, per-component token tweaks live in
+//                   _theme-overrides.scss (NOT in components).
+//   3. App tokens — the immersive "story surface", photo scrim and caption
+//                   legibility patterns (non-Material) live in styles.css as
+//                   Tailwind utilities.
+//
+// Because everything is centralised here, screens compose plain Angular
+// Material components + Tailwind layout and need no styling of their own.
+//
+// Regenerate the token snapshot used by the mockups:
+//   npx sass --load-path=node_modules apps/web/src/material-theme.scss out.css
 @use '@angular/material' as mat;
+@use './theme-colors' as gh;
+@use './theme-overrides' as gh-overrides;
 
 html {
   height: 100%;
+
+  // 1. Theme — palettes are generated from the source colours in
+  //    _theme-colors.scss; see design/theme/palette.md.
   @include mat.theme(
     (
       color: (
-        primary: mat.$azure-palette,
-        tertiary: mat.$blue-palette,
+        primary: gh.$primary-palette,
+        tertiary: gh.$tertiary-palette,
       ),
       typography: Roboto,
       density: 0,
     )
   );
+
+  // 2. Overrides — Golden Hour's divergences from the M3 defaults.
+  @include gh-overrides.overrides;
 }
 
 body {
-  // Default the application to a light color theme. This can be changed to
-  // `dark` to enable the dark color theme, or to `light dark` to defer to the
-  // user's system settings.
-  color-scheme: light;
+  // Golden Hour ships light + dark; defer to the user's system setting.
+  // (The story/creation surfaces opt into a forced dark, immersive scheme via
+  // the .story-surface utility in styles.css.)
+  color-scheme: light dark;
 
-  // Set a default background, font and text colors for the application using
-  // Angular Material's system-level CSS variables. Learn more about these
-  // variables at https://material.angular.dev/guide/system-variables
+  // App-wide defaults from Angular Material's system-level CSS variables. See
+  // https://material.angular.dev/guide/system-variables
   background-color: var(--mat-sys-surface);
   color: var(--mat-sys-on-surface);
   font: var(--mat-sys-body-medium);
