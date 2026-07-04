@@ -7,6 +7,7 @@ node_modules/
 # Build + test artifacts (NestJS backend)
 dist/
 coverage/
+*.tsbuildinfo
 
 # OpenAPI build artifact (regenerate with `npm run openapi:bundle`)
 openapi/openapi.bundled.yaml
