@@ -2,7 +2,11 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "outDir": "./dist",
-    "rootDir": "./src"
+    "rootDir": "./src",
+    // Keep the incremental build info inside dist so nest-cli's
+    // `deleteOutDir` clears it with the emitted JS. Otherwise a stale
+    // .tsbuildinfo makes tsc skip emit and produce an empty dist.
+    "tsBuildInfoFile": "./dist/tsconfig.build.tsbuildinfo"
   },
   "exclude": ["node_modules", "test", "dist", "**/*spec.ts"]
 }
