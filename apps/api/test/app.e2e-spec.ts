@@ -1,10 +1,11 @@
-import { INestApplication, VersioningType } from '@nestjs/common';
+import { INestApplication } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
+import { configureApp } from './../src/app.setup';
 
-describe('AppController (e2e)', () => {
+describe('App (e2e)', () => {
   let app: INestApplication<App>;
 
   beforeEach(async () => {
@@ -13,20 +14,23 @@ describe('AppController (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
-    // Mirror the production bootstrap (see src/main.ts).
-    app.setGlobalPrefix('api');
-    app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
+    // Mirror the production bootstrap (see src/app.setup.ts).
+    configureApp(app);
     await app.init();
-  });
-
-  it('/api/v1 (GET)', () => {
-    return request(app.getHttpServer())
-      .get('/api/v1')
-      .expect(200)
-      .expect('Hello World!');
   });
 
   afterEach(async () => {
     await app.close();
+  });
+
+  it('GET /healthz reports a healthy status', () => {
+    return request(app.getHttpServer())
+      .get('/healthz')
+      .expect(200)
+      .expect({ status: 'ok' });
+  });
+
+  it('does not expose /healthz under the /api/v1 prefix', () => {
+    return request(app.getHttpServer()).get('/api/v1/healthz').expect(404);
   });
 });
