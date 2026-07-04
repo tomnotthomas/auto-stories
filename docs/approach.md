@@ -99,6 +99,12 @@ The decisions that make the generated story *good*: which photo leads, how the p
 - **Why:** We don't want to ask the user too many questions, and we don't want a generic result. More questions add friction before the payoff (against 1.1) and tend to collect generic answers ("fun") that just duplicate the story line. A guided line trains a specific answer at zero added friction, and one tone chip adds the undertone free text usually omits in a single tap. One question — "What's the story?" — with an undertone is enough customization for a nice story.
 - **Later (Phase 3, optional):** learn the user's voice from the captions they edit/regenerate in the refine step (first-party signal). Reading their Instagram to learn voice was considered and dropped — it needs Instagram access we don't have (same wall as posting).
 
+### 2.3 The first wow — how do we hook the user on first open?
+- **Problem:** Cutting the flow 7→3 (1.1) keeps the user in; now we need the first *wow* in the first seconds, before they do any work.
+- **Options:** an empty uploader (blank state); a passive demo video; an interactive example — show a finished Story first, then lead to "Try it with your photos."
+- **Decision:** Interactive example-first. On first open, show a finished, swipeable example Story (real output, not a clip) with one CTA — **"Try it with your photos"** → straight to upload. No demo video.
+- **Why:** A blank canvas is silent churn; pre-filled examples get users to value faster (Notion templates, Sprout Social's fake-data demo) ([appcues](https://www.appcues.com/blog/aha-moment-examples), [chameleon](https://www.chameleon.io/blog/successful-user-onboarding)). Interactive demos beat passive video — Grammarly shows the product working live rather than a clip ([appcues](https://www.appcues.com/blog/shortening-your-time-to-wow)) — and users who hit an interactive demo are ~80% more likely to complete the next steps ([userpilot](https://userpilot.com/blog/saas-signup-flow/)). An interactive example lets the user feel the platform, see exactly what to expect, and gauge how well it works — cutting the uncertainty a video can't. It's cheap (bundle sample photos + one pre-generated story) and matches the value-first flow (1.1) and the narrative-first reveal (2.1).
+
 ---
 
 # Chapter 3 — Locking the Phase 1 architecture
