@@ -1,0 +1,21 @@
+<section class="flex flex-col items-center gap-6 py-12 text-center">
+  <h1 class="text-3xl font-semibold">Start with your photos</h1>
+  <p class="max-w-md opacity-80">
+    Pick 3–10 photos and say what happened in one line. Auto Stories orders
+    them and writes the captions.
+  </p>
+
+  <button matButton="filled" (click)="picker.click()">Choose photos</button>
+  <input
+    #picker
+    type="file"
+    accept="image/*"
+    multiple
+    hidden
+    (change)="onPhotosPicked($event)"
+  />
+
+  @if (photoCount() > 0) {
+    <p aria-live="polite" class="opacity-80">{{ photoCount() }} photos selected</p>
+  }
+</section>
