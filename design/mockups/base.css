@@ -13,7 +13,7 @@ body{font-family:Roboto,system-ui,sans-serif;background:#0d0b0a;color:var(--mat-
 
 /* device frame */
 .device{position:relative;width:390px;height:844px;border-radius:44px;background:var(--mat-sys-surface);box-shadow:0 24px 60px rgba(0,0,0,.45),0 0 0 11px #0d0b0a,0 0 0 13px #2a2320;overflow:hidden;display:flex;flex-direction:column}
-.statusbar{height:44px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font:var(--mat-sys-label-medium);font-weight:600;flex:none;color:var(--mat-sys-on-surface)}
+.statusbar{height:44px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font:var(--mat-sys-label-medium);font-weight:600;flex:none;color-scheme:dark;background:var(--mat-sys-surface);color:var(--mat-sys-on-surface)}
 .screen{flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative;background:var(--mat-sys-surface)}
 
 /* type */
