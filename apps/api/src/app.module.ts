@@ -20,7 +20,8 @@ import { StoryModule } from './story/story.module';
 // local dev (`npm run start:dev`) untouched. The /app host is registered before
 // the '/' catch-all so it wins for its own prefix.
 const webRoot = process.env.WEB_ROOT ?? join(__dirname, '..', 'client');
-const landingRoot = process.env.LANDING_ROOT ?? join(__dirname, '..', 'landing');
+const landingRoot =
+  process.env.LANDING_ROOT ?? join(__dirname, '..', 'landing');
 
 const serveStatic = [
   ...(existsSync(webRoot)
@@ -40,12 +41,7 @@ const serveStatic = [
           rootPath: landingRoot,
           // The landing page owns the site root. Exclude the sibling hosts so
           // this catch-all never swallows the app or the backend routes.
-          exclude: [
-            '/api/{*splat}',
-            '/healthz',
-            '/app',
-            '/app/{*splat}',
-          ],
+          exclude: ['/api/{*splat}', '/healthz', '/app', '/app/{*splat}'],
         }),
       ]
     : []),
