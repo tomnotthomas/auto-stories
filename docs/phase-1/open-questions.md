@@ -5,14 +5,13 @@ All the product / core-value questions are resolved (see `approach.md`, Chapter 
 ## Production readiness — remaining (from the eng review)
 
 **P2 — realistic breakage**
-1. **Gemini failure modes beyond the current table.** How do we handle 429 / daily-quota exhausted (what the user sees), safety-filter refusals (a flagged image failing the whole batch), and an explicit upstream call timeout (a hung Gemini call blocking the request)?
-2. **Double-submit.** Disable Generate while a call is in flight so a double-click can't fire two Gemini calls (double cost + UI race).
-3. **Mobile memory.** Ten large HEIC images through `heic2any` + canvas downscale can crash a low-end phone tab. Process sequentially / add a guardrail.
-4. **Lost work on refresh.** Stateless + story-in-memory means an accidental refresh nukes uploads and the generated story. At least warn-on-unload or a sessionStorage draft.
+1. **Double-submit.** Disable Generate while a call is in flight so a double-click can't fire two Gemini calls (double cost + UI race).
+2. **Mobile memory.** Ten large HEIC images through `heic2any` + canvas downscale can crash a low-end phone tab. Process sequentially / add a guardrail.
+3. **Lost work on refresh.** Stateless + story-in-memory means an accidental refresh nukes uploads and the generated story. At least warn-on-unload or a sessionStorage draft.
 
 **P3 — production hygiene**
-5. **Health-check endpoint** (`/health` or `/api/health`) for Render/container readiness.
-6. **Story-line input** — length cap + basic prompt-injection hygiene (it goes straight into the prompt).
-7. **CI** to run the specified tests; the quality eval needs a baseline/rubric that doesn't exist yet.
-8. **Client-side error capture** and a defined log destination/retention in production.
-9. **Security headers** (CSP, etc.).
+4. **Health-check endpoint** (`/health` or `/api/health`) for Render/container readiness.
+5. **Story-line input** — length cap + basic prompt-injection hygiene (it goes straight into the prompt).
+6. **CI** to run the specified tests; the quality eval needs a baseline/rubric that doesn't exist yet.
+7. **Client-side error capture** and a defined log destination/retention in production.
+8. **Security headers** (CSP, etc.).

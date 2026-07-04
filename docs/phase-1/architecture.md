@@ -34,7 +34,7 @@ The browser never holds the API key. The NestJS server is stateless — no datab
 - Preview: ordered photos with a draggable/resizable caption layer (Angular **CDK drag-drop**). No pixel baking in Phase 1.
 - State in a small Angular **service (signals)**.
 
-**Backend (NestJS, `POST /api/v1/generate`)** — also serves the built Angular app from the same origin (`ServeStaticModule`). Server-side, so the Gemini key stays hidden and users never bring their own key. Jobs: per-IP rate limiting + a global daily budget cap (protect the shared key), input validation (max body size, ≤10 photos, per-image size, JPEG/PNG/WebP/HEIC only — client checks are re-done here, not trusted), prompt construction, the Gemini call, output validation, logging.
+**Backend (NestJS, `POST /api/v1/generate`)** — also serves the built Angular app from the same origin (`ServeStaticModule`). Server-side, so the Gemini key stays hidden and users never bring their own key. Jobs: per-IP rate limiting + a global daily budget cap (protect the shared key), input validation (max body size, ≤10 photos, per-image size, JPEG/PNG/WebP/HEIC only — client checks are re-done here, not trusted), prompt construction, the Gemini call (~25s timeout, typed errors, drop-flagged-photo-and-retry on safety block), output validation, logging.
 
 **Model (Gemini Flash)** — called via the `@google/genai` SDK with `responseSchema` for guaranteed-shape JSON. `MODEL` is an env var, so a stronger model is a one-line swap.
 
@@ -88,12 +88,15 @@ Story  { id, story, tone, frames: Frame[], createdAt }
 | Model returns invalid JSON | `responseSchema` + parse guard; 1 stricter retry | Error copy if still bad |
 | Model returns unknown photoId | Server drops unknown ids, keeps valid frames | Story with valid frames only |
 | Model returns 0 usable frames | Typed empty result | "Couldn't shape a story — try different photos" |
+| Gemini quota/rate-limited (429) | Typed `quota_exhausted` / `rate_limited`; not retried | "At capacity today — try later" |
+| Gemini flags an image (safety) | Drop that photo, re-call with the rest (partial story); hard-fail only if <3 remain | Partial story, or "Couldn't use some photos — try different ones" |
+| Gemini call hangs | Hard ~25s timeout → typed `timeout` | "The story engine timed out — retry" |
 | Generic / weak captions | Prompt forces specificity; Regenerate + inline edit | Regenerate + edit |
 | Slow generation | Staged loader | "Reading photos… ordering… writing captions…" |
 
 ## Observability
 
-The NestJS server logs per request: `requestId`, `model`, photo count, `latencyMs`, token usage, outcome (`ok` / `invalid_json` / `empty` / `upstream_error`). Makes "the model was wrong" visible instead of silent.
+The NestJS server logs per request: `requestId`, `model`, photo count, `latencyMs`, token usage, outcome (`ok` / `partial` / `invalid_json` / `empty` / `quota_exhausted` / `rate_limited` / `safety_blocked` / `timeout` / `upstream_error`). Makes "the model was wrong" visible instead of silent.
 
 ## Testing strategy
 
