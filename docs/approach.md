@@ -105,15 +105,15 @@ The technical decisions for building Phase 1 (create the story).
 > Decisions 2.5–2.8 were made while I was on a break; confirm or override them. Full architecture in [`phase-1/architecture.md`](phase-1/architecture.md).
 
 ### 2.5 Stack
-- **Problem:** Need a responsive web frontend that stays maintainable as complexity grows, plus a server that hides the key.
-- **Options:** Next.js; plain React (Vite); Angular — each with a small Node/Express server.
-- **Decision:** Angular frontend + Node/Express backend.
-- **Why:** Angular's standardized, opinionated structure keeps the frontend scalable and consistent as it grows — every React project ends up structured differently, Angular projects don't. It also ships component test harnesses (via the CDK) for reliable component-level tests. Express hides the key and serves the built Angular app from one origin.
+- **Problem:** Need a maintainable frontend, a server that hides the key, and a structure a new developer can onboard into fast (scaling likely means more developers).
+- **Options:** frontend — Next.js / plain React (Vite) / Angular; backend — a minimal Express server / NestJS.
+- **Decision:** Angular frontend + NestJS backend.
+- **Why:** Both enforce a fixed structure, so the codebase stays consistent and a new developer onboards fast. Express and plain React are unopinionated — each codebase differs; Angular fixes the frontend layout (and ships CDK test harnesses), NestJS fixes a modules/controllers/providers layout. They share the same building blocks (modules, DI, decorators). The server hides the Gemini key and serves the built app from one origin.
 
 ### 2.6 Deploy
 - **Problem:** The brief wants a live URL and code that runs in a fresh Linux container.
 - **Options:** Vercel (serverless, not our container); Railway (no free tier — trial credit then paid); Render (real free tier, no card); Fly (free tier gone).
-- **Decision:** One Docker container — Express serves the built Angular app + `/api/generate` — with a `docker-compose.yml`, hosted **free on Render**.
+- **Decision:** One Docker container — NestJS serves the built Angular app + `/api/generate` — with a `docker-compose.yml`, hosted **free on Render**.
 - **Why:** I don't want to pay for a take-home. Render is the only one of these with a genuine free tier and no credit card, and it runs our Docker image directly (the same one reviewers run via compose). The only cost is a cold start (~30-50s to wake after 15 min idle), fine for a demo. This is a take-home cost call, not a production one — in production the cold start would be unacceptable and I'd move to an always-on paid tier. Hosting doesn't affect the graded outcome (story quality), so for the take-home I picked the free, simplest option.
 
 ### 2.7 Latency UX
