@@ -27,6 +27,7 @@ Making Instagram stories takes too much effort — choosing text and a narrative
 - **AI text overlay, user-placed** — AI writes each caption; the app drops it in a smart default position (lower third + legibility background) and lets the user drag/resize it. Static emoji count as text.
 - **Review & refine** — regenerate, swap/drop a photo, edit or regenerate a caption. Nothing leaves the app.
 - **First-open wow (interactive demo)** — first open shows a finished, swipeable **example** Story (real output, not a video), with one CTA — **"Try it with your photos"** → straight to upload. This is the first wow and sets expectations. No blank state, no demo video (see approach 2.3).
+- **Fair-use guardrails** — the shared free tier is protected server-side: a **global daily cap** + a **per-IP rate limit**; when either is hit, the user sees *"at capacity, try later."* Separately, after ~2 free generations the app nudges *"sign up to make more"* — a friendly nudge in Phase 1, enforced per-account once accounts exist in Phase 3 (see approach 4.1).
 - **Native, low-production feel.**
 
 **Out of scope (moved to later phases):**

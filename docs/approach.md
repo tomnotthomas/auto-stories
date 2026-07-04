@@ -6,6 +6,7 @@ How this project was thought through, in chapters, so a reader can jump to the p
 1. [Figuring out what to build](#chapter-1--figuring-out-what-to-build)
 2. [How the core value is created](#chapter-2--how-the-core-value-is-created)
 3. [Locking the Phase 1 architecture](#chapter-3--locking-the-phase-1-architecture)
+4. [Production readiness](#chapter-4--production-readiness)
 
 ---
 
@@ -190,3 +191,17 @@ The technical decisions for building Phase 1 (create the story).
 - **Options:** native mobile app; responsive web app.
 - **Decision:** Responsive web app. This reframes 3.1, 3.5, and 3.6 above.
 - **Why:** A native app can't run in a Linux container or be opened at a URL by reviewers, so it fails the brief. A responsive web app deploys to a URL, runs in a container, needs no install, and keeps the whole Phase 1 core unchanged. What changes is the shell (upload instead of camera roll; download / Web Share instead of a native Instagram deep-link); the AI story generation — the graded part — does not.
+
+---
+
+# Chapter 4 — Production readiness
+
+Resolving the production-readiness gaps the engineering review surfaced — what would break or cost money in production. Each entry maps to an item in [`phase-1/open-questions.md`](phase-1/open-questions.md).
+
+### 4.1 Rate limiting & abuse
+- **Problem:** `/api/v1/generate` is public with no accounts, backed by one shared Gemini free-tier key (~1,500 calls/day). Anyone who finds the URL can drain the quota — the app goes down for everyone, and it costs. The endpoint can't be hidden: it's served from the same container as the app and the browser calls it directly, so it's public by design.
+- **Options:** a per-user cap (needs accounts we don't have); a client-side "N free then sign up" counter; a server-side global daily budget cap + per-IP rate limit; combine.
+- **Decision:** Split the two concerns.
+  - **Hard defense (Phase 1):** a server-side **global daily budget cap** (stop calling Gemini past ~1,200/day — headroom under the 1,500 free tier — and show "at capacity, try later") **+ a per-IP rate limit** (~a few/hour). This protects the shared key's availability and cost.
+  - **Soft conversion nudge (Phase 1 → Phase 3):** after ~2 generations, prompt "sign up to make more." In Phase 1 it's a friendly client-side nudge; the enforceable per-account limit arrives with accounts in Phase 3.
+- **Why:** Without accounts, "2 per user" can't be enforced — a client counter resets with incognito or cleared storage, so it's a monetization gate, not an abuse shield. The global cap + per-IP throttle are what actually stop the free key being drained, and they're cheap (rate-limit middleware + a daily counter). The signup nudge is the growth mechanic, well-timed right after the user has hit the wow twice; its hard version lands naturally when Phase 3 adds accounts. The numbers (1,200/day, a few/IP/hour, 2 free) are tunable starting values.
