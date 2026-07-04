@@ -1,8 +1,10 @@
 # Auto Stories — single Linux container for the whole app.
 #
-# One Node process serves both halves: the NestJS API under /api (and /healthz),
-# and the built Angular app as static files for everything else (see
-# apps/api/src/app.module.ts, which mounts ServeStaticModule at WEB_ROOT).
+# One Node process serves it all: the NestJS API under /api (and /healthz), the
+# marketing landing page at /, and the built Angular product flow under /app (see
+# apps/api/src/app.module.ts, which mounts ServeStaticModule at LANDING_ROOT and
+# WEB_ROOT). The landing page ships as its committed, self-contained index.html —
+# its authoring build (apps/landing/build.py) is a local-only step, not run here.
 #
 #   docker build -t auto-stories .
 #   docker run --rm -p 3000:3000 --env-file .env auto-stories
@@ -17,12 +19,16 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
+COPY apps/landing/package.json apps/landing/
 COPY packages/api-types/package.json packages/api-types/
 RUN npm ci
 
-# Build both apps, then strip devDependencies so only runtime deps ship.
+# Build both apps, then strip devDependencies so only runtime deps ship. The
+# Angular app is served under /app, so it must be built with that base href for
+# its asset URLs to resolve. The landing page needs no build — its committed
+# index.html is already self-contained.
 COPY . .
-RUN npm run build -w web \
+RUN npm run build -w web -- --base-href /app/ \
   && npm run build -w @auto-stories/api \
   && npm prune --omit=dev
 
@@ -30,8 +36,10 @@ RUN npm run build -w web \
 FROM node:22-slim AS runtime
 ENV NODE_ENV=production \
     PORT=3000 \
-    # Where the compiled server finds the built Angular app to serve.
-    WEB_ROOT=/app/apps/web/dist/web/browser
+    # Where the compiled server finds the built Angular app to serve at /app.
+    WEB_ROOT=/app/apps/web/dist/web/browser \
+    # …and the self-contained landing page to serve at the site root.
+    LANDING_ROOT=/app/apps/landing
 WORKDIR /app
 
 # Bring over prod node_modules, the compiled API, and the web build. The layout
@@ -40,6 +48,9 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
 COPY --from=builder /app/apps/api/package.json ./apps/api/package.json
 COPY --from=builder /app/apps/web/dist ./apps/web/dist
+# The landing page is one self-contained file; ship just that so LANDING_ROOT
+# holds only what is served.
+COPY --from=builder /app/apps/landing/index.html ./apps/landing/index.html
 
 # Run unprivileged; the `node` user ships with the base image.
 USER node
