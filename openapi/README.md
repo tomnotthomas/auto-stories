@@ -5,8 +5,29 @@
 it. Building the contract first lets both sides be developed in parallel and
 gives a new developer a one-page map of every route.
 
-Spec version: **OpenAPI 3.1**. Reasoning: `../docs/approach.md`; shapes mirror
-`../docs/phase-1/architecture.md`.
+Spec version: **OpenAPI 3.1**. Reasoning: `../docs/approach.md` (3.14); shapes
+mirror `../docs/phase-1/architecture.md`.
+
+## Layout
+
+The spec is **modular** so it stays navigable as routes are added — open the one
+file you're changing, not a 5,000-line monolith. `redocly bundle` flattens it
+into a single file when a tool needs one.
+
+```
+openapi/
+  openapi.yaml              # root — metadata + $refs to each path
+  paths/                    # one file per route
+    generate.yaml
+    healthz.yaml
+  components/
+    schemas/                # one file per schema (Photo, Frame, …)
+    responses/              # reusable error responses (BadRequest, RateLimited, …)
+  generated/types.ts        # generated shared TS types (committed)
+```
+
+Add a route → new file in `paths/` + a `$ref` from `openapi.yaml`. Reuse an
+error response by `$ref`-ing the file in `components/responses/`.
 
 ## Routes
 

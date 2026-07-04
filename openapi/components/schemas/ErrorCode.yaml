@@ -1,0 +1,13 @@
+type: string
+description: Stable machine-readable outcome so the client can branch without parsing prose.
+enum:
+  - invalid_request
+  - payload_too_large
+  - empty_result
+  - rate_limited
+  - quota_exhausted
+  - upstream_error
+  - safety_blocked
+  - timeout
+examples:
+  - rate_limited

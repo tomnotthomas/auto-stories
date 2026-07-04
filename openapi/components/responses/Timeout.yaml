@@ -1,0 +1,12 @@
+description: The model call timed out.
+content:
+  application/json:
+    schema:
+      $ref: '../schemas/ErrorResponse.yaml'
+    examples:
+      timeout:
+        summary: Generation exceeded the hard timeout
+        value:
+          error:
+            code: timeout
+            message: The story engine timed out — retry.

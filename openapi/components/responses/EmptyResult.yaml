@@ -1,0 +1,12 @@
+description: Request was valid but no story could be shaped (e.g. too few usable photos after safety filtering).
+content:
+  application/json:
+    schema:
+      $ref: '../schemas/ErrorResponse.yaml'
+    examples:
+      emptyResult:
+        summary: Nothing usable came back
+        value:
+          error:
+            code: empty_result
+            message: Couldn't shape a story — try different photos.

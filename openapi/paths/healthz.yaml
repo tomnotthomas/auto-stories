@@ -1,0 +1,28 @@
+get:
+  operationId: healthCheck
+  tags: [ops]
+  summary: Liveness probe.
+  description: Shallow readiness check for the host (Render). Does not call the model.
+  responses:
+    '200':
+      description: The server is up.
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/HealthResponse.yaml'
+          examples:
+            ok:
+              summary: Healthy
+              value:
+                status: ok
+    '503':
+      description: The server is not ready to serve traffic.
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/HealthResponse.yaml'
+          examples:
+            unavailable:
+              summary: Not ready
+              value:
+                status: error

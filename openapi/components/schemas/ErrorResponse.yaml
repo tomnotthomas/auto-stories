@@ -1,0 +1,17 @@
+type: object
+description: Every non-2xx response uses this shape.
+required: [error]
+additionalProperties: false
+properties:
+  error:
+    type: object
+    required: [code, message]
+    additionalProperties: false
+    properties:
+      code:
+        $ref: './ErrorCode.yaml'
+      message:
+        type: string
+        description: Human-readable message safe to surface to the user.
+        examples:
+          - Slow down a moment — try again shortly.

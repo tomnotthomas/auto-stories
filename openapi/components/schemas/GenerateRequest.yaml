@@ -1,0 +1,20 @@
+type: object
+required: [story, photos]
+additionalProperties: false
+properties:
+  story:
+    type: string
+    description: The user's one-line "What's the story?" answer — drives ordering and grounds captions.
+    minLength: 1
+    maxLength: 280
+    examples:
+      - Maya's 1st birthday at the lake house, all the cousins came
+  tone:
+    $ref: './Tone.yaml'
+  photos:
+    type: array
+    description: 3–10 downscaled photos.
+    minItems: 3
+    maxItems: 10
+    items:
+      $ref: './Photo.yaml'
