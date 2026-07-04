@@ -70,6 +70,10 @@
  * only for the immersive markup Material doesn't cover. The `font` shorthand
  * carries family/weight/size/line-height; tracking is a separate token. Add a
  * role here the first time a screen needs it. */
+@utility mat-headline-small {
+  font: var(--mat-sys-headline-small);
+  letter-spacing: var(--mat-sys-headline-small-tracking);
+}
 @utility mat-title-medium {
   font: var(--mat-sys-title-medium);
   letter-spacing: var(--mat-sys-title-medium-tracking);
