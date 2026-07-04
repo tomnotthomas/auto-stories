@@ -44,8 +44,21 @@ Follow each framework's own current guidance so the app stays idiomatic and a ne
 - Signals for state, `computed()` for derived; never `mutate` (use `set`/`update`).
 - `input()`/`output()` functions, not decorators; `inject()`, not constructor injection.
 - Native control flow (`@if`/`@for`/`@switch`), not `*ngIf`/`*ngFor`/`*ngSwitch`.
-- Host bindings in the `host` object (not `@HostBinding`/`@HostListener`); `class`/`style` bindings, not `ngClass`/`ngStyle`.
+- Host bindings in the `host` object (not `@HostBinding`/`@HostListener`); `class` bindings, not `ngClass`/`ngStyle`.
 - Signal Forms for new forms; small single-responsibility components; strict TS, no `any`; must pass AXE / WCAG-AA.
+
+**Styling — Tailwind only.** Style with **Tailwind** utility classes and **standard Angular Material** components — nothing else.
+- **No component CSS files.** Do not add `.css`/`.scss` files or set `styleUrls`/`styleUrl` on a component.
+- **No inline CSS.** No `styles`/`styles: []` in `@Component`, and no `style="…"` attributes in templates.
+- **No custom components.** Use Material components as shipped; don't hand-roll or restyle bespoke variants. Tailwind classes on the markup cover layout/spacing; Material covers the controls.
+
+## Testing — TDD (mandatory)
+Every change is test-driven: write the failing test first, then the code that makes it pass.
+- **All tests must pass before a task is finished.** A task is not "done" while any test is red.
+- **Never delete or skip a test to make things pass.** Fix the code (or, if the expectation is genuinely wrong, correct the test and say so) — don't remove coverage to get a green run.
+- **Frontend — test behavior, not looks.** Assert component *functionality* (interactions, state, emitted outputs, rendered content), never styling (colors, spacing, classes). Drive components through **Angular Material / CDK component harnesses** — chosen because they're simple to write, maintain, and read, and they survive DOM/markup changes — instead of querying the DOM directly.
+- **Clean harnesses.** When a component needs its own `ComponentHarness`, keep it clean: one harness per component, locators as named `static with()`/getter methods that express intent (`getSubmitButton()`, not raw selectors scattered in tests), no assertions inside the harness (it exposes state; tests assert). Reuse Material's built-in harnesses (`MatButtonHarness`, `MatInputHarness`, …) rather than re-deriving them.
+- **Backend** — co-located `*.spec.ts` with `@nestjs/testing`'s `Test.createTestingModule` (see below).
 
 **NestJS (v11)** — no official LLM file; follow `docs.nestjs.com`.
 - One responsibility per module/provider; singletons via DI (`providedIn`-style).

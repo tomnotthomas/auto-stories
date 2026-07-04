@@ -186,6 +186,18 @@ The technical decisions for building Phase 1 (create the story).
 - **Decision:** Pin the newest guidance in `CLAUDE.md`. Angular → its official, team-maintained `best-practices.md` (v22+). NestJS → no official file, so reference the live official docs (`docs.nestjs.com`, v11) with the key rules inline. Also prefer `ng generate` / `nest generate` so scaffolding is standardized, not hand-written.
 - **Why:** The official Angular file is updated with the framework, so it forces current patterns (standalone, signals, `inject()`) and stops the model mixing in old syntax. NestJS has no such file — a community one exists (well-starred, updated early 2026) but it's an unofficial snapshot that can lag, so pointing at the live docs guarantees currency without vendoring something that goes stale.
 
+### 3.14 How we test
+- **Problem:** How do we test, and — especially for the volatile frontend UI — what do we actually assert on?
+- **Options:** write tests after the code (or skip them); TDD (test first). For frontend, either query the rendered DOM directly, assert on styles/classes, or drive components through Angular Material / CDK component harnesses.
+- **Decision:** TDD everywhere — write the failing test first, then the code that passes it. Frontend tests assert component **functionality** (interactions, state, emitted outputs, rendered content) through **Angular Material / CDK component harnesses**, never colors or styling. All tests must pass before a task is finished; a test is never deleted or skipped to get a green run.
+- **Why:** Component harnesses are simple to write and maintain — they address a component by role, not by CSS selector or markup, so they don't break when styling or DOM structure changes. That same volatility is why we don't test colors: styling churns constantly, so asserting on it produces brittle tests that fail on cosmetic edits. TDD keeps every change covered and makes "done" mean "green." Never deleting a test keeps coverage honest — a passing suite then means the code works, not that the evidence was removed.
+
+### 3.15 Styling — Tailwind, not Bootstrap
+- **Problem:** On top of Angular Material we need a utility layer for layout, spacing, and the bits Material doesn't cover.
+- **Options:** Bootstrap utility classes; Tailwind utility classes.
+- **Decision:** Tailwind. Markup carries only Tailwind utility classes plus standard Material components — no per-component `.css`/`.scss` files and no inline `styles`.
+- **Why:** Tailwind's utilities are finer-grained and composable, so you can style much more freely and precisely than with Bootstrap's fixed utility set. Keeping all styling in Tailwind classes on the markup (no component stylesheets, no inline styles) means one styling system and nothing custom to maintain.
+
 ### 3.9 Native mobile app or web app? (came late)
 - **Problem:** I'd been designing a native mobile app. Re-reading the brief, Option 2 says "deployable web app," reviewers run the code "in a fresh Linux container," and a live URL is wanted.
 - **Options:** native mobile app; responsive web app.
