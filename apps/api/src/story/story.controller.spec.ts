@@ -11,7 +11,7 @@ function requestWith(b64s: string[]): GenerateRequestDto {
   return {
     story: 'a day at the beach',
     photos: b64s.map((b64, i) => ({ id: `p${i + 1}`, b64 })),
-  } as GenerateRequestDto;
+  };
 }
 
 describe('StoryController', () => {

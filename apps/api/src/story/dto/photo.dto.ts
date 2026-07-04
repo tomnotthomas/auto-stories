@@ -1,4 +1,10 @@
-import { IsISO8601, IsNotEmpty, IsOptional, IsString, Length } from 'class-validator';
+import {
+  IsISO8601,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  Length,
+} from 'class-validator';
 import type { Photo } from '@auto-stories/api-types';
 
 /** One downscaled photo proxy. Mirrors components/schemas/Photo.yaml. */

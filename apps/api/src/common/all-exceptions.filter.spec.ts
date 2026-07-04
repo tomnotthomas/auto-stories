@@ -156,7 +156,10 @@ describe('AllExceptionsFilter', () => {
   it('maps an http-errors-style 5xx to upstream_error', () => {
     const { host, status, json } = mockHost();
 
-    filter.catch(Object.assign(new Error('bad gateway'), { status: 502 }), host);
+    filter.catch(
+      Object.assign(new Error('bad gateway'), { status: 502 }),
+      host,
+    );
 
     expect(status).toHaveBeenCalledWith(502);
     expect(json.mock.calls[0][0].error.code).toBe('upstream_error');

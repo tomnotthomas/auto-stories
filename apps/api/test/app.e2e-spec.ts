@@ -5,7 +5,9 @@ import { AppModule } from './../src/app.module';
 import { configureApp, type AppSetupOptions } from './../src/app.setup';
 import { GENAI } from './../src/story/story.constants';
 
-const JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]).toString('base64');
+const JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]).toString(
+  'base64',
+);
 
 const photos = (count: number) =>
   Array.from({ length: count }, (_, i) => ({ id: `p${i + 1}`, b64: JPEG }));
@@ -61,7 +63,11 @@ describe('App (e2e)', () => {
     it('POST /api/v1/generate returns an ordered, captioned story', async () => {
       const res = await request(app.getHttpServer())
         .post('/api/v1/generate')
-        .send({ story: 'beach day with the crew', tone: 'chill', photos: photos(3) })
+        .send({
+          story: 'beach day with the crew',
+          tone: 'chill',
+          photos: photos(3),
+        })
         .expect(200);
 
       expect(res.body.frames).toHaveLength(3);

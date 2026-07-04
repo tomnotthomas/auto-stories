@@ -33,7 +33,10 @@ async function makeService(
     providers: [
       StoryGeneratorService,
       { provide: GENAI, useValue: { models: { generateContent } } },
-      { provide: ConfigService, useValue: { get: (_k: string, d: unknown) => d } },
+      {
+        provide: ConfigService,
+        useValue: { get: (_k: string, d: unknown) => d },
+      },
     ],
   }).compile();
   return moduleRef.get(StoryGeneratorService);
@@ -65,13 +68,17 @@ describe('StoryGeneratorService', () => {
   it('sends the prompt plus one inline image per photo', async () => {
     const generateContent = jest
       .fn()
-      .mockResolvedValue(jsonResponse([{ photoId: 'p1', order: 1, caption: 'x' }]));
+      .mockResolvedValue(
+        jsonResponse([{ photoId: 'p1', order: 1, caption: 'x' }]),
+      );
     const service = await makeService(generateContent);
 
     await service.generate(makeRequest(3));
 
     const parts = generateContent.mock.calls[0][0].contents[0].parts;
-    const inlineImages = parts.filter((p: unknown) => 'inlineData' in (p as object));
+    const inlineImages = parts.filter(
+      (p: unknown) => 'inlineData' in (p as object),
+    );
     expect(inlineImages).toHaveLength(3);
   });
 
@@ -93,7 +100,9 @@ describe('StoryGeneratorService', () => {
   it('rejects with empty_result when no frames are usable', async () => {
     const generateContent = jest
       .fn()
-      .mockResolvedValue(jsonResponse([{ photoId: 'ghost', order: 1, caption: 'x' }]));
+      .mockResolvedValue(
+        jsonResponse([{ photoId: 'ghost', order: 1, caption: 'x' }]),
+      );
     const service = await makeService(generateContent);
 
     await expect(service.generate(makeRequest(3))).rejects.toMatchObject({
@@ -102,7 +111,9 @@ describe('StoryGeneratorService', () => {
   });
 
   it('rejects with empty_result when the model returns non-JSON', async () => {
-    const generateContent = jest.fn().mockResolvedValue({ text: 'sorry, I cannot' });
+    const generateContent = jest
+      .fn()
+      .mockResolvedValue({ text: 'sorry, I cannot' });
     const service = await makeService(generateContent);
 
     await expect(service.generate(makeRequest(3))).rejects.toMatchObject({
@@ -128,7 +139,9 @@ describe('StoryGeneratorService', () => {
     expect(generateContent).toHaveBeenCalledTimes(2);
     // Second attempt sends one fewer image.
     const retryParts = generateContent.mock.calls[1][0].contents[0].parts;
-    const retryImages = retryParts.filter((p: unknown) => 'inlineData' in (p as object));
+    const retryImages = retryParts.filter(
+      (p: unknown) => 'inlineData' in (p as object),
+    );
     expect(retryImages).toHaveLength(3);
     expect(result.partial).toBe(true);
   });
@@ -146,7 +159,9 @@ describe('StoryGeneratorService', () => {
   });
 
   it('maps an abort/timeout to the timeout outcome', async () => {
-    const timeout = Object.assign(new Error('timed out'), { name: 'TimeoutError' });
+    const timeout = Object.assign(new Error('timed out'), {
+      name: 'TimeoutError',
+    });
     const generateContent = jest.fn().mockRejectedValue(timeout);
     const service = await makeService(generateContent);
 
@@ -158,7 +173,9 @@ describe('StoryGeneratorService', () => {
   it('maps a 429 to rate_limited', async () => {
     const generateContent = jest
       .fn()
-      .mockRejectedValue(new ApiError({ message: 'Too Many Requests', status: 429 }));
+      .mockRejectedValue(
+        new ApiError({ message: 'Too Many Requests', status: 429 }),
+      );
     const service = await makeService(generateContent);
 
     await expect(service.generate(makeRequest(3))).rejects.toMatchObject({
