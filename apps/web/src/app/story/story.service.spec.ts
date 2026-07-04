@@ -78,10 +78,26 @@ describe('StoryService', () => {
     expect(service.phase()).toBe('generating');
   });
 
-  it('clears photos, story, and tone on reset', () => {
+  it('shows the payoff with the finished frames', () => {
+    const frames = [{ photoId: 'p1', order: 1, caption: 'By the water' }];
+    service.completeStory(frames, true);
+    expect(service.phase()).toBe('story');
+    expect(service.frames()).toEqual(frames);
+    expect(service.partial()).toBe(true);
+  });
+
+  it('shows the error screen with a specific failure', () => {
+    service.failStory({ code: 'rate_limited', message: 'Slow down' });
+    expect(service.phase()).toBe('error');
+    expect(service.error()).toEqual({ code: 'rate_limited', message: 'Slow down' });
+  });
+
+  it('clears photos, story, tone, and any result on reset', () => {
     service.addPhotos([imageFile('a.jpg')]);
     service.setStoryLine('something');
     service.setTone('funny');
+    service.completeStory([{ photoId: 'photo-1', order: 1, caption: 'x' }], false);
+    service.failStory({ code: 'timeout', message: 'took too long' });
 
     service.reset();
 
@@ -89,5 +105,7 @@ describe('StoryService', () => {
     expect(service.photoCount()).toBe(0);
     expect(service.storyLine()).toBe('');
     expect(service.tone()).toBeNull();
+    expect(service.frames()).toEqual([]);
+    expect(service.error()).toBeNull();
   });
 });

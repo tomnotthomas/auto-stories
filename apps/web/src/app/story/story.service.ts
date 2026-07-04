@@ -1,5 +1,5 @@
 import { Injectable, computed, signal } from '@angular/core';
-import type { Tone } from '@auto-stories/api-types';
+import type { ErrorCode, Frame, Tone } from '@auto-stories/api-types';
 
 /**
  * The screen the flow is currently on. Phase 1 is one linear, in-memory flow
@@ -29,6 +29,13 @@ export const MAX_PHOTOS = 10;
 /** The story line is one guided sentence; a soft cap keeps it focused (5.6). */
 export const MAX_STORY_LENGTH = 150;
 
+/** A specific failure to show the user — the contract's ErrorCode, or a
+ * transport `network` failure — each mapped to its own screen (4.3, 5.7). */
+export interface StoryError {
+  readonly code: ErrorCode | 'network';
+  readonly message: string;
+}
+
 /**
  * Holds the in-progress story in signals and drives the flow between screens.
  * A single root singleton (approach 3.8) — no NgRx, no router. It is the model
@@ -41,6 +48,9 @@ export class StoryService {
   private readonly _photos = signal<readonly PickedPhoto[]>([]);
   private readonly _storyLine = signal('');
   private readonly _tone = signal<Tone | null>(null);
+  private readonly _frames = signal<readonly Frame[]>([]);
+  private readonly _partial = signal(false);
+  private readonly _error = signal<StoryError | null>(null);
   private seq = 0;
 
   /** The screen the flow shell should render. */
@@ -51,6 +61,12 @@ export class StoryService {
   readonly storyLine = this._storyLine.asReadonly();
   /** The optional tone chip, or null. */
   readonly tone = this._tone.asReadonly();
+  /** The generated frames, in narrative order (empty until the story lands). */
+  readonly frames = this._frames.asReadonly();
+  /** True when the model dropped a photo but still produced a story (4.3). */
+  readonly partial = this._partial.asReadonly();
+  /** The current failure, or null. */
+  readonly error = this._error.asReadonly();
 
   /** How many photos are picked. */
   readonly photoCount = computed(() => this._photos().length);
@@ -97,7 +113,21 @@ export class StoryService {
 
   /** Submit the create step and move to the generating screen. */
   startGenerating(): void {
+    this._error.set(null);
     this._phase.set('generating');
+  }
+
+  /** Store the finished story and show the payoff. */
+  completeStory(frames: readonly Frame[], partial: boolean): void {
+    this._frames.set(frames);
+    this._partial.set(partial);
+    this._phase.set('story');
+  }
+
+  /** Record a specific failure and show the error screen (4.3). */
+  failStory(error: StoryError): void {
+    this._error.set(error);
+    this._phase.set('error');
   }
 
   /** Clear everything and return to the first-open example (start over). */
@@ -106,6 +136,9 @@ export class StoryService {
     this._photos.set([]);
     this._storyLine.set('');
     this._tone.set(null);
+    this._frames.set([]);
+    this._partial.set(false);
+    this._error.set(null);
     this._phase.set('example');
   }
 }
