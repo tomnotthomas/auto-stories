@@ -1,0 +1,29 @@
+# Auto Stories — Render Blueprint (infrastructure as code).
+#
+# One Docker web service builds and runs the whole app (Angular + NestJS) from
+# the root Dockerfile. Render injects PORT; the server reads it (see
+# apps/api/src/main.ts) and serves the built web app plus the /api routes.
+#
+# First-time setup:
+#   1. render blueprints launch      # or connect this repo in the Render dashboard
+#   2. Set GOOGLE_CLOUD_API_KEY in the service's Environment (it is a secret,
+#      so it is intentionally NOT stored here — sync: false below).
+#
+# Auto-deploys on every push to main.
+services:
+  - type: web
+    name: auto-stories
+    runtime: docker
+    repo: https://github.com/tomnotthomas/my-take-home
+    dockerfilePath: ./Dockerfile
+    plan: free
+    region: oregon
+    branch: main
+    # The app's own liveness probe; also used by the Docker HEALTHCHECK.
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      # Secret — the story engine fails fast without it. Set the value in the
+      # Render dashboard; sync: false keeps it out of source control.
+      - key: GOOGLE_CLOUD_API_KEY
+        sync: false
