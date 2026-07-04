@@ -71,7 +71,7 @@ Story  { id, intent, frames: Frame[], createdAt }
 | Case | Handling | User sees |
 |------|----------|-----------|
 | No photos uploaded | Disable Generate | Greyed button + hint |
-| 1–2 photos | Allow, nudge | "Add a few moments for a fuller story" |
+| 1–2 photos | Require ≥3; keep Generate disabled | "A story needs at least 3 photos" |
 | >10 uploaded | Enforce cap at upload | "Up to 10 photos per story" |
 | HEIC upload (iPhone) | Convert client-side (`heic2any`) before downscale/preview | Transparent; else "couldn't read this photo" |
 | Huge / non-image file | Validate type + size at upload | "Please upload images under N MB" |
@@ -105,4 +105,3 @@ The architecture is a straight line (browser → one API route → model), so Ph
 ## Open decisions to confirm
 
 1. **Latency UX** — staged loader now; streaming later?
-2. **1–2 photo stories** — allow with a nudge, or require a minimum (e.g. 3)?

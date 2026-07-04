@@ -72,6 +72,12 @@ The problems I hit while shaping the product, the options, and what I picked.
 - **Decision:** Break the project into phases, and give each phase its own folder with a scoped spec and its own open questions.
 - **Why:** Compartmentalizing lets me focus on the current phase and ignore future concerns until they're relevant.
 
+### 1.11 Minimum number of photos
+- **Problem:** How few photos can still make a story?
+- **Options:** allow 1–2 with a nudge; require a minimum of 3.
+- **Decision:** Require at least 3 photos (Generate stays disabled below 3).
+- **Why:** A story is a sequence with a beginning, a middle, and a payoff, so it needs at least 3 frames; 1–2 photos is a post, not a story. This is an assumption about what counts as a story.
+
 ---
 
 # Chapter 2 — Locking the Phase 1 architecture
