@@ -1,0 +1,663 @@
+<style>
+/*@FONT@*/
+/*@PHOTOS@*/
+
+/* ============================================================= *
+ * Auto Stories — motion landing page.
+ * Golden Hour palette (dark, committed), Roboto, real demo photos.
+ * The scroll IS the story: hero -> photos assemble into the phone
+ * -> the phone plays the 4 real product screens -> CTA.
+ * ============================================================= */
+
+:root{
+  color-scheme: dark;
+
+  /* Golden Hour — dark scheme roles (from --mat-sys-* / _theme-colors.scss) */
+  --bg:#0d0b0a;              /* deepest backdrop (mockup page bg) */
+  --surface:#1a110f;         /* warm near-black surface */
+  --s-low:#231917;
+  --s:#271d1b;
+  --s-high:#322825;
+  --s-hi:#3d3230;
+  --on:#f1dfda;
+  --on-var:#dcc1ba;
+  --outline:#a48b85;
+  --outline-var:#55423e;
+
+  --primary:#ffb4a1;               /* dark coral */
+  --on-primary:#611300;
+  --primary-container:#891e00;
+  --on-primary-container:#ffdbd2;
+  --tertiary:#ffb1c4;              /* pink */
+  --tertiary-container:#831f45;
+  --on-tertiary-container:#ffd9e1;
+
+  /* brand source + bright tonal stops for glows/gradients */
+  --coral:#F0603A;   --coral-60:#f3623c;  --coral-70:#ff8b6c;
+  --plum:#B5476B;    --plum-60:#e1698e;   --plum-70:#ff85a8;
+
+  /* type scale (Roboto) */
+  --display:400 clamp(2.4rem,7vw,4rem)/1.02 'Roboto',system-ui,sans-serif;
+  --headline:500 clamp(1.5rem,3.4vw,2.1rem)/1.12 'Roboto',system-ui,sans-serif;
+  --title:500 1.05rem/1.4 'Roboto',system-ui,sans-serif;
+  --body:400 1rem/1.55 'Roboto',system-ui,sans-serif;
+  --label:500 .875rem/1.25rem 'Roboto',system-ui,sans-serif;
+
+  /* live scroll state (set by JS) */
+  --a:0;          /* assembly 0..1  (photos scattered -> collected) */
+  --cloudfade:0;  /* photos fade as they tuck into the phone */
+  --hero:1;       /* hero copy presence */
+  --phone:0;      /* phone presence */
+  --screens:0;    /* side-copy + rail presence */
+  --outro:0;      /* final handoff */
+  --px:0;         /* pointer x, -1..1 */
+  --py:0;         /* pointer y, -1..1 */
+}
+
+*,*::before,*::after{box-sizing:border-box}
+body{
+  margin:0; background:var(--bg); color:var(--on);
+  font:var(--body); overflow-x:hidden;
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+}
+h1,h2,p{margin:0}
+.material,.i{flex:none}
+.i{width:1.25em;height:1.25em;fill:currentColor;display:inline-block;vertical-align:-.18em}
+
+/* ---- golden hour sky + film grain ---------------------------------- */
+.sky{
+  position:absolute; inset:0; z-index:0; pointer-events:none;
+  background:
+    radial-gradient(120% 90% at 50% -10%, color-mix(in srgb,var(--coral) 55%,transparent) 0%, transparent 52%),
+    radial-gradient(90% 70% at 82% 8%,   color-mix(in srgb,var(--plum) 50%,transparent) 0%, transparent 55%),
+    radial-gradient(70% 60% at 12% 22%,  color-mix(in srgb,var(--coral-70) 32%,transparent) 0%, transparent 50%),
+    linear-gradient(180deg,#1c1210 0%, var(--bg) 60%);
+}
+.sky::after{ /* soft sun glow that breathes */
+  content:""; position:absolute; left:50%; top:-14%; width:60vmax; height:60vmax;
+  transform:translateX(-50%);
+  background:radial-gradient(circle, color-mix(in srgb,var(--coral) 60%,transparent) 0%, transparent 60%);
+  filter:blur(20px); opacity:.55; animation:breathe 9s ease-in-out infinite;
+}
+@keyframes breathe{0%,100%{opacity:.42;transform:translateX(-50%) scale(1)}50%{opacity:.62;transform:translateX(-50%) scale(1.08)}}
+.grain{
+  position:absolute; inset:-50%; z-index:1; pointer-events:none; opacity:.05; mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  animation:grain 1.2s steps(3) infinite;
+}
+@keyframes grain{to{transform:translate(6%,4%)}}
+
+/* ---- the pinned film ---------------------------------------------- */
+.track{position:relative; height:640vh}
+.stage{
+  position:sticky; top:0; height:100vh; overflow:hidden;
+  display:grid; place-items:center;
+}
+
+/* ---- hero copy ---------------------------------------------------- */
+.hero-copy{
+  position:absolute; z-index:6; left:0; right:0; top:0; height:100%;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  text-align:center; padding:6vh 24px; gap:18px;
+  opacity:var(--hero);
+  transform:translateY(calc(-40px * (1 - var(--hero))));
+  transition:opacity .1s linear;
+  pointer-events:none;
+}
+.brand{
+  display:inline-flex; align-items:center; gap:9px; font:var(--label);
+  letter-spacing:.14em; text-transform:uppercase; color:var(--on-var);
+}
+.brand .logo{
+  width:22px;height:22px;border-radius:50%;
+  background:conic-gradient(from 210deg,var(--coral),var(--plum),var(--coral-70),var(--coral));
+  box-shadow:0 0 18px color-mix(in srgb,var(--coral) 60%,transparent);
+}
+.hero-h1{
+  font:var(--display); letter-spacing:-.02em; max-width:14ch;
+  background:linear-gradient(180deg,#fff 0%, #ffe6dd 60%, var(--coral-70) 140%);
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+  text-wrap:balance;
+}
+.hero-sub{font:var(--body); font-size:clamp(1rem,2vw,1.2rem); color:var(--on-var); max-width:40ch}
+.scrollcue{
+  position:absolute; bottom:26px; left:0; right:0; display:flex; flex-direction:column; align-items:center;
+  gap:4px; font:var(--label); letter-spacing:.12em; text-transform:uppercase; color:var(--on-var); opacity:.75;
+}
+.scrollcue .i{animation:bob 1.6s ease-in-out infinite}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(6px)}}
+
+/* ---- 3D photo cloud ----------------------------------------------- */
+.cloud{
+  position:absolute; z-index:4; inset:0; perspective:1200px; transform-style:preserve-3d;
+  pointer-events:none;
+}
+.pc{
+  position:absolute; left:50%; top:50%; width:170px; height:224px; margin:-112px 0 0 -85px;
+  background-size:cover; background-position:center; border-radius:16px;
+  box-shadow:0 26px 60px rgba(0,0,0,.55), 0 0 0 5px rgba(255,255,255,.06);
+  will-change:transform,opacity;
+  opacity:calc(1 - var(--cloudfade));
+  transform:
+    translate3d(
+      calc(var(--sx) * (1 - var(--a)) + var(--px) * var(--pd) * 34px),
+      calc(var(--sy) * (1 - var(--a)) + var(--py) * var(--pd) * 34px),
+      calc(var(--sz) * (1 - var(--a)))
+    )
+    rotateX(calc(var(--rx) * (1 - var(--a)) + var(--py) * -6deg))
+    rotateY(calc(var(--ry) * (1 - var(--a)) + var(--px) * 8deg))
+    scale(calc(1 - .74 * var(--a)));
+}
+.pc::after{content:"";position:absolute;inset:0;border-radius:16px;background:linear-gradient(180deg,transparent 55%,rgba(0,0,0,.35));}
+
+/* ---- the phone ---------------------------------------------------- */
+.phonewrap{
+  position:absolute; z-index:5; left:50%; top:50%; perspective:1400px;
+  opacity:calc(var(--phone) - var(--outro));
+  --shift:170px;   /* slides left in the screens phase to free a copy column */
+  transform:
+    translate(-50%,-50%)
+    translateX(calc(var(--shift) * -1 * var(--screens)))
+    translateY(calc(46px * (1 - var(--phone)) - 70px * var(--outro)))
+    scale(calc(.8 + .2 * var(--phone) - .06 * var(--outro)))
+    rotateY(calc(var(--px) * 7deg))
+    rotateX(calc(var(--py) * -7deg));
+  transform-style:preserve-3d; will-change:transform,opacity;
+}
+.phone{
+  position:relative; width:300px; height:648px; border-radius:46px;
+  background:var(--surface);
+  box-shadow:0 40px 90px rgba(0,0,0,.6), 0 0 0 11px #0d0b0a, 0 0 0 13px #2a2320,
+             0 0 60px color-mix(in srgb,var(--coral) 22%,transparent);
+  overflow:hidden;
+}
+.notch{position:absolute;z-index:20;top:11px;left:50%;transform:translateX(-50%);width:104px;height:26px;background:#0d0b0a;border-radius:0 0 16px 16px}
+.statusbar{position:absolute;z-index:15;top:0;left:0;right:0;height:40px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;font:600 12px/1 'Roboto';color:#fff}
+
+/* stacked screens */
+.screens{position:absolute;inset:0}
+.screen{
+  position:absolute; inset:0; display:flex; flex-direction:column; overflow:hidden;
+  background:var(--surface); opacity:0; transform:scale(1.04);
+  transition:opacity .5s ease, transform .5s ease; pointer-events:none;
+}
+.stage[data-screen="1"] .s-pick,
+.stage[data-screen="2"] .s-gen,
+.stage[data-screen="3"] .s-payoff,
+.stage[data-screen="4"] .s-refine{opacity:1;transform:scale(1)}
+
+/* ---- shared screen atoms (from design/mockups/base.css) ----------- */
+.scrim{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.34) 0%,transparent 24%,transparent 50%,rgba(0,0,0,.78) 100%)}
+.segs{display:flex;gap:4px}
+.segs i{height:3px;border-radius:3px;background:rgba(255,255,255,.4);flex:1;overflow:hidden;position:relative}
+.segs i.done{background:#fff}
+.segs i.now::after{content:"";position:absolute;inset:0;background:#fff;transform-origin:left;animation:fillseg 3s linear infinite}
+@keyframes fillseg{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.avatar{width:30px;height:30px;border-radius:50%;background:var(--tertiary-container);color:var(--on-tertiary-container);display:flex;align-items:center;justify-content:center;font:700 14px 'Roboto';flex:none}
+.mbtn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:none;cursor:default;font:var(--label);height:44px;padding:0 22px;border-radius:100px;white-space:nowrap}
+.mbtn.block{display:flex;width:100%}
+.mbtn.filled{background:var(--primary);color:var(--on-primary)}
+.iconbtn{display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:50%;border:none;background:transparent;color:var(--on-var)}
+
+/* screen 1 — pick + story */
+.s-pick .appbar{flex:none;display:flex;align-items:center;gap:2px;height:52px;padding:40px 6px 0;color:var(--on)}
+.s-pick .appbar .t{font:var(--title)}
+.s-pick .grid{flex:1;display:grid;grid-template-columns:repeat(3,1fr);grid-auto-rows:1fr;gap:3px;overflow:hidden}
+.s-pick .grid .cell{position:relative;overflow:hidden;background-size:cover;background-position:center}
+.s-pick .grid .cell .x{position:absolute;top:5px;right:5px;width:20px;height:20px;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(2px)}
+.s-pick .grid .add{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;background:var(--s-high);color:var(--primary);border:none;font:var(--label)}
+.s-pick .grid .add small{font:500 11px 'Roboto';color:var(--on-var)}
+.s-pick .panel{flex:none;background:var(--surface);padding:14px 16px 18px;display:flex;flex-direction:column;gap:12px}
+.field{background:var(--s-hi);border-radius:8px 8px 0 0;border-bottom:2px solid var(--primary);padding:9px 14px}
+.field .fl{font:500 12px 'Roboto';color:var(--primary)}
+.field .fv{font:400 14px/1.35 'Roboto';color:var(--on);margin-top:3px}
+.tone{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.tone .lbl{font:500 11px 'Roboto';color:var(--on-var);width:100%}
+.tchip{display:inline-flex;align-items:center;gap:5px;height:32px;padding:0 12px;border-radius:9px;border:1px solid var(--outline);background:transparent;color:var(--on-var);font:500 13px 'Roboto'}
+.tchip.sel{background:var(--primary-container);color:var(--on-primary-container);border-color:transparent}
+
+/* screen 2 — generating */
+.s-gen{background:#000}
+.s-gen .slides{position:absolute;inset:0}
+.s-gen .slides .photo{position:absolute;inset:0;background-size:cover;background-position:center;opacity:0;animation:cycle 12s infinite}
+.s-gen .slides .photo:nth-child(1){animation-delay:0s}
+.s-gen .slides .photo:nth-child(2){animation-delay:3s}
+.s-gen .slides .photo:nth-child(3){animation-delay:6s}
+.s-gen .slides .photo:nth-child(4){animation-delay:9s}
+@keyframes cycle{0%{opacity:0;transform:scale(1.12)}4%{opacity:1}25%{opacity:1}29%{opacity:0;transform:scale(1)}100%{opacity:0}}
+.s-gen .genscrim{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.5) 0%,rgba(0,0,0,.2) 30%,rgba(0,0,0,.6) 62%,rgba(0,0,0,.95) 100%)}
+.s-gen .content{position:relative;z-index:3;margin-top:auto;padding:22px 22px 30px;color:#fff}
+.s-gen .type{display:inline-block;overflow:hidden;white-space:nowrap;vertical-align:bottom;border-right:2px solid var(--primary);font-weight:700;font-size:19px;width:0;animation:typing 6s steps(24,end) infinite,caret .7s step-end infinite}
+@keyframes typing{0%{width:0}40%{width:24ch}62%{width:24ch}100%{width:0}}
+@keyframes caret{50%{border-color:transparent}}
+.s-gen .gtitle{font-weight:700;font-size:21px;margin-top:10px;color:rgba(255,255,255,.92)}
+.s-gen .bar{height:4px;border-radius:4px;background:rgba(255,255,255,.22);overflow:hidden;position:relative;margin:16px 0 18px}
+.s-gen .bar::after{content:"";position:absolute;top:0;left:-45%;width:45%;height:100%;background:var(--primary);border-radius:4px;animation:indet 1.3s cubic-bezier(.4,0,.2,1) infinite}
+@keyframes indet{to{left:100%}}
+.s-gen .steps{display:flex;flex-direction:column;gap:13px}
+.s-gen .step{display:flex;align-items:center;gap:11px;font:400 14px 'Roboto';color:rgba(255,255,255,.5)}
+.s-gen .step .dot{width:18px;height:18px;border-radius:50%;border:2px solid rgba(255,255,255,.3);flex:none;position:relative}
+.s-gen .step.on{color:#fff}
+.s-gen .step.on .dot{border-color:var(--primary);border-top-color:transparent;animation:spin .8s linear infinite}
+.s-gen .step.ok{color:#fff}
+.s-gen .step.ok .dot{border-color:var(--primary);background:var(--primary)}
+.s-gen .step.ok .dot::after{content:"";position:absolute;left:5px;top:2px;width:4px;height:8px;border:solid var(--on-primary);border-width:0 2px 2px 0;transform:rotate(45deg)}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* screen 3 — payoff (auto-plays 3 frames) */
+.s-payoff{background:#000}
+.s-payoff .frame{position:absolute;inset:0;opacity:0;animation:payframe 12s infinite}
+.s-payoff .frame .photo{position:absolute;inset:0;background-size:cover;background-position:center;animation:kb 12s ease-in-out infinite}
+.s-payoff .frame:nth-child(1){animation-delay:0s}
+.s-payoff .frame:nth-child(2){animation-delay:4s}
+.s-payoff .frame:nth-child(3){animation-delay:8s}
+@keyframes payframe{0%{opacity:0}3%{opacity:1}30%{opacity:1}34%{opacity:0}100%{opacity:0}}
+@keyframes kb{0%{transform:scale(1.02)}100%{transform:scale(1.14)}}
+.s-payoff .head{position:absolute;z-index:4;top:44px;left:0;right:0;padding:0 12px;color:#fff}
+.s-payoff .head .row{display:flex;align-items:center;gap:9px;padding:10px 2px}
+.s-payoff .head .nm{font:500 13px 'Roboto';color:#fff}
+.s-payoff .head .nm small{display:block;font-weight:400;color:rgba(255,255,255,.72)}
+.s-payoff .cap{position:absolute;z-index:4;left:20px;right:20px;bottom:34px;color:#fff}
+.s-payoff .cap .kick{font:500 11px 'Roboto';letter-spacing:.16em;text-transform:uppercase;opacity:.85;margin-bottom:8px}
+.s-payoff .cap .line{font-weight:700;font-size:22px;line-height:1.16;text-shadow:0 2px 16px rgba(0,0,0,.6);min-height:80px}
+.s-payoff .cline{opacity:0;position:absolute;left:20px;right:20px;animation:payframe 12s infinite}
+.s-payoff .cline:nth-child(1){animation-delay:0s}
+.s-payoff .cline:nth-child(2){animation-delay:4s}
+.s-payoff .cline:nth-child(3){animation-delay:8s}
+
+/* screen 4 — refine */
+.s-refine{background:#000}
+.s-refine .photo{position:absolute;inset:0;background-size:cover;background-position:center}
+.s-refine .dim{position:absolute;inset:0;background:rgba(0,0,0,.4)}
+.s-refine .ebar{position:absolute;z-index:5;top:44px;left:0;right:0;display:flex;align-items:center;padding:4px 6px;color:#fff}
+.s-refine .ebar .t{flex:1;text-align:center;font:var(--title)}
+.s-refine .ebar .done{color:var(--primary);font:var(--label);background:none;border:none;padding:8px 12px}
+.s-refine .selcap{position:absolute;z-index:3;left:34px;right:34px;top:220px;color:#fff;text-align:center}
+.s-refine .selbox{position:absolute;inset:-14px;border:1.5px solid rgba(255,255,255,.95);border-radius:8px}
+.s-refine .h{position:absolute;width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 0 0 2px var(--primary)}
+.s-refine .h.tl{left:-7px;top:-7px}.s-refine .h.tr{right:-7px;top:-7px}.s-refine .h.bl{left:-7px;bottom:-7px}.s-refine .h.br{right:-7px;bottom:-7px}
+.s-refine .tag{position:absolute;left:50%;top:-36px;transform:translateX(-50%);display:inline-flex;align-items:center;gap:5px;background:rgba(0,0,0,.62);color:#fff;font:500 11px 'Roboto';padding:5px 10px;border-radius:100px;white-space:nowrap;backdrop-filter:blur(4px)}
+.s-refine .line{font-weight:700;font-size:22px;line-height:1.18;text-shadow:0 2px 14px rgba(0,0,0,.6)}
+.s-refine .line .car{display:inline-block;width:3px;height:22px;background:#fff;margin-left:2px;transform:translateY(4px);animation:blink 1s step-start infinite}
+@keyframes blink{50%{opacity:0}}
+.s-refine .sheet{position:absolute;z-index:4;left:0;right:0;bottom:0;background:var(--s-low);border-radius:22px 22px 0 0;padding:9px 16px 18px;display:flex;flex-direction:column;gap:14px}
+.s-refine .grab{width:32px;height:4px;border-radius:2px;background:var(--outline-var);margin:0 auto}
+.s-refine .szh{font:500 11px 'Roboto';color:var(--on-var)}
+.s-refine .szrow{display:flex;align-items:center;gap:11px;color:var(--on-var)}
+.s-refine .track2{flex:1;height:4px;border-radius:4px;background:var(--primary-container);position:relative}
+.s-refine .track2 .fill{position:absolute;left:0;top:0;bottom:0;width:55%;border-radius:4px;background:var(--primary)}
+.s-refine .track2 .knob{position:absolute;left:55%;top:50%;width:15px;height:15px;border-radius:50%;background:var(--primary);transform:translate(-50%,-50%)}
+.s-refine .quick{display:flex;gap:9px}
+.s-refine .qbtn{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:6px;height:40px;border-radius:100px;border:1px solid var(--outline);background:transparent;color:var(--on);font:var(--label)}
+.s-refine .qbtn.on{background:var(--primary-container);color:var(--on-primary-container);border-color:transparent}
+
+/* coach mark (payoff + pick) */
+.coach{position:absolute;z-index:6;display:inline-flex;align-items:center;gap:6px;background:var(--primary);color:var(--on-primary);padding:6px 12px;border-radius:100px;font:500 12px 'Roboto';box-shadow:0 4px 14px rgba(0,0,0,.45);animation:coachbob 1.6s ease-in-out infinite}
+@keyframes coachbob{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+
+/* ---- side copy (screens phase) ------------------------------------ */
+.sidecopy{
+  position:absolute; z-index:7; left:calc(50% + 40px); top:50%;
+  transform:translateY(-50%);
+  width:min(400px,34vw); height:300px; opacity:var(--screens); pointer-events:none;
+}
+.sidecopy .step{
+  position:absolute; inset:0; display:flex; flex-direction:column; justify-content:center; gap:14px;
+  opacity:0; transform:translateY(14px); transition:opacity .45s ease,transform .45s ease;
+}
+.stage[data-screen="1"] .sidecopy .step[data-s="1"],
+.stage[data-screen="2"] .sidecopy .step[data-s="2"],
+.stage[data-screen="3"] .sidecopy .step[data-s="3"],
+.stage[data-screen="4"] .sidecopy .step[data-s="4"]{opacity:1;transform:none}
+.sidecopy .idx{font:700 13px 'Roboto';letter-spacing:.2em;color:var(--coral-70)}
+.sidecopy h2{font:var(--headline);letter-spacing:-.01em;color:#fff;max-width:15ch}
+.sidecopy p{font:var(--body);font-size:1.08rem;color:var(--on-var);max-width:34ch}
+
+/* progress rail */
+.rail{position:absolute;z-index:7;left:50%;bottom:5vh;transform:translateX(-50%);display:flex;gap:8px;opacity:var(--screens)}
+.rail i{width:34px;height:4px;border-radius:4px;background:rgba(255,255,255,.22);transition:background .35s}
+.stage[data-screen="1"] .rail i:nth-child(1),
+.stage[data-screen="2"] .rail i:nth-child(-n+2),
+.stage[data-screen="3"] .rail i:nth-child(-n+3),
+.stage[data-screen="4"] .rail i:nth-child(-n+4){background:var(--primary)}
+
+/* ---- CTA + footer ------------------------------------------------- */
+.cta{
+  position:relative; z-index:2; min-height:88vh; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; text-align:center; gap:20px; padding:12vh 24px;
+  overflow:hidden;
+}
+.cta .k{font:var(--label);letter-spacing:.16em;text-transform:uppercase;color:var(--coral-70);position:relative;z-index:2}
+.cta h2{position:relative;z-index:2;font:var(--display);font-size:clamp(2rem,5vw,3.2rem);letter-spacing:-.02em;max-width:16ch;
+  background:linear-gradient(180deg,#fff,#ffd9cf);-webkit-background-clip:text;background-clip:text;color:transparent}
+.cta p{position:relative;z-index:2;font:var(--body);font-size:1.12rem;color:var(--on-var);max-width:42ch}
+.cta .actions{position:relative;z-index:2;display:flex;gap:14px;flex-wrap:wrap;justify-content:center;margin-top:6px}
+.btn{display:inline-flex;align-items:center;gap:9px;height:54px;padding:0 30px;border-radius:100px;font:600 16px 'Roboto';text-decoration:none;border:none;cursor:pointer;transition:transform .15s ease,box-shadow .15s ease}
+.btn.primary{background:linear-gradient(120deg,var(--coral) 0%,var(--plum) 120%);color:#fff;box-shadow:0 10px 30px color-mix(in srgb,var(--coral) 40%,transparent)}
+.btn.primary:hover{transform:translateY(-2px);box-shadow:0 16px 40px color-mix(in srgb,var(--coral) 50%,transparent)}
+.btn.ghost{background:transparent;color:var(--on);border:1px solid var(--outline)}
+.btn:focus-visible{outline:3px solid var(--coral-70);outline-offset:3px}
+footer{position:relative;z-index:2;text-align:center;padding:30px 24px 46px;color:var(--on-var);font:var(--label);border-top:1px solid var(--outline-var)}
+footer b{color:var(--on)}
+
+/* reduced-motion gallery (hidden unless reduced) */
+.rgallery{display:none}
+
+/* ---- responsive --------------------------------------------------- */
+@media (max-width:900px){
+  .sidecopy{
+    top:auto; bottom:calc(4vh + 30px); left:16px; right:16px; width:auto; height:auto;
+    transform:none; text-align:center;
+  }
+  .sidecopy .step{position:relative;inset:auto;justify-content:flex-start}
+  .stage[data-screen] .sidecopy .step{position:absolute;left:16px;right:16px;bottom:0}
+  .sidecopy h2{font-size:clamp(1.3rem,6vw,1.7rem);max-width:none;margin-inline:auto}
+  .sidecopy p{max-width:none;margin-inline:auto;font-size:1rem}
+  .sidecopy .idx{opacity:0}
+  .rail{bottom:2vh}
+  .phonewrap{
+    top:35%;
+    --shift:0px;
+    transform:translate(-50%,-50%) translateY(calc(46px*(1 - var(--phone)) - 70px*var(--outro)))
+      scale(calc(.6 + .14*var(--phone) - .05*var(--outro)));
+  }
+}
+@media (max-width:560px){
+  .pc{width:132px;height:176px;margin:-88px 0 0 -66px}
+}
+
+/* ---- prefers-reduced-motion: no scrub, static stacked story ------- */
+@media (prefers-reduced-motion:reduce){
+  .sky::after,.grain,.scrollcue .i,.coach,
+  .s-gen .type,.s-gen .step.on .dot,.s-gen .bar::after,
+  .s-payoff .frame,.s-payoff .cline,.s-payoff .photo,.segs i.now::after,
+  .s-refine .line .car{animation:none !important}
+}
+.reduced .track{height:auto}
+.reduced .stage{position:static;height:auto;overflow:visible;display:block;padding:12vh 0 6vh}
+.reduced .hero-copy{position:relative;height:auto;opacity:1;transform:none;padding:8vh 24px 4vh}
+.reduced .scrollcue{display:none}
+.reduced .cloud{display:none}
+.reduced .phonewrap,.reduced .sidecopy,.reduced .rail{display:none}
+.reduced .rgallery{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:40px 28px;
+  max-width:1100px;margin:0 auto;padding:0 24px;align-items:start;
+}
+.reduced .rgallery .item{display:flex;flex-direction:column;align-items:center;gap:16px;text-align:center}
+.reduced .rgallery .item .idx{font:700 13px 'Roboto';letter-spacing:.2em;color:var(--coral-70)}
+.reduced .rgallery .item h2{font:var(--headline);color:#fff}
+.reduced .rgallery .item p{font:var(--body);color:var(--on-var);max-width:32ch}
+.reduced .rgallery .phone{transform:scale(.92)}
+</style>
+
+<main class="page" id="page">
+
+  <!-- ============ THE FILM (pinned scroll scrub) ============ -->
+  <section class="track" id="track" aria-label="How Auto Stories works">
+    <div class="stage" id="stage" data-screen="1">
+      <div class="sky" aria-hidden="true"></div>
+      <div class="grain" aria-hidden="true"></div>
+
+      <!-- Act 0 — hero -->
+      <div class="hero-copy" id="heroCopy">
+        <div class="brand"><span class="logo" aria-hidden="true"></span> Auto Stories</div>
+        <h1 class="hero-h1" data-pretext>Your photos already have a story.</h1>
+        <p class="hero-sub">We put them in order and write the captions — a finished Instagram Story in seconds.</p>
+        <div class="scrollcue">Scroll <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.4 8.6 12 13.2l4.6-4.6L18 10l-6 6-6-6z"/></svg></div>
+      </div>
+
+      <!-- Act 1 — photo cloud that assembles into the phone -->
+      <div class="cloud" id="cloud" aria-hidden="true">
+        <div class="pc ph-sparkler" style="--sx:-460px;--sy:-140px;--sz:120px;--rx:8deg;--ry:16deg;--pd:1.5"></div>
+        <div class="pc ph-cake"     style="--sx:450px;--sy:-160px;--sz:60px;--rx:-6deg;--ry:-14deg;--pd:1.2"></div>
+        <div class="pc ph-cousins"  style="--sx:-410px;--sy:210px;--sz:170px;--rx:10deg;--ry:12deg;--pd:1.7"></div>
+        <div class="pc ph-lake"     style="--sx:450px;--sy:180px;--sz:20px;--rx:-9deg;--ry:-12deg;--pd:1.0"></div>
+        <div class="pc ph-dock"     style="--sx:-110px;--sy:-320px;--sz:-40px;--rx:6deg;--ry:6deg;--pd:.8"></div>
+        <div class="pc ph-c"        style="--sx:160px;--sy:300px;--sz:-70px;--rx:-7deg;--ry:-8deg;--pd:.7"></div>
+        <div class="pc ph-a"        style="--sx:560px;--sy:40px;--sz:210px;--rx:3deg;--ry:-4deg;--pd:1.9"></div>
+      </div>
+
+      <!-- Act 2 — the phone playing the product -->
+      <div class="phonewrap" id="phonewrap">
+        <div class="phone">
+          <div class="notch" aria-hidden="true"></div>
+          <div class="screens">
+
+            <!-- Screen 1: pick + story -->
+            <div class="screen s-pick">
+              <div class="statusbar" style="color:var(--on)"><span>9:41</span><span>5G ▮▮</span></div>
+              <div class="appbar"><button class="iconbtn"><svg class="i" viewBox="0 0 24 24"><path d="M20 11H7.8l5.6-5.6L12 4l-8 8 8 8 1.4-1.4L7.8 13H20z"/></svg></button><span class="t">New story</span></div>
+              <div class="grid">
+                <div class="cell ph-sparkler"><span class="x"><svg class="i" viewBox="0 0 24 24"><path d="M19 6.4 17.6 5 12 10.6 6.4 5 5 6.4 10.6 12 5 17.6 6.4 19 12 13.4 17.6 19 19 17.6 13.4 12z"/></svg></span></div>
+                <div class="cell ph-cousins"></div>
+                <div class="cell ph-cake"></div>
+                <div class="cell ph-lake"></div>
+                <div class="cell ph-dock"></div>
+                <div class="cell ph-a"></div>
+                <div class="cell ph-b"></div>
+                <div class="cell ph-c"></div>
+                <button class="add"><svg class="i" viewBox="0 0 24 24"><path d="M21 5v6.6l-2-2V5H8.8L7 7H4v12h11.2l2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2.2L8 3h6l1.8 2H21zm-1 9v3h3v2h-3v3h-2v-3h-3v-2h3v-3h2z"/></svg>Add<small>8 / 10</small></button>
+              </div>
+              <div class="panel">
+                <div class="field">
+                  <div class="fl">What's the story?</div>
+                  <div class="fv">Maya's 1st birthday at the lake house, all the cousins came</div>
+                </div>
+                <div class="tone">
+                  <span class="lbl">Tone · optional</span>
+                  <button class="tchip">Funny</button>
+                  <button class="tchip sel"><svg class="i" viewBox="0 0 24 24"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg>Heartfelt</button>
+                  <button class="tchip">Hype</button>
+                  <button class="tchip">Chill</button>
+                </div>
+                <button class="mbtn filled block"><svg class="i" viewBox="0 0 24 24"><path d="M12 2l1.9 5.1L19 9l-5.1 1.9L12 16l-1.9-5.1L5 9l5.1-1.9z"/></svg>Create my story</button>
+              </div>
+            </div>
+
+            <!-- Screen 2: generating -->
+            <div class="screen s-gen">
+              <div class="statusbar"><span>9:41</span><span>5G ▮▮</span></div>
+              <div class="slides">
+                <div class="photo ph-cake"></div><div class="photo ph-cousins"></div>
+                <div class="photo ph-sparkler"></div><div class="photo ph-lake"></div>
+              </div>
+              <div class="genscrim"></div>
+              <div class="content">
+                <div class="preview"><span class="type">We all made it to the lake</span></div>
+                <div class="gtitle">Building your story…</div>
+                <div class="bar"></div>
+                <div class="steps">
+                  <div class="step ok"><span class="dot"></span>Reading your 8 photos</div>
+                  <div class="step on"><span class="dot"></span>Finding the story — strongest hook first</div>
+                  <div class="step"><span class="dot"></span>Writing the captions</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Screen 3: payoff -->
+            <div class="screen s-payoff">
+              <div class="statusbar"><span>9:41</span><span>5G ▮▮</span></div>
+              <div class="frame"><div class="photo ph-cake"></div></div>
+              <div class="frame"><div class="photo ph-cousins"></div></div>
+              <div class="frame"><div class="photo ph-sparkler"></div></div>
+              <div class="scrim"></div>
+              <div class="head">
+                <div class="segs"><i class="done"></i><i class="done"></i><i class="now"></i><i></i><i></i></div>
+                <div class="row"><span class="avatar">M</span><span class="nm">Maya turns one<small>Made by Auto Stories</small></span></div>
+              </div>
+              <div class="cap">
+                <div class="kick">Your story</div>
+                <div class="line">
+                  <span class="cline">One candle, and ten sets of hands ready to help her blow it out.</span>
+                  <span class="cline">Every cousin made the drive — the whole crew, back together.</span>
+                  <span class="cline">Then she blew it out, and every cousin cheered at once.</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Screen 4: refine -->
+            <div class="screen s-refine">
+              <div class="statusbar"><span>9:41</span><span>5G ▮▮</span></div>
+              <div class="photo ph-sparkler"></div>
+              <div class="dim"></div>
+              <div class="ebar">
+                <button class="iconbtn" style="color:#fff"><svg class="i" viewBox="0 0 24 24"><path d="M19 6.4 17.6 5 12 10.6 6.4 5 5 6.4 10.6 12 5 17.6 6.4 19 12 13.4 17.6 19 19 17.6 13.4 12z"/></svg></button>
+                <span class="t">Edit caption</span>
+                <button class="done">Done</button>
+              </div>
+              <div class="selcap">
+                <div class="tag"><svg class="i" viewBox="0 0 24 24"><path d="M13 6v5h5v2h-5v5h-2v-5H6v-2h5V6h2zM23 12l-4-4v3h-1v2h1v3l4-4zM1 12l4 4v-3h1v-2H5V8l-4 4z"/></svg>Drag to move</div>
+                <div class="selbox"><span class="h tl"></span><span class="h tr"></span><span class="h bl"></span><span class="h br"></span></div>
+                <div class="line">Then she blew it out, and every cousin cheered at once.<span class="car"></span></div>
+              </div>
+              <div class="sheet">
+                <div class="grab"></div>
+                <div class="szh">Text size</div>
+                <div class="szrow"><span style="font-weight:700">A</span><div class="track2"><span class="fill"></span><span class="knob"></span></div><span style="font-weight:700;font-size:19px">A</span></div>
+                <div class="quick">
+                  <button class="qbtn"><svg class="i" viewBox="0 0 24 24"><path d="M12 2l1.9 5.1L19 9l-5.1 1.9L12 16l-1.9-5.1L5 9l5.1-1.9z"/></svg>Regenerate</button>
+                  <button class="qbtn on"><svg class="i" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm0 18V4a8 8 0 0 1 0 16z"/></svg>Legibility</button>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- Act 2 — side copy -->
+      <div class="sidecopy" id="sidecopy" aria-hidden="true">
+        <div class="step" data-s="1"><span class="idx">01 · SAY IT</span><h2>One line. That's the whole form.</h2><p>Pick 3–10 photos and say what happened. No captions to write, no order to plan.</p></div>
+        <div class="step" data-s="2"><span class="idx">02 · IT BUILDS</span><h2>It finds the story for you.</h2><p>Reads every photo, orders them strongest-hook-first, and writes captions grounded in your words and tone.</p></div>
+        <div class="step" data-s="3"><span class="idx">03 · THE PAYOFF</span><h2>A finished Story, ready to post.</h2><p>Ordered, captioned, cinematic. The wow moment — in seconds, not an evening of fiddling.</p></div>
+        <div class="step" data-s="4"><span class="idx">04 · MAKE IT YOURS</span><h2>Every word stays yours.</h2><p>Move, resize, rewrite or regenerate any caption. Tweak until it sounds exactly like you.</p></div>
+      </div>
+
+      <div class="rail" id="rail" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+    </div>
+  </section>
+
+  <!-- ============ CTA ============ -->
+  <section class="cta">
+    <div class="sky" aria-hidden="true"></div>
+    <span class="k">No sign-up · Try it live</span>
+    <h2 data-pretext>You just watched it. Now poke at the real thing.</h2>
+    <p>The app opens on a finished example Story — swipe through it, reorder a photo, rewrite a caption, feel how it works. No account, nothing to upload. When it clicks, start one with your own photos.</p>
+    <div class="actions">
+      <a class="btn primary" href="/example"><svg class="i" viewBox="0 0 24 24" style="width:1.1em;height:1.1em"><path d="M8 5v14l11-7z"/></svg>Open the live example</a>
+      <a class="btn ghost" href="/create"><svg class="i" viewBox="0 0 24 24" style="width:1.1em;height:1.1em"><path d="M4 7h3l1.8-2h6.4L17 7h3a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2zm8 3.2A3.8 3.8 0 1 0 12 18a3.8 3.8 0 0 0 0-7.6z"/></svg>Start with my photos</a>
+    </div>
+
+    <!-- reduced-motion fallback: the same story, static -->
+    <div class="rgallery" id="rgallery" aria-hidden="true"></div>
+  </section>
+
+  <footer><b>Auto Stories</b> — a private memory journal. Your photos never leave the app until you post.</footer>
+</main>
+
+<script>/*@PRETEXT@*/</script>
+<script>
+(() => {
+  "use strict";
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const stage = document.getElementById("stage");
+  const track = document.getElementById("track");
+  const root  = document.documentElement;
+
+  /* ---------- Pretext: keep headline/CTA text height stable ---------- */
+  function wirePretext(){
+    if(!window.Pretext) return;
+    const els = document.querySelectorAll("[data-pretext]");
+    const prepared = new Map();
+    const prep = () => els.forEach(el => {
+      const cs = getComputedStyle(el);
+      prepared.set(el, window.Pretext.prepare(el.textContent, cs.font || (cs.fontWeight+" "+cs.fontSize+" "+cs.fontFamily)));
+    });
+    const relayout = () => prepared.forEach((h, el) => {
+      const lh = parseFloat(getComputedStyle(el).lineHeight) || parseFloat(getComputedStyle(el).fontSize)*1.1;
+      const { height } = window.Pretext.layout(h, el.clientWidth, lh);
+      if (height) el.style.minHeight = height + "px";
+    });
+    prep(); relayout();
+    new ResizeObserver(() => { prep(); relayout(); }).observe(document.body);
+  }
+  (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(wirePretext);
+
+  /* ---------- reduced motion: build the static gallery, stop ---------- */
+  if (reduce) {
+    root.classList.add("reduced");
+    const g = document.getElementById("rgallery");
+    const copy = [...document.querySelectorAll("#sidecopy .step")].map(s => ({
+      idx: s.querySelector(".idx").textContent,
+      h: s.querySelector("h2").textContent,
+      p: s.querySelector("p").textContent
+    }));
+    const screens = [...document.querySelectorAll(".screens .screen")];
+    screens.forEach((sc, i) => {
+      const item = document.createElement("div"); item.className = "item";
+      const ph = document.createElement("div"); ph.className = "phone";
+      const wrap = document.createElement("div"); wrap.className = "screens";
+      const clone = sc.cloneNode(true); clone.style.opacity = "1"; clone.style.transform = "none";
+      wrap.appendChild(clone); ph.appendChild(wrap);
+      const c = copy[i] || {idx:"",h:"",p:""};
+      item.innerHTML = `<span class="idx">${c.idx}</span><h2>${c.h}</h2><p>${c.p}</p>`;
+      item.insertBefore(ph, item.firstChild);
+      g.appendChild(item);
+    });
+    return;
+  }
+
+  /* ---------- pointer parallax ---------- */
+  let px = 0, py = 0, tpx = 0, tpy = 0;
+  window.addEventListener("pointermove", (e) => {
+    tpx = (e.clientX / window.innerWidth  - 0.5) * 2;
+    tpy = (e.clientY / window.innerHeight - 0.5) * 2;
+  }, { passive:true });
+
+  /* ---------- scroll scrub ---------- */
+  const clamp = (v,a=0,b=1) => v<a?a:v>b?b:v;
+  const smooth = t => t*t*(3-2*t);
+  let p = 0;
+
+  function computeProgress(){
+    const r = track.getBoundingClientRect();
+    const total = r.height - window.innerHeight;
+    return total > 0 ? clamp(-r.top / total) : 0;
+  }
+
+  let lastScreen = 0;
+  function render(){
+    // ease pointer
+    px += (tpx - px) * 0.08; py += (tpy - py) * 0.08;
+
+    const a       = smooth(clamp((p - 0.12) / 0.16));      // assembly
+    const hero    = clamp(1 - (p - 0.05) / 0.09);          // hero fades as assembly starts
+    const phone   = smooth(clamp((p - 0.16) / 0.14));      // phone materialises
+    const scrOn   = clamp((p - 0.30) / 0.03) - clamp((p - 0.88) / 0.04);
+    const outro   = clamp((p - 0.90) / 0.10);
+    const cloudfade = Math.pow(a, 1.5);
+
+    root.style.setProperty("--a", a.toFixed(4));
+    root.style.setProperty("--cloudfade", cloudfade.toFixed(4));
+    root.style.setProperty("--hero", hero.toFixed(4));
+    root.style.setProperty("--phone", phone.toFixed(4));
+    root.style.setProperty("--screens", scrOn.toFixed(4));
+    root.style.setProperty("--outro", outro.toFixed(4));
+    root.style.setProperty("--px", px.toFixed(4));
+    root.style.setProperty("--py", py.toFixed(4));
+
+    // active screen 1..4 across the screens band (0.30 -> 0.88)
+    const t = clamp((p - 0.30) / 0.58);
+    let idx = Math.min(4, Math.floor(t * 4) + 1);
+    if (idx !== lastScreen) { stage.dataset.screen = idx; lastScreen = idx; }
+
+    requestAnimationFrame(render);
+  }
+
+  const onScroll = () => { p = computeProgress(); };
+  window.addEventListener("scroll", onScroll, { passive:true });
+  window.addEventListener("resize", onScroll);
+  onScroll();
+  requestAnimationFrame(render);
+})();
+</script>
