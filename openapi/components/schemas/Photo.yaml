@@ -1,0 +1,24 @@
+type: object
+description: One downscaled photo proxy (~1024px long edge, JPEG ~80%) sent to the model.
+required: [id, b64]
+additionalProperties: false
+properties:
+  id:
+    type: string
+    description: Client-assigned id, echoed back on the matching frame.
+    minLength: 1
+    maxLength: 64
+    examples:
+      - p1
+  b64:
+    type: string
+    description: Base64-encoded downscaled image bytes (no data-URI prefix).
+    minLength: 1
+    examples:
+      - /9j/4AAQSkZJRgABAQ...<truncated downscaled jpeg>...2Q==
+  takenAt:
+    type: string
+    format: date-time
+    description: Optional EXIF capture time — a soft ordering hint only.
+    examples:
+      - '2026-07-04T09:12:00Z'

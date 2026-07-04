@@ -1,0 +1,21 @@
+type: object
+description: One chosen photo in narrative order, with its caption.
+required: [photoId, order, caption]
+additionalProperties: false
+properties:
+  photoId:
+    type: string
+    description: The id of the chosen photo (matches a Photo.id from the request).
+    examples:
+      - p2
+  order:
+    type: integer
+    description: 1-based position in the story.
+    minimum: 1
+    examples:
+      - 1
+  caption:
+    type: string
+    description: Caption grounded in the story line and what's visible.
+    examples:
+      - The moment she saw the cake — pure disbelief.

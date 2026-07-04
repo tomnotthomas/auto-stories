@@ -1,0 +1,15 @@
+type: object
+required: [frames]
+additionalProperties: false
+properties:
+  frames:
+    type: array
+    description: The chosen photos in order. May be a subset of the request.
+    minItems: 1
+    items:
+      $ref: './Frame.yaml'
+  partial:
+    type: boolean
+    description: True when some photos were dropped (e.g. safety-filtered) but a story was still produced.
+    examples:
+      - false

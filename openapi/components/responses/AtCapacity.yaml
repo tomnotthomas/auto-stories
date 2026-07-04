@@ -1,0 +1,18 @@
+description: At capacity — the global daily budget cap is reached or the model is temporarily unavailable.
+content:
+  application/json:
+    schema:
+      $ref: '../schemas/ErrorResponse.yaml'
+    examples:
+      dailyCap:
+        summary: Global daily budget cap reached
+        value:
+          error:
+            code: quota_exhausted
+            message: At capacity today — try later.
+      upstreamDown:
+        summary: Model temporarily unavailable
+        value:
+          error:
+            code: upstream_error
+            message: The story engine is unavailable — retry in a moment.

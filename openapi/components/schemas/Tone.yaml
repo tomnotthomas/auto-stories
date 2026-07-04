@@ -1,0 +1,5 @@
+type: string
+description: Optional tone chip the user can pick to color the captions.
+enum: [funny, heartfelt, hype, chill]
+examples:
+  - heartfelt

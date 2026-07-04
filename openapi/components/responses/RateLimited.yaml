@@ -1,0 +1,18 @@
+description: Per-IP rate limit hit — slow down and retry shortly.
+headers:
+  Retry-After:
+    description: Seconds to wait before retrying.
+    schema:
+      type: integer
+    example: 30
+content:
+  application/json:
+    schema:
+      $ref: '../schemas/ErrorResponse.yaml'
+    examples:
+      rateLimited:
+        summary: Too many requests from this IP
+        value:
+          error:
+            code: rate_limited
+            message: Slow down a moment — try again shortly.

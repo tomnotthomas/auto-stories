@@ -1,0 +1,18 @@
+description: Invalid request — failed server-side validation (type, count, size, or story line).
+content:
+  application/json:
+    schema:
+      $ref: '../schemas/ErrorResponse.yaml'
+    examples:
+      tooFewPhotos:
+        summary: Fewer than three photos
+        value:
+          error:
+            code: invalid_request
+            message: A story needs at least 3 photos.
+      nonImage:
+        summary: A non-image slipped past the client
+        value:
+          error:
+            code: invalid_request
+            message: Only JPEG, PNG, WebP, or HEIC images are accepted.

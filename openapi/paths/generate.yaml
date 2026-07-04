@@ -1,0 +1,90 @@
+post:
+  operationId: generateStory
+  tags: [story]
+  summary: Generate an ordered, captioned story from a batch of photos.
+  description: |
+    Takes 3–10 downscaled photos plus the user's story line (and optional
+    tone) and returns the chosen photos in narrative order with a caption
+    each. The model may select a subset and reorder. Every client-side check
+    (type, count, size) is re-validated here — the server is the authority.
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../components/schemas/GenerateRequest.yaml'
+        examples:
+          birthday:
+            summary: Heartfelt birthday, three photos
+            description: The guided story line plus a tone chip — the common happy path.
+            value:
+              story: Maya's 1st birthday at the lake house, all the cousins came
+              tone: heartfelt
+              photos:
+                - id: p1
+                  b64: /9j/4AAQSkZJRgABAQ...<truncated downscaled jpeg>...2Q==
+                  takenAt: '2026-07-04T09:12:00Z'
+                - id: p2
+                  b64: /9j/4AAQSkZJRgABAQ...<truncated downscaled jpeg>...9k=
+                  takenAt: '2026-07-04T11:40:00Z'
+                - id: p3
+                  b64: /9j/4AAQSkZJRgABAQ...<truncated downscaled jpeg>...8A=
+                  takenAt: '2026-07-04T16:05:00Z'
+          minimal:
+            summary: No tone, no timestamps
+            description: Tone is optional; EXIF `takenAt` is optional. This is the smallest valid request.
+            value:
+              story: Morning surf session with the crew before the storm rolled in
+              photos:
+                - id: a
+                  b64: /9j/4AAQSkZJRgABAQ...<truncated downscaled jpeg>...1Q==
+                - id: b
+                  b64: /9j/4AAQSkZJRgABAQ...<truncated downscaled jpeg>...2A=
+                - id: c
+                  b64: /9j/4AAQSkZJRgABAQ...<truncated downscaled jpeg>...3C=
+  responses:
+    '200':
+      description: A generated story.
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/GenerateResponse.yaml'
+          examples:
+            success:
+              summary: Full story, all photos used
+              value:
+                frames:
+                  - photoId: p2
+                    order: 1
+                    caption: The moment she saw the cake — pure disbelief.
+                  - photoId: p1
+                    order: 2
+                    caption: One year old and already running the lake house.
+                  - photoId: p3
+                    order: 3
+                    caption: Cousins, sunset, and a very sticky victory lap.
+                partial: false
+            partial:
+              summary: Partial story, one photo dropped
+              description: One photo was safety-filtered but a story was still produced from the rest.
+              value:
+                frames:
+                  - photoId: a
+                    order: 1
+                    caption: First light, glassy sets, nobody else out.
+                  - photoId: c
+                    order: 2
+                    caption: Last wave before the sky turned on us.
+                partial: true
+    '400':
+      $ref: '../components/responses/BadRequest.yaml'
+    '413':
+      $ref: '../components/responses/PayloadTooLarge.yaml'
+    '422':
+      $ref: '../components/responses/EmptyResult.yaml'
+    '429':
+      $ref: '../components/responses/RateLimited.yaml'
+    '503':
+      $ref: '../components/responses/AtCapacity.yaml'
+    '504':
+      $ref: '../components/responses/Timeout.yaml'

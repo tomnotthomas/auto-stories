@@ -113,6 +113,12 @@ export interface components {
              */
             partial?: boolean;
         };
+        /**
+         * @description Stable machine-readable outcome so the client can branch without parsing prose.
+         * @example rate_limited
+         * @enum {string}
+         */
+        ErrorCode: "invalid_request" | "payload_too_large" | "empty_result" | "rate_limited" | "quota_exhausted" | "upstream_error" | "safety_blocked" | "timeout";
         /** @description Every non-2xx response uses this shape. */
         ErrorResponse: {
             error: {
@@ -124,12 +130,6 @@ export interface components {
                 message: string;
             };
         };
-        /**
-         * @description Stable machine-readable outcome so the client can branch without parsing prose.
-         * @example rate_limited
-         * @enum {string}
-         */
-        ErrorCode: "invalid_request" | "payload_too_large" | "empty_result" | "rate_limited" | "quota_exhausted" | "upstream_error" | "safety_blocked" | "timeout";
         HealthResponse: {
             /**
              * @example ok
@@ -138,7 +138,67 @@ export interface components {
             status: "ok" | "error";
         };
     };
-    responses: never;
+    responses: {
+        /** @description Invalid request — failed server-side validation (type, count, size, or story line). */
+        BadRequest: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
+        /** @description Request body too large. */
+        PayloadTooLarge: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
+        /** @description Request was valid but no story could be shaped (e.g. too few usable photos after safety filtering). */
+        EmptyResult: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
+        /** @description Per-IP rate limit hit — slow down and retry shortly. */
+        RateLimited: {
+            headers: {
+                /**
+                 * @description Seconds to wait before retrying.
+                 * @example 30
+                 */
+                "Retry-After"?: number;
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
+        /** @description At capacity — the global daily budget cap is reached or the model is temporarily unavailable. */
+        AtCapacity: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
+        /** @description The model call timed out. */
+        Timeout: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
+    };
     parameters: never;
     requestBodies: never;
     headers: never;
@@ -168,65 +228,12 @@ export interface operations {
                     "application/json": components["schemas"]["GenerateResponse"];
                 };
             };
-            /** @description Invalid request — failed server-side validation (type, count, size, or story line). */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Request body too large. */
-            413: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Request was valid but no story could be shaped (e.g. too few usable photos after safety filtering). */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Per-IP rate limit hit — slow down and retry shortly. */
-            429: {
-                headers: {
-                    /**
-                     * @description Seconds to wait before retrying.
-                     * @example 30
-                     */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description At capacity — the global daily budget cap is reached or the model is temporarily unavailable. */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description The model call timed out. */
-            504: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
+            400: components["responses"]["BadRequest"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["EmptyResult"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["AtCapacity"];
+            504: components["responses"]["Timeout"];
         };
     };
     healthCheck: {
