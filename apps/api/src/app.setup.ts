@@ -1,15 +1,27 @@
-import {
-  INestApplication,
-  ValidationPipe,
-  VersioningType,
-} from '@nestjs/common';
+import { ValidationPipe, VersioningType } from '@nestjs/common';
+import type { NestExpressApplication } from '@nestjs/platform-express';
+import { json } from 'express';
+
+/** ~1MB proxies × 10 photos, base64-inflated, with headroom. */
+const DEFAULT_JSON_LIMIT = '20mb';
+
+export interface AppSetupOptions {
+  /** Max JSON body before a 413 (e.g. '20mb'). */
+  jsonLimit?: string;
+}
 
 /**
  * Applies the runtime configuration shared by production bootstrap (main.ts)
  * and the e2e tests, so the two never drift. The global exception filter is
  * registered as an APP_FILTER provider in AppModule (DI-friendly), not here.
+ *
+ * The app must be created with `{ bodyParser: false }` so the JSON parser
+ * registered here (with our size cap) is the only one.
  */
-export function configureApp(app: INestApplication): void {
+export function configureApp(
+  app: NestExpressApplication,
+  options: AppSetupOptions = {},
+): void {
   // Every endpoint is versioned under /api/v1, except the bare /healthz probe.
   app.setGlobalPrefix('api', { exclude: ['healthz'] });
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
@@ -23,4 +35,9 @@ export function configureApp(app: INestApplication): void {
       transform: true,
     }),
   );
+
+  // Cap the request body: an oversized upload is rejected with 413 before we
+  // touch it (spec 4.2), instead of the express default 100kb. The app is
+  // created with `{ bodyParser: false }`, so this is the only JSON parser.
+  app.use(json({ limit: options.jsonLimit ?? DEFAULT_JSON_LIMIT }));
 }
