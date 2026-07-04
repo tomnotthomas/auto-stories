@@ -211,3 +211,12 @@ Resolving the production-readiness gaps the engineering review surfaced — what
 - **Options:** trust the client's checks; re-validate everything server-side.
 - **Decision:** Re-validate server-side. The server enforces a **max request body size**, re-checks the **photo count** (≤10) and **per-image size**, and accepts only **standard image types** (JPEG / PNG / WebP / HEIC) — anything else is rejected before the Gemini call. The client keeps its downscale + checks for a fast happy path.
 - **Why:** Client-side checks are a UX convenience, not a security boundary — they're bypassable. Server-side validation is the real gate: it stops oversized payloads (memory/cost/DoS), non-image content, and over-count requests from ever reaching the model. Standard image types cover every real upload, so restricting to them costs honest users nothing.
+
+### 4.3 Gemini failure modes
+- **Problem:** Beyond the handled cases (invalid JSON, unknown ids, empty), three failures aren't covered: quota/429, safety-filter refusals (a flagged image), and a hung upstream call.
+- **Options:** typed errors + timeout + honest messages (Sol. 1); + graceful degradation & bounded retries (Sol. 2); + model fallback (Sol. 3).
+- **Decision:** Solution 1 + the safety-degradation slice of Solution 2.
+  - **Hard timeout** on the Gemini call (~25s) so a hung call returns a `timeout` outcome and never blocks the request.
+  - **Typed error set** → the client: `quota_exhausted`, `rate_limited`, `safety_blocked`, `timeout`, `upstream_error`, each mapped to a specific message + action.
+  - **Safety-block degradation:** if Gemini flags an image, drop it and re-call with the rest → return a **partial story**; hard-fail only if fewer than 3 usable photos remain (min-photo rule).
+- **Why:** Timeout + typed messages are cheap correctness — no silent failures, no hung requests. Dropping a flagged photo and continuing is the one high-value resilience add: one bad image no longer kills the whole story, and it reuses the "drop unknown photoId" pattern we already have. The rest is deliberately skipped — a circuit breaker is redundant with the 4.1 global cap, bounded retries add little (the existing 2× network retry covers transient hiccups), and model fallback (Solution 3) costs money against the free-tier decision (3.6). Fallback stays a future config option, not built.
