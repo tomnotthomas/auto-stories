@@ -34,5 +34,24 @@ Auto Stories — a responsive web app (Angular frontend + NestJS backend, deploy
 - **Small, reviewable commits.** Each commit is one logical change a reviewer can read in a sitting. Never batch unrelated changes.
 - **Reviewable PRs.** Keep pull requests small enough to review properly; split large work into multiple PRs rather than one big one.
 
+## Coding conventions
+Follow each framework's own current guidance so the app stays idiomatic and a new dev onboards fast.
+
+**Scaffold with the CLIs.** Prefer `ng generate` (Angular) and `nest generate` (NestJS) to create components, services, modules, etc. — standardized, conventional structure with less hand-written code.
+
+**Angular (v22+)** — official rules: `angular.dev/assets/context/best-practices.md`.
+- Standalone components — do NOT set `standalone: true` or `OnPush`; both are defaults.
+- Signals for state, `computed()` for derived; never `mutate` (use `set`/`update`).
+- `input()`/`output()` functions, not decorators; `inject()`, not constructor injection.
+- Native control flow (`@if`/`@for`/`@switch`), not `*ngIf`/`*ngFor`/`*ngSwitch`.
+- Host bindings in the `host` object (not `@HostBinding`/`@HostListener`); `class`/`style` bindings, not `ngClass`/`ngStyle`.
+- Signal Forms for new forms; small single-responsibility components; strict TS, no `any`; must pass AXE / WCAG-AA.
+
+**NestJS (v11)** — no official LLM file; follow `docs.nestjs.com`.
+- One responsibility per module/provider; singletons via DI (`providedIn`-style).
+- Validate input with DTOs + `class-validator` and a global `ValidationPipe`.
+- Config via `@nestjs/config`; error handling via exception filters; version routes in the path (`/api/v1`, see Key decisions).
+- Co-locate `*.spec.ts`; test with `@nestjs/testing`'s `Test.createTestingModule`.
+
 ## Open items
 Tracked per phase in `docs/phase-N/open-questions.md`. The two that most affect building now (both Phase 1): how the story is ordered, and how the AI gets enough context for good captions.
