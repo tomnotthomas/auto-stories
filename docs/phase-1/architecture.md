@@ -92,6 +92,7 @@ Story  { id, story, tone, frames: Frame[], createdAt }
 | Gemini flags an image (safety) | Drop that photo, re-call with the rest (partial story); hard-fail only if <3 remain | Partial story, or "Couldn't use some photos — try different ones" |
 | Gemini call hangs | Hard ~25s timeout → typed `timeout` | "The story engine timed out — retry" |
 | Generic / weak captions | Prompt forces specificity; Regenerate + inline edit | Regenerate + edit |
+| Double-click Generate | `generating` signal disables the button + guards the handler; second fire is a no-op | Button in loading state |
 | Slow generation | Staged loader | "Reading photos… ordering… writing captions…" |
 
 ## Observability
