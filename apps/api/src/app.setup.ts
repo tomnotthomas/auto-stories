@@ -22,6 +22,10 @@ export function configureApp(
   app: NestExpressApplication,
   options: AppSetupOptions = {},
 ): void {
+  // Behind Render's proxy, trust the first hop so req.ip is the real client
+  // address the per-IP fair-use limit (FairUseGuard) keys on.
+  app.set('trust proxy', 1);
+
   // Every endpoint is versioned under /api/v1, except the bare /healthz probe.
   app.setGlobalPrefix('api', { exclude: ['healthz'] });
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
