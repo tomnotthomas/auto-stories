@@ -34,7 +34,7 @@ The browser never holds the API key. The NestJS server is stateless — no datab
 - Preview: ordered photos with a draggable/resizable caption layer (Angular **CDK drag-drop**). No pixel baking in Phase 1.
 - State in a small Angular **service (signals)**.
 
-**Backend (NestJS, `POST /api/v1/generate`)** — also serves the built Angular app from the same origin (`ServeStaticModule`). Server-side, so the Gemini key stays hidden and users never bring their own key. Jobs: per-IP rate limiting + a global daily budget cap (protect the shared key), input validation (max body size, ≤10 photos, per-image size, JPEG/PNG/WebP/HEIC only — client checks are re-done here, not trusted), prompt construction, the Gemini call (~25s timeout, typed errors, drop-flagged-photo-and-retry on safety block), output validation, logging.
+**Backend (NestJS, `POST /api/v1/generate`)** — also serves the built Angular app from the same origin (`ServeStaticModule`). Server-side, so the Gemini key stays hidden and users never bring their own key. Jobs: per-IP rate limiting + a global daily budget cap (protect the shared key), input validation (max body size, ≤10 photos, per-image size, JPEG/PNG/WebP/HEIC only, story line length-capped + delimited as data — client checks are re-done here, not trusted), prompt construction, the Gemini call (~25s timeout, typed errors, drop-flagged-photo-and-retry on safety block), output validation, logging.
 
 **Model (Gemini Flash)** — called via the `@google/genai` SDK with `responseSchema` for guaranteed-shape JSON. `MODEL` is an env var, so a stronger model is a one-line swap.
 
@@ -69,6 +69,7 @@ Story  { id, story, tone, frames: Frame[], createdAt }
 
 - **App:** one NestJS server serves the built Angular app (`dist/`) and the `/api/v1/generate` endpoint. Provide a **`docker-compose.yml`** so reviewers can `docker compose up` in a fresh Linux container, and host the same image **free on Render** (spins down when idle; ~30-50s cold start on first hit) for a live URL — both required by the brief.
 - **Secrets:** `GEMINI_API_KEY` and `MODEL` are server-side env vars only. The browser bundle contains no key.
+- **Ops:** `GET /healthz` liveness endpoint (Render readiness; shallow, no Gemini call); **`helmet`** sets security headers (CSP `default-src 'self'`, HSTS, frame-ancestors, etc.); **GitHub Actions** runs lint/typecheck/tests + Docker build on every PR, and `main` auto-deploys to Render.
 
 ## Edge cases & failure modes
 
@@ -97,7 +98,7 @@ Story  { id, story, tone, frames: Frame[], createdAt }
 
 ## Observability
 
-The NestJS server logs per request: `requestId`, `model`, photo count, `latencyMs`, token usage, outcome (`ok` / `partial` / `invalid_json` / `empty` / `quota_exhausted` / `rate_limited` / `safety_blocked` / `timeout` / `upstream_error`). Makes "the model was wrong" visible instead of silent.
+The NestJS server logs per request: `requestId`, `model`, photo count, `latencyMs`, token usage, outcome (`ok` / `partial` / `invalid_json` / `empty` / `quota_exhausted` / `rate_limited` / `safety_blocked` / `timeout` / `upstream_error`). Makes "the model was wrong" visible instead of silent. Client-side failures (upload / decode / render) are caught by a global Angular `ErrorHandler` + `unhandledrejection` hook and POSTed to a server log endpoint, so browser breakage is visible too (and the UI shows a "something went wrong" fallback, not a blank screen).
 
 ## Testing strategy
 
@@ -107,6 +108,8 @@ Model is non-deterministic, so test **plumbing deterministically**, **quality se
 - **Contract** — NestJS `/api/v1/generate` against mock Gemini responses (valid / malformed / hallucinated id / empty) → each maps to the right outcome.
 - **E2E** — Cypress/Playwright: upload → generate → render against a stubbed API.
 - **Quality eval** — fixed sample photo sets + story lines/tones → real model → rubric-score ordering + caption specificity. Run on model/prompt change.
+
+The deterministic suites (unit / component / contract / E2E) run in **CI** (GitHub Actions) on every PR (approach 4.9).
 
 ## How this extends to Phase 2 & 3
 
