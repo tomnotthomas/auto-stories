@@ -220,3 +220,9 @@ Resolving the production-readiness gaps the engineering review surfaced — what
   - **Typed error set** → the client: `quota_exhausted`, `rate_limited`, `safety_blocked`, `timeout`, `upstream_error`, each mapped to a specific message + action.
   - **Safety-block degradation:** if Gemini flags an image, drop it and re-call with the rest → return a **partial story**; hard-fail only if fewer than 3 usable photos remain (min-photo rule).
 - **Why:** Timeout + typed messages are cheap correctness — no silent failures, no hung requests. Dropping a flagged photo and continuing is the one high-value resilience add: one bad image no longer kills the whole story, and it reuses the "drop unknown photoId" pattern we already have. The rest is deliberately skipped — a circuit breaker is redundant with the 4.1 global cap, bounded retries add little (the existing 2× network retry covers transient hiccups), and model fallback (Solution 3) costs money against the free-tier decision (3.6). Fallback stays a future config option, not built.
+
+### 4.4 Double-submit
+- **Problem:** A double-click (or a slow tap) on Generate could fire two Gemini calls — double cost and a UI race over which result wins.
+- **Options:** disable the button only; a request-in-flight guard in the service; + a server idempotency key.
+- **Decision:** A `generating` signal in the story service — set true on submit, false when the call settles. The Generate button is disabled while it's true, **and** the submit handler early-returns if already generating (so a rapid or programmatic re-fire is a no-op too). A server idempotency key is noted as optional, not needed for Phase 1's single linear flow.
+- **Why:** The disabled button is the visible guard; the service-level guard closes the gap where button state can lag a fast double-fire. That's the standard, complete fix for one in-flight request. An idempotency key only earns its keep once there are concurrent clients or automatic retries.
