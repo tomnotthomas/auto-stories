@@ -1,0 +1,8 @@
+graph LR
+  A["Mobile app<br/>Expo RN - iOS + Android<br/>downscales proxy, keeps originals"]
+  B["Backend<br/>serverless Node/TS<br/>holds API key, validates, logs"]
+  G["Gemini Flash<br/>vision, structured JSON<br/>MODEL = config"]
+  A -- "POST /generate<br/>intent + downscaled photos" --> B
+  B -- "google-genai SDK" --> G
+  G -- "frames: photoId, order, caption" --> B
+  B -- "validated frames JSON" --> A
