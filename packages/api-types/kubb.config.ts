@@ -11,6 +11,10 @@ export default defineConfig({
     path: "./packages/api-types/src/gen",
     clean: true,
     extension: { ".ts": "" },
+    // Disable auto-formatting so generation is deterministic regardless of
+    // whether a formatter (prettier/biome) happens to be installed in the
+    // workspace. Keeps the checked-in types stable across CI environments.
+    format: false,
   },
   plugins: [
     pluginOas({ validate: false, output: false }),
