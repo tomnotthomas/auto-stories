@@ -1,0 +1,8 @@
+extends:
+  - recommended
+
+apis:
+  auto-stories@v1:
+    root: openapi/openapi.yaml
+    x-openapi-ts:
+      output: openapi/generated/types.ts
