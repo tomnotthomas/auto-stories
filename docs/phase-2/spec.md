@@ -12,6 +12,7 @@ Move a finished story from the app onto the user's Instagram Story with the leas
 - **Deliver the frames** — download the images (on desktop) or share them via the **Web Share API** (on mobile browsers), getting the finished frames onto the user's phone.
 - **Post via Instagram's multi-select** — the user saves the frames to their gallery, opens Instagram, taps "Select Multiple," and posts them as sequential story cards. Human-in-the-loop by design. (A web app can't deep-link into Instagram's composer the way a native app could, so this is a couple of taps more.)
 - **Music suggestions** — the app reads the story's vibe and tells the user what to search for in Instagram's music tab (mood, genre, example tracks), so adding music there is effortless. Just generated text.
+- **Don't lose work on refresh** — persist a local draft (story state + downscaled proxies) to **IndexedDB**, restored on next open in the same browser, plus a `beforeunload` warning. Stabilizing, so it lands in Phase 2 rather than the Phase 1 core (see approach 4.6). Cross-device sync needs accounts → Phase 3.
 
 **Out of scope:**
 - **Automatic / direct posting via the Instagram API** — needs a Business account + Facebook Page + Meta App Review; too heavy. Hand-off instead.
