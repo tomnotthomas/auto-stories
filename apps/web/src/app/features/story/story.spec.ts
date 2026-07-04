@@ -88,6 +88,14 @@ describe('Story', () => {
       expect(story.frames()[0].legibility).toBe(false);
     });
 
+    it('shows a filmstrip thumbnail for each frame in refine mode', async () => {
+      const harness = await render();
+      expect(await harness.getFilmstrip()).toBeNull();
+      await harness.clickRefine();
+      const filmstrip = await harness.getFilmstrip();
+      expect(await filmstrip!.getThumbnailCount()).toBe(frames.length);
+    });
+
     it('leaves refine mode when the refine bar Done is pressed', async () => {
       const harness = await render();
       await harness.clickRefine();

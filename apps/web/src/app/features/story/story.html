@@ -92,11 +92,27 @@
 
     <!-- Bottom action bar -->
     @if (refining()) {
-      <div class="absolute inset-x-4 bottom-6 z-20 flex gap-3">
-        <button matButton="filled" class="flex-1" (click)="exitRefine()">
-          <mat-icon>check</mat-icon>
-          Done
-        </button>
+      <div class="absolute inset-x-4 bottom-6 z-20 flex flex-col gap-3">
+        <app-refine-filmstrip
+          [current]="currentIndex()"
+          (select)="selectFrame($event)"
+          (photosAdded)="regenerateStory()"
+        />
+        <div class="flex gap-3">
+          <button
+            matButton="outlined"
+            class="flex-1 text-white"
+            [disabled]="storyBusy()"
+            (click)="regenerateStory()"
+          >
+            <mat-icon>auto_awesome</mat-icon>
+            Regenerate
+          </button>
+          <button matButton="filled" class="flex-1" (click)="exitRefine()">
+            <mat-icon>check</mat-icon>
+            Done
+          </button>
+        </div>
       </div>
     } @else {
       <div class="absolute inset-x-4 bottom-6 z-20 flex flex-col gap-1">
@@ -105,6 +121,14 @@
           Refine story
         </button>
         <button matButton class="w-full text-white" (click)="startOver()">Start over</button>
+      </div>
+    }
+
+    <!-- Whole-story rebuild in progress -->
+    @if (storyBusy()) {
+      <div class="absolute inset-0 z-40 flex flex-col items-center justify-center gap-3 bg-black/70 text-white">
+        <mat-spinner diameter="40" />
+        <span class="mat-label-large">Rebuilding your story…</span>
       </div>
     }
 

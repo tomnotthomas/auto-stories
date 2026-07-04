@@ -2,6 +2,7 @@ import { ComponentHarness } from '@angular/cdk/testing';
 import { MatButtonHarness } from '@angular/material/button/testing';
 
 import { CaptionEditorHarness } from '../refine/caption-editor/caption-editor.harness';
+import { RefineFilmstripHarness } from '../refine/filmstrip/filmstrip.harness';
 
 /** Page-object harness for the finished-story (payoff) viewer. */
 export class StoryHarness extends ComponentHarness {
@@ -15,6 +16,7 @@ export class StoryHarness extends ComponentHarness {
   private readonly refineButton = this.locatorFor(MatButtonHarness.with({ text: /Refine story/ }));
   private readonly doneButton = this.locatorFor(MatButtonHarness.with({ text: /Done/ }));
   private readonly editor = this.locatorForOptional(CaptionEditorHarness);
+  private readonly filmstrip = this.locatorForOptional(RefineFilmstripHarness);
 
   /** The caption of the frame currently shown. */
   async getCaption(): Promise<string> {
@@ -59,5 +61,10 @@ export class StoryHarness extends ComponentHarness {
   /** The caption editor, when open; otherwise null. */
   async getEditor(): Promise<CaptionEditorHarness | null> {
     return this.editor();
+  }
+
+  /** The refine filmstrip, when in refine mode; otherwise null. */
+  async getFilmstrip(): Promise<RefineFilmstripHarness | null> {
+    return this.filmstrip();
   }
 }

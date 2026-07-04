@@ -152,11 +152,23 @@ describe('StoryService', () => {
       expect(service.frames().map((f) => f.order)).toEqual([1, 2, 3, 4]);
     });
 
-    it('drops a photo and re-indexes the remaining frames', () => {
-      seedFour();
-      service.dropPhoto('p2');
+    it('drops a photo from the story and the pool, re-indexing the rest', () => {
+      service.addPhotos([imageFile('p2.jpg')]);
+      const pooled = service.photos()[0].id;
+      service.completeStory(
+        [
+          { photoId: 'p1', order: 1, caption: 'first' },
+          { photoId: pooled, order: 2, caption: 'second' },
+          { photoId: 'p3', order: 3, caption: 'third' },
+          { photoId: 'p4', order: 4, caption: 'fourth' },
+        ],
+        false,
+      );
+      service.dropPhoto(pooled);
       expect(service.frames().map((f) => f.photoId)).toEqual(['p1', 'p3', 'p4']);
       expect(service.frames().map((f) => f.order)).toEqual([1, 2, 3]);
+      // Gone from the pool too, so a rebuild won't resurrect it.
+      expect(service.photos().some((p) => p.id === pooled)).toBe(false);
     });
 
     it('refuses to drop below the minimum photo count', () => {

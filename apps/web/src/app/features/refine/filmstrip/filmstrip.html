@@ -1,0 +1,35 @@
+<div class="flex items-center gap-2 overflow-x-auto" cdkDropList cdkDropListOrientation="horizontal" (cdkDropListDropped)="onReorder($event)">
+  @for (thumb of thumbs(); track thumb.photoId; let i = $index) {
+    <div class="relative h-16 w-12 flex-none" cdkDrag>
+      <button
+        type="button"
+        [attr.aria-label]="'View frame ' + (i + 1)"
+        (click)="onSelect(i)"
+        class="block h-full w-full overflow-hidden rounded-lg ring-2"
+        [class]="i === current() ? 'ring-primary' : 'ring-white/20'"
+      >
+        @if (thumb.previewUrl) {
+          <img [src]="thumb.previewUrl" alt="" class="h-full w-full object-cover" />
+        }
+      </button>
+      @if (canDrop()) {
+        <button
+          type="button"
+          aria-label="Drop frame"
+          (click)="onDrop(thumb.photoId)"
+          class="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-black/70 text-white"
+        >
+          <mat-icon class="h-3.5 w-3.5 text-sm leading-none">close</mat-icon>
+        </button>
+      }
+    </div>
+  }
+  @if (!isFull()) {
+    <label
+      class="flex h-16 w-12 flex-none cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg bg-white/10 text-white"
+    >
+      <input type="file" accept="image/*" multiple hidden aria-label="Add photos" (change)="onPick($event)" />
+      <mat-icon>add</mat-icon>
+    </label>
+  }
+</div>
