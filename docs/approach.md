@@ -5,6 +5,7 @@ How this project was thought through, in chapters, so a reader can jump to the p
 ## Contents
 1. [Figuring out what to build](#chapter-1--figuring-out-what-to-build)
 2. [Locking the Phase 1 architecture](#chapter-2--locking-the-phase-1-architecture)
+3. [Resolving the open questions](#chapter-3--resolving-the-open-questions)
 
 ---
 
@@ -163,3 +164,16 @@ The technical decisions for building Phase 1 (create the story).
 - **Options:** native mobile app; responsive web app.
 - **Decision:** Responsive web app. This reframes 2.1, 2.5, and 2.6 above.
 - **Why:** A native app can't run in a Linux container or be opened at a URL by reviewers, so it fails the brief. A responsive web app deploys to a URL, runs in a container, needs no install, and keeps the whole Phase 1 core unchanged. What changes is the shell (upload instead of camera roll; download / Web Share instead of a native Instagram deep-link); the AI story generation — the graded part — does not.
+
+---
+
+# Chapter 3 — Resolving the open questions
+
+The engineering review surfaced the production-readiness gaps in [`phase-1/open-questions.md`](phase-1/open-questions.md). This chapter logs how I resolved each one.
+
+### 3.1 How is the story ordered?
+- **Problem:** Turning a pile of photos into a well-sequenced story. What signal decides the order — time, content, or the story the user wants?
+- **Options:** chronological-first (order by EXIF `takenAt`, content breaks ties); narrative-first (the user says what the story is; the model orders the photos into an arc from content, timestamps optional); let the user pick a mode (Story flow vs Timeline).
+- **Decision:** Narrative-first. The user's one line — **"What's the story?"** — plus the images drive the order into an arc: strongest hook first → build → payoff. Timestamps are an optional soft hint only. Manual drag-to-reorder stays as the refine escape hatch.
+- **Why:** Chronological-first breaks silently when EXIF is stripped (common on screenshots and messaging-app uploads) and the user can't tell why it's wrong. Strict time order also tells a worse story — the chronologically-first photo is often the most boring, when a Story needs the most attention-grabbing photo first to hook the viewer. Order is already emergent from the single call (2.3), so this is a prompt-design choice, not a new pipeline. The mode-picker (option C) was cut: it adds a choice most users won't touch, Timeline reproduces the boring-first-photo problem, and Story flow feels more custom — the better fit for the MVP. (A Timeline mode is a possible later add, not now.)
+- **Also:** the step-1 field is renamed from the vague "intent/vibe" to **"What's the story?"** — one plain line about what happened and the feeling, which drives both ordering and captions.
