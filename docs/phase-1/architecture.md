@@ -34,7 +34,7 @@ The browser never holds the API key. The NestJS server is stateless — no datab
 - Preview: ordered photos with a draggable/resizable caption layer (Angular **CDK drag-drop**). No pixel baking in Phase 1.
 - State in a small Angular **service (signals)**.
 
-**Backend (NestJS, `POST /api/v1/generate`)** — also serves the built Angular app from the same origin (`ServeStaticModule`). Server-side, so the Gemini key stays hidden and users never bring their own key. Jobs: input validation, prompt construction, the Gemini call, output validation, logging.
+**Backend (NestJS, `POST /api/v1/generate`)** — also serves the built Angular app from the same origin (`ServeStaticModule`). Server-side, so the Gemini key stays hidden and users never bring their own key. Jobs: per-IP rate limiting + a global daily budget cap (protect the shared key), input validation, prompt construction, the Gemini call, output validation, logging.
 
 **Model (Gemini Flash)** — called via the `@google/genai` SDK with `responseSchema` for guaranteed-shape JSON. `MODEL` is an env var, so a stronger model is a one-line swap.
 
@@ -79,6 +79,9 @@ Story  { id, story, tone, frames: Frame[], createdAt }
 | >10 uploaded | Enforce cap at upload | "Up to 10 photos per story" |
 | HEIC upload (iPhone) | Convert client-side (`heic2any`) before downscale/preview | Transparent; else "couldn't read this photo" |
 | Huge / non-image file | Validate type + size at upload | "Please upload images under N MB" |
+| Per-IP rate limit hit | Reject with 429 (rate-limit middleware, ~a few/hour) | "Slow down a moment — try again shortly" |
+| Global daily cap hit (~1,200/day) | Stop calling Gemini; short-circuit 503 (protects the shared free key) | "At capacity today — try later" |
+| ~2 free generations used | Client-side nudge (not enforced until Phase 3 accounts) | "Sign up to make more" |
 | Network fail / timeout | Retry w/ backoff (2×), then stop | "Couldn't reach the story engine — retry" |
 | Model returns invalid JSON | `responseSchema` + parse guard; 1 stricter retry | Error copy if still bad |
 | Model returns unknown photoId | Server drops unknown ids, keeps valid frames | Story with valid frames only |
