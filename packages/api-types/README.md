@@ -34,3 +34,11 @@ Both apps depend on it through the workspace, so there is nothing to publish:
 
 Regenerate whenever `openapi.yaml` changes; CI should fail if `generated.ts`
 drifts from the spec.
+
+## ⚠ Temporary: the `typescript` devDependency here
+
+This package pins its own `typescript` only as a **temporary workaround** —
+`openapi-typescript@7` still requires peer `typescript@^5`, which conflicts with
+the app's TypeScript 6 under `npm ci`. Isolating the tool's TS here keeps the app
+on 6. Remove this pin and consolidate on one root TypeScript once
+`openapi-typescript` supports the newest TS. See approach **3.16**.

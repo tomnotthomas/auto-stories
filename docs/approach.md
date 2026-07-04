@@ -205,6 +205,13 @@ The technical decisions for building Phase 1 (create the story).
 - **Decision:** Make the repo an **npm-workspaces monorepo** (`packages/*`, `apps/*`) with a `@auto-stories/api-types` package. `openapi-typescript` writes `src/generated.ts` (do-not-edit); a hand-written `src/index.ts` re-exports flat aliases (`GenerateRequest`, `Frame`, …) as the stable public surface, plus the raw `components`/`operations`/`paths` for advanced use. Both apps depend on it via `"@auto-stories/api-types": "*"` (workspace symlink — nothing to publish).
 - **Why:** The barrel turns the buried, noisy output into clean imports (`import { GenerateRequest } from "@auto-stories/api-types"`) and hides the scaffolding, while `index.ts` gives a stable API even if the generator's internal shape changes. A workspace package (not a published one) means zero release overhead in a monorepo and no version skew — both apps always build against the same types. Verified: a consumer import resolves and typechecks, and omitting a required field (e.g. `photos`) is a compile error.
 
+### 3.16 TypeScript version conflict with openapi-typescript — ⚠ TEMPORARY
+- **Status:** Temporary workaround — remove once fixed upstream. Flagged so it isn't mistaken for a permanent choice.
+- **Problem:** `openapi-typescript@7` still declares peer `typescript@^5`, which conflicts with the app's TypeScript 6 under `npm ci` (strict peer resolution → ERESOLVE). Latest openapi-typescript (7.13.0) has not yet widened the range.
+- **Options:** downgrade the whole app to TS 5 (holds every app back for one build tool); disable peer checks project-wide (`legacy-peer-deps` — broad, silently hides future real conflicts, e.g. Angular's); isolate the tool's TypeScript from the app's.
+- **Decision (temporary):** Isolate. The app code (the `api-types` package, later the apps) uses TypeScript 6; `openapi-typescript` keeps its own TS 5 nested as its codegen engine — it only prints type text, which TS 6 consumes fine. Strict peer checks stay on everywhere else, and the app isn't held back.
+- **Removal condition:** the real fix is upstream — `openapi-typescript` updating its peer range to include the newest TypeScript. When it does: drop the isolated `typescript` pin in `packages/api-types` and consolidate the monorepo on a single root TypeScript. Track via an upstream issue on the openapi-typescript repo.
+
 ---
 
 # Chapter 4 — Production readiness
