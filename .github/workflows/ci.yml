@@ -11,8 +11,44 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Detect which areas of the monorepo changed, so we only run the CI for those.
+  # A change to a shared root file (deps, this workflow) runs everything.
+  changes:
+    name: Detect changed areas
+    runs-on: ubuntu-latest
+    outputs:
+      contract: ${{ steps.filter.outputs.contract }}
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            shared: &shared
+              - '.github/workflows/ci.yml'
+              - 'package.json'
+              - 'package-lock.json'
+            contract:
+              - *shared
+              - 'openapi/**'
+              - 'packages/api-types/**'
+            backend:
+              - *shared
+              - 'apps/api/**'
+            frontend:
+              - *shared
+              - 'apps/web/**'
+            # NOTE: the contract (packages/api-types) is a shared dependency of both
+            # apps. It is intentionally NOT listed under backend/frontend, so a spec
+            # change only runs the contract CI. To also verify consumers on a contract
+            # change, add 'packages/api-types/**' to the backend and frontend filters.
+
   contract:
     name: API contract
+    needs: changes
+    if: ${{ needs.changes.outputs.contract == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -38,5 +74,54 @@ jobs:
             exit 1
           fi
 
-      - name: Typecheck workspaces
-        run: npm run typecheck
+      - name: Typecheck the generated types
+        run: npm run typecheck --workspace packages/api-types
+
+  backend:
+    name: Backend
+    needs: changes
+    if: ${{ needs.changes.outputs.backend == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck --workspace apps/api
+
+      - name: Test
+        run: npm run test --workspace apps/api
+
+      - name: Build
+        run: npm run build --workspace apps/api
+
+  frontend:
+    name: Frontend
+    needs: changes
+    if: ${{ needs.changes.outputs.frontend == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Test
+        run: npm run test --workspace apps/web -- --watch=false --browsers=ChromeHeadless
+
+      - name: Build
+        run: npm run build --workspace apps/web
+
+  # End-to-end tests across the running frontend + backend will be added here later.
