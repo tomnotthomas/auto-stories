@@ -1,44 +1,32 @@
 # @auto-stories/api-types
 
 Shared TypeScript types for the Auto Stories API, generated from the OpenAPI
-contract (`../../openapi/openapi.yaml`) and imported by **both** apps.
+contract (`../../openapi/openapi.yaml`) by [kubb](https://kubb.dev) and imported
+by **both** apps.
 
 ## Why
 
-One source of truth. When the contract changes, regenerating updates these types,
-and any mismatch breaks compilation in both the frontend and backend — the error
-shows up at build time, not in production.
+One source of truth. Regenerating updates these types, and any mismatch breaks
+compilation in both the frontend and backend — at build time, not in production.
 
 ## Usage
 
 ```ts
 import type { GenerateRequest, GenerateResponse, ErrorCode } from "@auto-stories/api-types";
-
-async function generate(body: GenerateRequest): Promise<GenerateResponse> { /* … */ }
 ```
 
-Both apps depend on it through the workspace, so there is nothing to publish:
+Both apps depend on it through the workspace — nothing to publish:
 
 ```jsonc
-// apps/web/package.json and apps/api/package.json
 "dependencies": { "@auto-stories/api-types": "*" }
 ```
 
 ## Files
 
-- `src/generated.ts` — **auto-generated** from the spec (`npm run openapi:types`
-  at the repo root). Do not edit.
-- `src/index.ts` — hand-written stable surface: flat aliases (`GenerateRequest`,
-  `Frame`, …) plus the raw `components` / `operations` / `paths` for advanced use
-  (e.g. a typed fetch client via `openapi-fetch`).
+- `src/gen/` — **auto-generated** real types, one file per schema
+  (`npm run openapi:types` at the repo root). Do not edit.
+- `src/index.ts` — stable public surface; re-exports `src/gen`. The one place to
+  change if the generator is ever swapped (fallback: `openapi-generator`, see
+  approach 3.16).
 
-Regenerate whenever `openapi.yaml` changes; CI should fail if `generated.ts`
-drifts from the spec.
-
-## ⚠ Temporary: the `typescript` devDependency here
-
-This package pins its own `typescript` only as a **temporary workaround** —
-`openapi-typescript@7` still requires peer `typescript@^5`, which conflicts with
-the app's TypeScript 6 under `npm ci`. Isolating the tool's TS here keeps the app
-on 6. Remove this pin and consolidate on one root TypeScript once
-`openapi-typescript` supports the newest TS. See approach **3.16**.
+Regenerate whenever `openapi.yaml` changes; CI fails if `src/gen` drifts.

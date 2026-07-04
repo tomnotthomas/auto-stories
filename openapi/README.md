@@ -63,7 +63,7 @@ diverge, split into a second document tracked as `auto-stories@v2` in
 npm run openapi:lint      # validate the spec (Redocly)
 npm run openapi:preview   # render the reference docs UI (Scalar)
 npm run openapi:mock      # run a mock server from the examples (Prism)
-npm run openapi:types     # regenerate packages/api-types/src/generated.ts
+npm run openapi:types     # regenerate types into packages/api-types/src/gen (kubb)
 npm run openapi:bundle    # flatten $refs into openapi.bundled.yaml
 ```
 
