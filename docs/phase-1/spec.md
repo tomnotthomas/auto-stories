@@ -19,7 +19,7 @@ Making Instagram stories takes too much effort — choosing text and a narrative
 **The hard part, and the whole point of Phase 1:** given a batch of photos, decide **which photo goes first, second, third**, and **write the captions that tie them into a story**. Everything else waits.
 
 **In scope:**
-- **Pick photos + state intent** — the user uploads up to ~10 photos and adds a line of intent/vibe. Upload is one tap: on mobile the file input opens the **native photo picker** (multi-select, Recents-first); on desktop it's drag-drop / click-to-browse / paste. Voice is fixed to a personal-journal tone.
+- **Pick photos + state intent** — the user uploads 3–10 photos (3 is the minimum for a story) and adds a line of intent/vibe. Upload is one tap: on mobile the file input opens the **native photo picker** (multi-select, Recents-first); on desktop it's drag-drop / click-to-browse / paste. Voice is fixed to a personal-journal tone.
 - **Story assembly (the core value)** — the app chooses which photos to use, orders them into a narrative (beginning → tension/context → payoff), and writes captions that connect them.
 - **Fast preview, full-res result** — the app sends a **downscaled copy** of each photo (~1024px long edge, JPEG ~80%, aspect preserved) to the model for a fast response; the returned captions are placed on the **full-resolution originals** the user actually sees. The model reads a small proxy; the story uses the real photos.
 - **Hook in the first frame** — strongest visual + text hook up front, so viewers don't tap past.
