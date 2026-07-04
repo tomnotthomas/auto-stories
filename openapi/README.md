@@ -23,11 +23,13 @@ openapi/
   components/
     schemas/                # one file per schema (Photo, Frame, …)
     responses/              # reusable error responses (BadRequest, RateLimited, …)
-  generated/types.ts        # generated shared TS types (committed)
 ```
 
 Add a route → new file in `paths/` + a `$ref` from `openapi.yaml`. Reuse an
 error response by `$ref`-ing the file in `components/responses/`.
+
+The generated TypeScript types live in the shared workspace package
+`packages/api-types` (imported by both apps) — see its README.
 
 ## Routes
 
@@ -42,7 +44,7 @@ error response by `$ref`-ing the file in `components/responses/`.
 npm run openapi:lint      # validate the spec (Redocly)
 npm run openapi:preview   # render the reference docs UI (Scalar)
 npm run openapi:mock      # run a mock server from the examples (Prism)
-npm run openapi:types     # regenerate openapi/generated/types.ts
+npm run openapi:types     # regenerate packages/api-types/src/generated.ts
 npm run openapi:bundle    # flatten $refs into openapi.bundled.yaml
 ```
 
