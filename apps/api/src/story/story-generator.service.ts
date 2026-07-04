@@ -126,7 +126,9 @@ export class StoryGeneratorService {
       }
       return ApiErrors.upstreamError();
     }
-    this.logger.error(err instanceof Error ? (err.stack ?? err.message) : String(err));
+    this.logger.error(
+      err instanceof Error ? (err.stack ?? err.message) : String(err),
+    );
     return ApiErrors.upstreamError();
   }
 }

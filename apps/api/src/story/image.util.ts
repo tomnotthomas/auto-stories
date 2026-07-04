@@ -32,7 +32,9 @@ export function sniffImageType(b64: string): ImageType | null {
   // HEIC/HEIF: an ISO-BMFF box with an 'ftyp' header and a heic-family brand.
   if (head.toString('ascii', 4, 8) === 'ftyp') {
     const brand = head.toString('ascii', 8, 12);
-    if (['heic', 'heix', 'hevc', 'heim', 'heis', 'mif1', 'msf1'].includes(brand)) {
+    if (
+      ['heic', 'heix', 'hevc', 'heim', 'heis', 'mif1', 'msf1'].includes(brand)
+    ) {
       return 'heic';
     }
   }
