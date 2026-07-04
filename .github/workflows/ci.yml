@@ -137,7 +137,10 @@ jobs:
         run: npm ci
 
       - name: Test
-        run: npm run test --workspace apps/web -- --watch=false --browsers=ChromeHeadless
+        # The web app uses Angular's @angular/build:unit-test (Vitest) builder;
+        # --browsers=ChromeHeadless is a Karma-era flag it rejects. The package
+        # script already passes --watch=false.
+        run: npm run test --workspace apps/web
 
       - name: Build
         run: npm run build --workspace apps/web
