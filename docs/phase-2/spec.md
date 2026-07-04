@@ -8,9 +8,9 @@ Move a finished story from the app onto the user's Instagram Story with the leas
 ## Scope
 
 **In scope:**
-- **Build the finished frames** — render each frame (photo + placed caption) into a shareable image.
-- **Save to camera roll, in order** — write the frames to the phone's photo library so they're ready and nothing is lost.
-- **Hand off to Instagram** — open Instagram's native Story composer; the user taps "Select Multiple," picks the frames (up to 10, posted as sequential cards), and shares. Human-in-the-loop by design.
+- **Build the finished frames** — in the browser, render each frame (photo + placed caption) into a shareable 1080×1920 image.
+- **Deliver the frames** — download the images (on desktop) or share them via the **Web Share API** (on mobile browsers), getting the finished frames onto the user's phone.
+- **Post via Instagram's multi-select** — the user saves the frames to their gallery, opens Instagram, taps "Select Multiple," and posts them as sequential story cards. Human-in-the-loop by design. (A web app can't deep-link into Instagram's composer the way a native app could, so this is a couple of taps more.)
 - **Music suggestions** — the app reads the story's vibe and tells the user what to search for in Instagram's music tab (mood, genre, example tracks), so adding music there is effortless. Just generated text.
 
 **Out of scope:**

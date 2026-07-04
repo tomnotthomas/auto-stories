@@ -81,8 +81,8 @@ The technical decisions for building Phase 1 (create the story).
 ### 2.1 Where does the AI run?
 - **Problem:** The app needs to send photos to a vision model and get a story back. Where does that call happen?
 - **Options:** run a model on-device; call a hosted model API directly from the phone; call it through a backend I control.
-- **Decision:** A thin backend proxy (phone → my backend → model API).
-- **Why:** On-device models would exclude older and Android phones, and I want it platform-agnostic. A backend keeps the API key off the phone (a key shipped in an app can be extracted) and gives one place for retries, validating the model's output, and logging failures.
+- **Decision:** A server-side API route holds the key; the browser calls it, never the model directly.
+- **Why:** Keeping the key server-side means users never bring their own key (zero-friction first use), and the server is the deployable/containerized artifact the brief asks for. It's also the one place for validation, retries, and logging. (Not on-device inference — that would exclude weaker devices.)
 
 ### 2.2 Which model?
 - **Problem:** Need a vision model with good quality-to-price, ideally free for an assignment.
@@ -104,17 +104,17 @@ The technical decisions for building Phase 1 (create the story).
 
 > Decisions 2.5–2.8 were made while I was on a break; confirm or override them. Full architecture in [`phase-1/architecture.md`](phase-1/architecture.md).
 
-### 2.5 App framework
-- **Problem:** Need one mobile app for iOS and Android with photo picking, EXIF, and image resizing.
-- **Options:** bare React Native; Expo (React Native).
-- **Decision:** Expo.
-- **Why:** One codebase for both platforms, and the exact libraries Phase 1 needs are first-party and boring (`expo-image-picker`, `expo-media-library`, `expo-image-manipulator`). Fastest path to a running app; EAS handles builds.
+### 2.5 Stack
+- **Problem:** Need a responsive web frontend that stays maintainable as complexity grows, plus a server that hides the key.
+- **Options:** Next.js; plain React (Vite); Angular — each with a small Node/Express server.
+- **Decision:** Angular frontend + Node/Express backend.
+- **Why:** Angular's standardized, opinionated structure keeps the frontend scalable and consistent as it grows — every React project ends up structured differently, Angular projects don't. It also ships component test harnesses (via the CDK) for reliable component-level tests. Express hides the key and serves the built Angular app from one origin.
 
-### 2.6 Backend host
-- **Problem:** The thin backend (2.1) needs somewhere to run.
-- **Options:** always-on server; a stateless serverless HTTP function (Vercel, or Google Cloud Run).
-- **Decision:** A stateless serverless function, one `/generate` endpoint; default Vercel.
-- **Why:** No state to keep in Phase 1, so scale-to-zero serverless is cheapest and simplest to deploy. Vercel is fastest to ship; Cloud Run is the alternative if I want the backend in the same Google ecosystem as Gemini. Reversible — it's just one HTTP endpoint.
+### 2.6 Deploy
+- **Problem:** The brief wants a live URL and code that runs in a fresh Linux container.
+- **Options:** Vercel (serverless, not our container); Railway (no free tier — trial credit then paid); Render (real free tier, no card); Fly (free tier gone).
+- **Decision:** One Docker container — Express serves the built Angular app + `/api/generate` — with a `docker-compose.yml`, hosted **free on Render**.
+- **Why:** I don't want to pay for a take-home. Render is the only one of these with a genuine free tier and no credit card, and it runs our Docker image directly (the same one reviewers run via compose). The only cost is a cold start (~30-50s to wake after 15 min idle), fine for a demo. This is a take-home cost call, not a production one — in production the cold start would be unacceptable and I'd move to an always-on paid tier. Hosting doesn't affect the graded outcome (story quality), so for the take-home I picked the free, simplest option.
 
 ### 2.7 Latency UX
 - **Problem:** Generation is one call that takes a few seconds; the wait shouldn't feel broken.
@@ -124,6 +124,24 @@ The technical decisions for building Phase 1 (create the story).
 
 ### 2.8 App state
 - **Problem:** Where does the in-progress story live in the app?
-- **Options:** a state library (Redux/Zustand); local React state.
-- **Decision:** Local React state, no heavy store.
-- **Why:** Phase 1 is a single linear flow (pick → generate → refine) with one story in memory. A global store would be premature; local state is enough and simpler.
+- **Options:** a heavy store (NgRx); a small Angular service with signals.
+- **Decision:** A small Angular service holding the story in signals, no NgRx.
+- **Why:** Phase 1 is a single linear flow (pick → generate → refine) with one story in memory. NgRx would be premature; a signal-based service is enough and simpler.
+
+### 2.10 Component library
+- **Problem:** Want to build the UI fast without hand-rolling components.
+- **Options:** Angular Material; PrimeNG; hand-rolled.
+- **Decision:** Angular Material.
+- **Why:** Official, modern, well-documented, and easy — fits the standardized-structure goal. Bonus: it ships CDK component harnesses, exactly the reliable component-testing tool I want.
+
+### 2.11 How does the user get photos in?
+- **Problem:** Going to a web app, the user has to upload photos themselves — there's no camera-roll access like a native app. Uploading has to be frictionless, and it's the first step of every phase (and every recurring cycle in Phase 3).
+- **Options:** a plain file-browser dialog; a custom uploader UI; a standard `<input type="file" accept="image/*" multiple>`.
+- **Decision:** A standard multi-select file input, styled as one big "Add photos" target.
+- **Why:** On mobile, that input opens the OS **native photo picker** (multi-select, Recents-first) — the same grid a native app shows, with no library-scan permission on our side, so "manual upload" is really one tap + a few selections. On desktop it also takes drag-drop / click-to-browse / paste. Recents-first is what makes Phase 3's "make a story from last week" quick. This is why the web pivot (2.9) doesn't hurt the flow: the only phase where auto-scan would have helped is Phase 3, and the native picker's Recents view covers it.
+
+### 2.9 Native mobile app or web app? (came late)
+- **Problem:** I'd been designing a native mobile app. Re-reading the brief, Option 2 says "deployable web app," reviewers run the code "in a fresh Linux container," and a live URL is wanted.
+- **Options:** native mobile app; responsive web app.
+- **Decision:** Responsive web app. This reframes 2.1, 2.5, and 2.6 above.
+- **Why:** A native app can't run in a Linux container or be opened at a URL by reviewers, so it fails the brief. A responsive web app deploys to a URL, runs in a container, needs no install, and keeps the whole Phase 1 core unchanged. What changes is the shell (upload instead of camera roll; download / Web Share instead of a native Instagram deep-link); the AI story generation — the graded part — does not.
