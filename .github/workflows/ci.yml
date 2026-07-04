@@ -5,6 +5,13 @@ on:
     branches: [main]
   pull_request:
 
+# The detect-changes job (dorny/paths-filter) lists a PR's files via the GitHub
+# API, which needs pull-requests: read. Without it, PR runs fail with "Resource
+# not accessible by integration" and every downstream job is skipped.
+permissions:
+  contents: read
+  pull-requests: read
+
 # Cancel superseded runs on the same ref.
 concurrency:
   group: ci-${{ github.ref }}
@@ -93,11 +100,22 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Lint
+        run: npm run lint:ci --workspace apps/api
+
       - name: Typecheck
         run: npm run typecheck --workspace apps/api
 
-      - name: Test
-        run: npm run test --workspace apps/api
+      - name: Test (with coverage gate)
+        run: npm run test:cov --workspace apps/api
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: apps/api/coverage
+          if-no-files-found: warn
 
       - name: Build
         run: npm run build --workspace apps/api
