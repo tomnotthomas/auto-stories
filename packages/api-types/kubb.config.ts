@@ -10,7 +10,10 @@ export default defineConfig({
   output: {
     path: "./packages/api-types/src/gen",
     clean: true,
-    extension: { ".ts": "" },
+    // Emit explicit `.js` extensions on relative imports so the generated ESM
+    // resolves under BOTH `bundler` (Angular) and `nodenext` (NestJS). Without
+    // this, nodenext rejects extensionless relative imports (TS2834).
+    extension: { ".ts": ".js" },
     // Disable auto-formatting so generation is deterministic regardless of
     // whether a formatter (prettier/biome) happens to be installed in the
     // workspace. Keeps the checked-in types stable across CI environments.

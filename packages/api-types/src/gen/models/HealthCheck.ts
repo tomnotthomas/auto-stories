@@ -3,7 +3,7 @@
 * Do not edit manually.
 */
 
-import type { HealthResponse } from "./HealthResponse";
+import type { HealthResponse } from "./HealthResponse.js";
 
 /**
  * @description The server is up.

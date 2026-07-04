@@ -3,9 +3,9 @@
 * Do not edit manually.
 */
 
-import type { ErrorResponse } from "./ErrorResponse";
-import type { GenerateRequest } from "./GenerateRequest";
-import type { GenerateResponse } from "./GenerateResponse";
+import type { ErrorResponse } from "./ErrorResponse.js";
+import type { GenerateRequest } from "./GenerateRequest.js";
+import type { GenerateResponse } from "./GenerateResponse.js";
 
 /**
  * @description A generated story.

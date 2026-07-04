@@ -3,7 +3,7 @@
 * Do not edit manually.
 */
 
-import type { ErrorCode } from "./ErrorCode";
+import type { ErrorCode } from "./ErrorCode.js";
 
 /**
  * @description Every non-2xx response uses this shape.

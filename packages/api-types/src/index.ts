@@ -8,4 +8,4 @@
  * `./gen` is auto-generated (do not edit). This file is the stable public
  * surface — the one place to adjust if the generator is ever swapped.
  */
-export * from "./gen/models";
+export * from "./gen/models/index.js";

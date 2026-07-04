@@ -3,8 +3,8 @@
 * Do not edit manually.
 */
 
-import type { Photo } from "./Photo";
-import type { Tone } from "./Tone";
+import type { Photo } from "./Photo.js";
+import type { Tone } from "./Tone.js";
 
 export type GenerateRequest = {
     /**
