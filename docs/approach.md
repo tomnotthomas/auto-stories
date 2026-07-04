@@ -325,6 +325,15 @@ Resolving the production-readiness gaps the engineering review surfaced — what
   - **CI gains a `docker` job** (gated on any app/dep/container-file change): build the image, run it, and smoke-test that `/healthz` answers and the web app is returned at `/`.
 - **Why:** A green unit suite doesn't prove the deployable artifact boots and serves — the smoke test does, so a broken image fails the PR, not the deploy. One process/one origin keeps the CSP tight (4.11) and matches how Render runs it (3.6). Runtime-only secrets keep keys out of the image. Non-obvious: serve-static binds to the HTTP adapter only when the app starts via `NestFactory` (the `compile()`-first test path silently no-ops it), so the test uses the real bootstrap path.
 
+### 4.15 Landing page is a workspace app served at `/`; product app moves to `/app`
+- **Problem:** The marketing landing page existed as an orphan folder (`landing/`) wired into nothing — not a workspace, not served. It needed to be a first-class app in the repo and reachable at the site root.
+- **Decision:**
+  - Promoted it to a workspace app, **`apps/landing`** (sibling of `api`/`web`), with a `package.json` so `npm` and the CI `apps/**` docker filter pick it up.
+  - **URL layout in the one container:** landing at **`/`** (`LANDING_ROOT`), the Angular product flow at **`/app`** (built with `--base-href /app/`), `/api/*` and `/healthz` underneath. Two `serve-static` mounts: `/app` registered first, the `/` landing host last as the catch-all, each excluding the others' prefixes.
+  - The landing **build stays a local authoring step** (`build.py` needs `python3` + an external Pretext file, neither in the image); the container ships the committed, self-contained `index.html`.
+  - CTA buttons point to `/app/example` and `/app/create` — the `/app` SPA fallback serves them today and future client-side routes light them up. The docker smoke test now asserts landing at `/` and `<app-root>` at `/app`.
+- **Why:** The landing is the front door, so it owns `/`; the app moves to `/app` rather than the reverse because the funnel is landing → CTA → app. API calls are absolute (`/api/v1/...`), so the base-href move doesn't touch them. Shipping the committed `index.html` avoids putting a Python toolchain and an out-of-repo asset into the build.
+
 ---
 
 # Chapter 5 — Design system
