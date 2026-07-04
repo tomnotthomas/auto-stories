@@ -53,4 +53,48 @@ describe('Story', () => {
     await harness.clickStartOver();
     expect(story.phase()).toBe('example');
   });
+
+  describe('refine', () => {
+    it('opens the caption editor when a caption is tapped in refine mode', async () => {
+      const harness = await render();
+      await harness.clickRefine();
+      expect(await harness.getEditor()).toBeNull();
+      await harness.tapCaption();
+      expect(await harness.getEditor()).not.toBeNull();
+    });
+
+    it('marks the coach mark seen once the user starts editing', async () => {
+      const harness = await render();
+      await harness.clickRefine();
+      await harness.tapCaption();
+      expect(story.coachSeen()).toBe(true);
+    });
+
+    it('edits the caption of the current frame through the editor', async () => {
+      const harness = await render();
+      await harness.clickRefine();
+      await harness.tapCaption();
+      const editor = await harness.getEditor();
+      await editor!.setCaption('A brand new line');
+      expect(story.frames()[0].caption).toBe('A brand new line');
+    });
+
+    it('toggles legibility of the current frame through the editor', async () => {
+      const harness = await render();
+      await harness.clickRefine();
+      await harness.tapCaption();
+      const editor = await harness.getEditor();
+      await editor!.toggleLegibility();
+      expect(story.frames()[0].legibility).toBe(false);
+    });
+
+    it('leaves refine mode when the refine bar Done is pressed', async () => {
+      const harness = await render();
+      await harness.clickRefine();
+      await harness.clickDone();
+      // Back in view mode: tap zones page the story again.
+      await harness.tapNext();
+      expect(await harness.getCaption()).toBe('Then she blew out the candle');
+    });
+  });
 });
