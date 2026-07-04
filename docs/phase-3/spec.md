@@ -14,6 +14,7 @@ Make the app something the user comes back to — it documents their life on a r
 - **Streamlined re-posting** — reduce Phase 2's hand-off friction for repeat use.
 
 **Optional (deferred from Phase 1):**
+- **Learn the user's voice** — over time, fine-tune caption tone from the captions the user edits/regenerates in the refine step (first-party signal, no extra access needed). Optional. (Reading the user's Instagram to learn voice was dropped — it needs Instagram access we don't have, the same wall as posting.)
 - **Stream the story as it generates** — reveal frames one-by-one while the AI writes, instead of the staged preloader. Deferred here because it needs a reworked (streaming) generation call, and on Phase 1's few-second wait the gain didn't justify the complexity. Revisit only if it's worth it.
 
 **Guiding principle:** the app documents life on a rhythm — it nudges, the user taps and picks the period's photos from the native picker (Recents-first makes "last week" fast).

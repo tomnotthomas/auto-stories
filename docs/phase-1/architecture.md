@@ -1,6 +1,6 @@
 # Auto Stories — Phase 1 Architecture
 
-How Phase 1 ([spec](spec.md)) is built and deployed: a responsive **web app** where the user uploads photos + a line of intent and gets back an ordered, captioned story, previewed with draggable captions. Reasoning lives in [`approach.md`](../approach.md) (Chapter 3; the story-quality decisions are Chapter 2).
+How Phase 1 ([spec](spec.md)) is built and deployed: a responsive **web app** where the user uploads photos + one "What's the story?" line (+ optional tone) and gets back an ordered, captioned story, previewed with draggable captions. Reasoning lives in [`approach.md`](../approach.md) (Chapter 3; the story-quality decisions are Chapter 2).
 
 ## Decisions at a glance
 
@@ -42,23 +42,25 @@ The browser never holds the API key. The NestJS server is stateless — no datab
 
 **Request** `POST /api/v1/generate`
 ```json
-{ "intent": "weekend hike, funny tone",
+{ "story": "Maya's 1st birthday at the lake house, all the cousins came",
+  "tone": "heartfelt",
   "photos": [ { "id": "p1", "b64": "<downscaled jpeg>", "takenAt": "2026-07-04T09:12:00Z" } ] }
 ```
+`story` is the "What's the story?" line; `tone` is the optional chip; `takenAt` (EXIF) is optional.
 
 **Model responseSchema (enforced JSON)**
 ```json
 { "frames": [ { "photoId": "p1", "order": 1, "caption": "..." } ] }
 ```
 
-The model may **select a subset** and **reorder**, returning only chosen photos with an explicit `order`. The prompt: order by the story in the intent + what's visible (strongest hook first → payoff), using timestamps only as a soft hint; write specific (not generic) captions grounded in what's visible + the intent.
+The model may **select a subset** and **reorder**, returning only chosen photos with an explicit `order`. The prompt: order by the `story` + what's visible (strongest hook first → payoff), using `takenAt` only as a soft hint; write specific (not generic) captions grounded in what's visible + the `story` and matching `tone`.
 
 ## Data model (client)
 
 ```
 Photo  { id, objectURL (full-res upload), width, height, takenAt }
 Frame  { photoId, order, caption, textPos {x,y}, textScale }
-Story  { id, intent, frames: Frame[], createdAt }
+Story  { id, story, tone, frames: Frame[], createdAt }
 ```
 
 ## Deployment
@@ -95,7 +97,7 @@ Model is non-deterministic, so test **plumbing deterministically**, **quality se
 - **Component** — Angular components via **CDK component harnesses** (upload, preview, caption drag/edit).
 - **Contract** — NestJS `/api/v1/generate` against mock Gemini responses (valid / malformed / hallucinated id / empty) → each maps to the right outcome.
 - **E2E** — Cypress/Playwright: upload → generate → render against a stubbed API.
-- **Quality eval** — fixed sample photo sets + intents → real model → rubric-score ordering + caption specificity. Run on model/prompt change.
+- **Quality eval** — fixed sample photo sets + story lines/tones → real model → rubric-score ordering + caption specificity. Run on model/prompt change.
 
 ## How this extends to Phase 2 & 3
 
