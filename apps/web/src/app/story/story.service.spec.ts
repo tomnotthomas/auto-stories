@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 
-import { MAX_PHOTOS, MAX_STORY_LENGTH, StoryService } from './story.service';
+import { DEFAULT_PLACEMENT, MAX_PHOTOS, MAX_STORY_LENGTH, StoryService } from './story.service';
 
 function imageFile(name = 'photo.jpg'): File {
   return new File(['bytes'], name, { type: 'image/jpeg' });
@@ -78,12 +78,16 @@ describe('StoryService', () => {
     expect(service.phase()).toBe('generating');
   });
 
-  it('shows the payoff with the finished frames', () => {
+  it('shows the payoff with the finished frames, ready to refine', () => {
     const frames = [{ photoId: 'p1', order: 1, caption: 'By the water' }];
     service.completeStory(frames, true);
     expect(service.phase()).toBe('story');
-    expect(service.frames()).toEqual(frames);
     expect(service.partial()).toBe(true);
+    // Each frame gains editable placement + legibility state for refine.
+    const [frame] = service.frames();
+    expect(frame).toMatchObject({ photoId: 'p1', order: 1, caption: 'By the water' });
+    expect(frame.placement).toEqual(DEFAULT_PLACEMENT);
+    expect(frame.legibility).toBe(true);
   });
 
   it('shows the error screen with a specific failure', () => {
@@ -107,5 +111,71 @@ describe('StoryService', () => {
     expect(service.tone()).toBeNull();
     expect(service.frames()).toEqual([]);
     expect(service.error()).toBeNull();
+  });
+
+  describe('refine', () => {
+    const seedFour = () =>
+      service.completeStory(
+        [
+          { photoId: 'p1', order: 1, caption: 'first' },
+          { photoId: 'p2', order: 2, caption: 'second' },
+          { photoId: 'p3', order: 3, caption: 'third' },
+          { photoId: 'p4', order: 4, caption: 'fourth' },
+        ],
+        false,
+      );
+
+    it('edits a caption by photo id', () => {
+      seedFour();
+      service.setCaption('p2', 'rewritten');
+      expect(service.frames().find((f) => f.photoId === 'p2')?.caption).toBe('rewritten');
+    });
+
+    it('moves and resizes a caption, merging partial placement updates', () => {
+      seedFour();
+      service.setPlacement('p1', { xPct: 30, yPct: 40 });
+      service.setPlacement('p1', { scale: 1.5 });
+      expect(service.frames()[0].placement).toEqual({ xPct: 30, yPct: 40, scale: 1.5 });
+    });
+
+    it('toggles the legibility background of a frame', () => {
+      seedFour();
+      expect(service.frames()[0].legibility).toBe(true);
+      service.toggleLegibility('p1');
+      expect(service.frames()[0].legibility).toBe(false);
+    });
+
+    it('reorders frames and re-indexes the narrative order', () => {
+      seedFour();
+      service.reorderFrames(0, 2);
+      expect(service.frames().map((f) => f.photoId)).toEqual(['p2', 'p3', 'p1', 'p4']);
+      expect(service.frames().map((f) => f.order)).toEqual([1, 2, 3, 4]);
+    });
+
+    it('drops a photo and re-indexes the remaining frames', () => {
+      seedFour();
+      service.dropPhoto('p2');
+      expect(service.frames().map((f) => f.photoId)).toEqual(['p1', 'p3', 'p4']);
+      expect(service.frames().map((f) => f.order)).toEqual([1, 2, 3]);
+    });
+
+    it('refuses to drop below the minimum photo count', () => {
+      service.completeStory(
+        [
+          { photoId: 'p1', order: 1, caption: 'a' },
+          { photoId: 'p2', order: 2, caption: 'b' },
+          { photoId: 'p3', order: 3, caption: 'c' },
+        ],
+        false,
+      );
+      service.dropPhoto('p2');
+      expect(service.frames().map((f) => f.photoId)).toEqual(['p1', 'p2', 'p3']);
+    });
+
+    it('records that the refine coach mark has been seen', () => {
+      expect(service.coachSeen()).toBe(false);
+      service.markCoachSeen();
+      expect(service.coachSeen()).toBe(true);
+    });
   });
 });

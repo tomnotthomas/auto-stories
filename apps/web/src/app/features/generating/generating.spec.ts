@@ -57,7 +57,10 @@ describe('Generating', () => {
     const { story } = await setup(success);
     await flush();
     expect(story.phase()).toBe('story');
-    expect(story.frames()).toEqual(success.response.frames);
+    // frames() now carry editable refine state on top of the contract fields.
+    expect(story.frames().map((f) => ({ photoId: f.photoId, order: f.order, caption: f.caption }))).toEqual(
+      success.response.frames,
+    );
   });
 
   it('shows a specific error when generation fails', async () => {

@@ -36,6 +36,33 @@ export interface StoryError {
   readonly message: string;
 }
 
+/** Where the caption sits on a frame, as the user placed it in refine (1.5, 5.9):
+ * box centre as a percentage of the photo, plus a text-size multiplier. Percentages
+ * keep the placement correct across the phone-frame and full-bleed layouts (5.10). */
+export interface FramePlacement {
+  readonly xPct: number;
+  readonly yPct: number;
+  readonly scale: number;
+}
+
+/** The AI's smart default: lower third, unscaled (1.5). */
+export const DEFAULT_PLACEMENT: FramePlacement = { xPct: 50, yPct: 78, scale: 1 };
+
+/** A generated frame plus the state the user refines in place: the caption text,
+ * where it sits, and whether it keeps its legibility background (5.3, 5.9). */
+export interface EditableFrame extends Frame {
+  readonly placement: FramePlacement;
+  readonly legibility: boolean;
+}
+
+/** Sort by narrative order, then renumber 1..n so `order` stays contiguous
+ * after a reorder or drop. */
+function reindex(frames: readonly EditableFrame[]): EditableFrame[] {
+  return [...frames]
+    .sort((a, b) => a.order - b.order)
+    .map((frame, i) => ({ ...frame, order: i + 1 }));
+}
+
 /**
  * Holds the in-progress story in signals and drives the flow between screens.
  * A single root singleton (approach 3.8) — no NgRx, no router. It is the model
@@ -48,9 +75,10 @@ export class StoryService {
   private readonly _photos = signal<readonly PickedPhoto[]>([]);
   private readonly _storyLine = signal('');
   private readonly _tone = signal<Tone | null>(null);
-  private readonly _frames = signal<readonly Frame[]>([]);
+  private readonly _frames = signal<readonly EditableFrame[]>([]);
   private readonly _partial = signal(false);
   private readonly _error = signal<StoryError | null>(null);
+  private readonly _coachSeen = signal(false);
   private seq = 0;
 
   /** The screen the flow shell should render. */
@@ -61,12 +89,15 @@ export class StoryService {
   readonly storyLine = this._storyLine.asReadonly();
   /** The optional tone chip, or null. */
   readonly tone = this._tone.asReadonly();
-  /** The generated frames, in narrative order (empty until the story lands). */
+  /** The finished frames, in narrative order, each with its editable refine state
+   * (empty until the story lands). */
   readonly frames = this._frames.asReadonly();
   /** True when the model dropped a photo but still produced a story (4.3). */
   readonly partial = this._partial.asReadonly();
   /** The current failure, or null. */
   readonly error = this._error.asReadonly();
+  /** True once the first-time refine coach mark has been shown (5.9). */
+  readonly coachSeen = this._coachSeen.asReadonly();
 
   /** How many photos are picked. */
   readonly photoCount = computed(() => this._photos().length);
@@ -117,11 +148,66 @@ export class StoryService {
     this._phase.set('generating');
   }
 
-  /** Store the finished story and show the payoff. */
+  /** Store the finished story and show the payoff. Each contract frame gains its
+   * editable refine state (default placement, legibility on). */
   completeStory(frames: readonly Frame[], partial: boolean): void {
-    this._frames.set(frames);
+    this._frames.set(
+      reindex(frames.map((frame) => ({ ...frame, placement: DEFAULT_PLACEMENT, legibility: true }))),
+    );
     this._partial.set(partial);
     this._phase.set('story');
+  }
+
+  /** Refine: rewrite a frame's caption (manual edit or per-caption regenerate). */
+  setCaption(photoId: string, caption: string): void {
+    this._frames.update((frames) =>
+      frames.map((frame) => (frame.photoId === photoId ? { ...frame, caption } : frame)),
+    );
+  }
+
+  /** Refine: move/resize a caption. Partial so a drag (x/y) and a resize (scale)
+   * each merge into the frame's placement (1.5). */
+  setPlacement(photoId: string, placement: Partial<FramePlacement>): void {
+    this._frames.update((frames) =>
+      frames.map((frame) =>
+        frame.photoId === photoId
+          ? { ...frame, placement: { ...frame.placement, ...placement } }
+          : frame,
+      ),
+    );
+  }
+
+  /** Refine: toggle a frame's legibility background (5.9). */
+  toggleLegibility(photoId: string): void {
+    this._frames.update((frames) =>
+      frames.map((frame) =>
+        frame.photoId === photoId ? { ...frame, legibility: !frame.legibility } : frame,
+      ),
+    );
+  }
+
+  /** Refine: drag-to-reorder the narrative (5.1). Moves the frame at `from` to
+   * `to` and renumbers `order`. */
+  reorderFrames(from: number, to: number): void {
+    this._frames.update((frames) => {
+      const next = [...frames];
+      const [moved] = next.splice(from, 1);
+      if (!moved) return frames;
+      next.splice(to, 0, moved);
+      return reindex(next.map((frame, i) => ({ ...frame, order: i + 1 })));
+    });
+  }
+
+  /** Refine: drop a photo from the story, keeping ≥ MIN_PHOTOS so it stays a
+   * story (1.11). No-op when already at the minimum. */
+  dropPhoto(photoId: string): void {
+    if (this._frames().length <= MIN_PHOTOS) return;
+    this._frames.update((frames) => reindex(frames.filter((frame) => frame.photoId !== photoId)));
+  }
+
+  /** Mark the first-time refine coach mark as seen so it shows only once (5.9). */
+  markCoachSeen(): void {
+    this._coachSeen.set(true);
   }
 
   /** Record a specific failure and show the error screen (4.3). */
