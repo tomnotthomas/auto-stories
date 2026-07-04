@@ -1,19 +1,19 @@
 # Auto Stories — Phase 1 Architecture
 
-How Phase 1 ([spec](spec.md)) is built and deployed: a responsive **web app** where the user uploads photos + a line of intent and gets back an ordered, captioned story, previewed with draggable captions. Reasoning lives in [`approach.md`](../approach.md) (Chapter 2).
+How Phase 1 ([spec](spec.md)) is built and deployed: a responsive **web app** where the user uploads photos + a line of intent and gets back an ordered, captioned story, previewed with draggable captions. Reasoning lives in [`approach.md`](../approach.md) (Chapter 3; the story-quality decisions are Chapter 2).
 
 ## Decisions at a glance
 
 | # | Decision | Choice |
 |---|----------|--------|
-| 2.1 | Where AI runs | Server-side (NestJS) holds the key; browser never sees it |
-| 2.2 | Model | Gemini Flash, free tier, swappable via config |
-| 2.3 | Generation shape | Single structured call (pipeline = fallback) |
-| 2.4 | Image input | Cap ~10 photos, downscale ~1024px/JPEG80, keep originals |
-| 2.5 | Stack | Angular frontend + NestJS API (one origin) |
-| 2.6 | Deploy | One Docker container (NestJS serves the build + API) + `docker-compose`; hosted free on Render |
-| 2.8 | State | Angular service holding the story in signals |
-| 2.10 | Component library | Angular Material (+ CDK harnesses for tests) |
+| 3.1 | Where AI runs | Server-side (NestJS) holds the key; browser never sees it |
+| 3.2 | Model | Gemini Flash, free tier, swappable via config |
+| 3.3 | Generation shape | Single structured call (pipeline = fallback) |
+| 3.4 | Image input | Cap ~10 photos, downscale ~1024px/JPEG80, keep originals |
+| 3.5 | Stack | Angular frontend + NestJS API (one origin) |
+| 3.6 | Deploy | One Docker container (NestJS serves the build + API) + `docker-compose`; hosted free on Render |
+| 3.8 | State | Angular service holding the story in signals |
+| 3.10 | Component library | Angular Material (+ CDK harnesses for tests) |
 
 ## System architecture
 
@@ -29,7 +29,7 @@ The browser never holds the API key. The NestJS server is stateless — no datab
 
 **Frontend (Angular + Angular Material, responsive)** — tailored to look great on laptop, tablet, or phone:
 - Photo **upload** — `<input type="file" accept="image/*" multiple>`: on mobile this opens the OS **native photo picker** (multi-select, Recents-first — feels native, no library-scan permission needed); on desktop, drag-drop + click-to-browse + paste.
-- **EXIF timestamps** read client-side (`exifr`) as an optional soft ordering hint + caption context (ordering is narrative-first, not timestamp-first — see approach 3.1).
+- **EXIF timestamps** read client-side (`exifr`) as an optional soft ordering hint + caption context (ordering is narrative-first, not timestamp-first — see approach 2.1).
 - **Downscale** in the browser (canvas / `browser-image-compression`) to the proxy sent to the server.
 - Preview: ordered photos with a draggable/resizable caption layer (Angular **CDK drag-drop**). No pixel baking in Phase 1.
 - State in a small Angular **service (signals)**.

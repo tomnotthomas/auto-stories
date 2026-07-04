@@ -4,8 +4,8 @@ How this project was thought through, in chapters, so a reader can jump to the p
 
 ## Contents
 1. [Figuring out what to build](#chapter-1--figuring-out-what-to-build)
-2. [Locking the Phase 1 architecture](#chapter-2--locking-the-phase-1-architecture)
-3. [Resolving the open questions](#chapter-3--resolving-the-open-questions)
+2. [How the core value is created](#chapter-2--how-the-core-value-is-created)
+3. [Locking the Phase 1 architecture](#chapter-3--locking-the-phase-1-architecture)
 
 ---
 
@@ -81,99 +81,99 @@ The problems I hit while shaping the product, the options, and what I picked.
 
 ---
 
-# Chapter 2 — Locking the Phase 1 architecture
+# Chapter 2 — How the core value is created
+
+The decisions that make the generated story *good*: which photo leads, how the photos are ordered, and how the captions are written. This is the graded core, so it comes before the architecture that delivers it. These resolve the open questions in [`phase-1/open-questions.md`](phase-1/open-questions.md).
+
+### 2.1 How is the story ordered?
+- **Problem:** Turning a pile of photos into a well-sequenced story. What signal decides the order — time, content, or the story the user wants?
+- **Options:** chronological-first (order by EXIF `takenAt`, content breaks ties); narrative-first (the user says what the story is; the model orders the photos into an arc from content, timestamps optional); let the user pick a mode (Story flow vs Timeline).
+- **Decision:** Narrative-first. The user's one line — **"What's the story?"** — plus the images drive the order into an arc: strongest hook first → build → payoff. Timestamps are an optional soft hint only. Manual drag-to-reorder stays as the refine escape hatch.
+- **Why:** Chronological-first breaks silently when EXIF is stripped (common on screenshots and messaging-app uploads) and the user can't tell why it's wrong. Strict time order also tells a worse story — the chronologically-first photo is often the most boring, when a Story needs the most attention-grabbing photo first to hook the viewer. Order is already emergent from the single call (3.3), so this is a prompt-design choice, not a new pipeline. The mode-picker (option C) was cut: it adds a choice most users won't touch, Timeline reproduces the boring-first-photo problem, and Story flow feels more custom — the better fit for the MVP. (A Timeline mode is a possible later add, not now.)
+- **Also:** the step-1 field is renamed from the vague "intent/vibe" to **"What's the story?"** — one plain line about what happened and the feeling, which drives both ordering and captions.
+
+---
+
+# Chapter 3 — Locking the Phase 1 architecture
 
 The technical decisions for building Phase 1 (create the story).
 
-### 2.1 Where does the AI run?
+### 3.1 Where does the AI run?
 - **Problem:** The app needs to send photos to a vision model and get a story back. Where does that call happen?
 - **Options:** run a model on-device; call a hosted model API directly from the phone; call it through a backend I control.
 - **Decision:** A server-side API route holds the key; the browser calls it, never the model directly.
 - **Why:** Keeping the key server-side means users never bring their own key (zero-friction first use), and the server is the deployable/containerized artifact the brief asks for. It's also the one place for validation, retries, and logging. (Not on-device inference — that would exclude weaker devices.)
 
-### 2.2 Which model?
+### 3.2 Which model?
 - **Problem:** Need a vision model with good quality-to-price, ideally free for an assignment.
 - **Options:** Claude, OpenAI, or Google Gemini.
 - **Decision:** Gemini Flash on the free tier, with the model as a swappable config value.
 - **Why:** Gemini is the only major provider with vision on the free tier (~1,500 requests/day — plenty for personal use), and it's fast and cheap. Recognizing photos, ordering them, and writing captions is low-risk, so the free model is fine. If quality disappoints, I swap in a stronger model via config with no app changes.
 
-### 2.3 Single call or a multi-step pipeline?
+### 3.3 Single call or a multi-step pipeline?
 - **Problem:** How do photos + intent become {which photos, what order, a caption each}?
 - **Options:** one structured call that returns everything; a pipeline (describe → order → caption).
 - **Decision:** A single structured call.
 - **Why:** The model reasoning over all photos at once gives better narrative coherence (a pipeline that orders from text descriptions throws away the images at the step that matters most). One round trip also means lower latency. The swappable model is my quality dial; a pipeline is a documented last resort if a strong model still can't hold quality.
 
-### 2.4 How many photos, and what size?
+### 3.4 How many photos, and what size?
 - **Problem:** Cameras differ (a new phone shoots huge images); sending everything is slow and costly.
 - **Options:** send originals as-is; cap the count and downscale before sending.
 - **Decision:** Cap the pick at ~10 photos; downscale each to **~1024px long edge, JPEG ~80%, aspect preserved** before sending; keep the full-res originals on the device.
 - **Why:** Google recommends ≤10 images for good image *understanding*, which also matches a Story's natural length. 1024px is ~2 of Gemini's 768px tiles (~500 tokens/image), so ten photos is trivial against the free-tier budget — the real saving is upload speed, the biggest lever on how fast the story appears. It's also enough detail for the model to get the gist (below ~512px, faces and in-photo text blur and captions get less accurate). Downscaling normalizes every camera to one size. The originals stay on device: the model reads a small proxy, but captions are placed on the real photos the user sees and later posts (Phase 2).
 
-> Decisions 2.5–2.8 were made while I was on a break; confirm or override them. Full architecture in [`phase-1/architecture.md`](phase-1/architecture.md).
+> Decisions 3.5–3.8 were made while I was on a break; confirm or override them. Full architecture in [`phase-1/architecture.md`](phase-1/architecture.md).
 
-### 2.5 Stack
+### 3.5 Stack
 - **Problem:** Need a maintainable frontend, a server that hides the key, and a structure a new developer can onboard into fast (scaling likely means more developers).
 - **Options:** frontend — Next.js / plain React (Vite) / Angular; backend — a minimal Express server / NestJS.
 - **Decision:** Angular frontend + NestJS backend.
 - **Why:** Both enforce a fixed structure, so the codebase stays consistent and a new developer onboards fast. Express and plain React are unopinionated — each codebase differs; Angular fixes the frontend layout (and ships CDK test harnesses), NestJS fixes a modules/controllers/providers layout. They share the same building blocks (modules, DI, decorators). The server hides the Gemini key and serves the built app from one origin.
 
-### 2.6 Deploy
+### 3.6 Deploy
 - **Problem:** The brief wants a live URL and code that runs in a fresh Linux container.
 - **Options:** Vercel (serverless, not our container); Railway (no free tier — trial credit then paid); Render (real free tier, no card); Fly (free tier gone).
 - **Decision:** One Docker container — NestJS serves the built Angular app + `/api/v1/generate` — with a `docker-compose.yml`, hosted **free on Render**.
 - **Why:** I don't want to pay for a take-home. Render is the only one of these with a genuine free tier and no credit card, and it runs our Docker image directly (the same one reviewers run via compose). The only cost is a cold start (~30-50s to wake after 15 min idle), fine for a demo. This is a take-home cost call, not a production one — in production the cold start would be unacceptable and I'd move to an always-on paid tier. Hosting doesn't affect the graded outcome (story quality), so for the take-home I picked the free, simplest option.
 
-### 2.7 Latency UX
+### 3.7 Latency UX
 - **Problem:** Generation is one call that takes a few seconds; the wait shouldn't feel broken.
 - **Options:** single spinner; staged loader copy; stream/progressively reveal frames.
 - **Decision:** For Phases 1–2, one call with a staged preloader that names each step ("reading photos… ordering… writing captions…"). Streaming (revealing frames as they generate) is deferred to Phase 3 as an optional polish.
 - **Why:** The wait is only a few seconds, and a single structured call can't reveal frames mid-flight without reworking the call. Weighing that added complexity against the small gain on a short wait, streaming isn't worth it now — the easy route saves time for a take-home. A staged preloader makes the wait feel purposeful with no extra engineering.
 
-### 2.8 App state
+### 3.8 App state
 - **Problem:** Where does the in-progress story live in the app?
 - **Options:** a heavy store (NgRx); a small Angular service with signals.
 - **Decision:** A small Angular service holding the story in signals, no NgRx.
 - **Why:** Phase 1 is a single linear flow (pick → generate → refine) with one story in memory. NgRx would be premature; a signal-based service is enough and simpler.
 
-### 2.10 Component library
+### 3.10 Component library
 - **Problem:** Want to build the UI fast without hand-rolling components.
 - **Options:** Angular Material; PrimeNG; hand-rolled.
 - **Decision:** Angular Material.
 - **Why:** Official, modern, well-documented, and easy — fits the standardized-structure goal. Bonus: it ships CDK component harnesses, exactly the reliable component-testing tool I want.
 
-### 2.11 How does the user get photos in?
+### 3.11 How does the user get photos in?
 - **Problem:** Going to a web app, the user has to upload photos themselves — there's no camera-roll access like a native app. Uploading has to be frictionless, and it's the first step of every phase (and every recurring cycle in Phase 3).
 - **Options:** a plain file-browser dialog; a custom uploader UI; a standard `<input type="file" accept="image/*" multiple>`.
 - **Decision:** A standard multi-select file input, styled as one big "Add photos" target.
-- **Why:** On mobile, that input opens the OS **native photo picker** (multi-select, Recents-first) — the same grid a native app shows, with no library-scan permission on our side, so "manual upload" is really one tap + a few selections. On desktop it also takes drag-drop / click-to-browse / paste. Recents-first is what makes Phase 3's "make a story from last week" quick. This is why the web pivot (2.9) doesn't hurt the flow: the only phase where auto-scan would have helped is Phase 3, and the native picker's Recents view covers it.
+- **Why:** On mobile, that input opens the OS **native photo picker** (multi-select, Recents-first) — the same grid a native app shows, with no library-scan permission on our side, so "manual upload" is really one tap + a few selections. On desktop it also takes drag-drop / click-to-browse / paste. Recents-first is what makes Phase 3's "make a story from last week" quick. This is why the web pivot (3.9) doesn't hurt the flow: the only phase where auto-scan would have helped is Phase 3, and the native picker's Recents view covers it.
 
-### 2.12 API versioning
+### 3.12 API versioning
 - **Problem:** Production-like and meant to scale — the API contract will change, and existing clients shouldn't break when it does.
 - **Options:** URI path (`/api/v1/…`); custom header (`X-API-Version: 1`); media-type (`Accept: application/json;version=1`).
 - **Decision:** URI-path versioning (`/api/v1/generate`).
 - **Why:** Most visible and testable — a reviewer can hit `/api/v1/generate` in a browser, and a `v2` ships alongside `v1` without breaking `v1` clients. The header and media-type styles can't be called or debugged without setting a header. NestJS supports all three as a one-line config, so this isn't a lock-in.
 
-### 2.13 Keeping generated code on the newest framework version
+### 3.13 Keeping generated code on the newest framework version
 - **Problem:** LLMs are trained on a mix of Angular versions, so generated code blends old and new patterns (NgModules instead of standalone, no signals). I only want the newest.
 - **Options:** rely on the model's defaults; pin each framework's own current guidance in `CLAUDE.md` so every session follows it.
 - **Decision:** Pin the newest guidance in `CLAUDE.md`. Angular → its official, team-maintained `best-practices.md` (v22+). NestJS → no official file, so reference the live official docs (`docs.nestjs.com`, v11) with the key rules inline. Also prefer `ng generate` / `nest generate` so scaffolding is standardized, not hand-written.
 - **Why:** The official Angular file is updated with the framework, so it forces current patterns (standalone, signals, `inject()`) and stops the model mixing in old syntax. NestJS has no such file — a community one exists (well-starred, updated early 2026) but it's an unofficial snapshot that can lag, so pointing at the live docs guarantees currency without vendoring something that goes stale.
 
-### 2.9 Native mobile app or web app? (came late)
+### 3.9 Native mobile app or web app? (came late)
 - **Problem:** I'd been designing a native mobile app. Re-reading the brief, Option 2 says "deployable web app," reviewers run the code "in a fresh Linux container," and a live URL is wanted.
 - **Options:** native mobile app; responsive web app.
-- **Decision:** Responsive web app. This reframes 2.1, 2.5, and 2.6 above.
+- **Decision:** Responsive web app. This reframes 3.1, 3.5, and 3.6 above.
 - **Why:** A native app can't run in a Linux container or be opened at a URL by reviewers, so it fails the brief. A responsive web app deploys to a URL, runs in a container, needs no install, and keeps the whole Phase 1 core unchanged. What changes is the shell (upload instead of camera roll; download / Web Share instead of a native Instagram deep-link); the AI story generation — the graded part — does not.
-
----
-
-# Chapter 3 — Resolving the open questions
-
-The engineering review surfaced the production-readiness gaps in [`phase-1/open-questions.md`](phase-1/open-questions.md). This chapter logs how I resolved each one.
-
-### 3.1 How is the story ordered?
-- **Problem:** Turning a pile of photos into a well-sequenced story. What signal decides the order — time, content, or the story the user wants?
-- **Options:** chronological-first (order by EXIF `takenAt`, content breaks ties); narrative-first (the user says what the story is; the model orders the photos into an arc from content, timestamps optional); let the user pick a mode (Story flow vs Timeline).
-- **Decision:** Narrative-first. The user's one line — **"What's the story?"** — plus the images drive the order into an arc: strongest hook first → build → payoff. Timestamps are an optional soft hint only. Manual drag-to-reorder stays as the refine escape hatch.
-- **Why:** Chronological-first breaks silently when EXIF is stripped (common on screenshots and messaging-app uploads) and the user can't tell why it's wrong. Strict time order also tells a worse story — the chronologically-first photo is often the most boring, when a Story needs the most attention-grabbing photo first to hook the viewer. Order is already emergent from the single call (2.3), so this is a prompt-design choice, not a new pipeline. The mode-picker (option C) was cut: it adds a choice most users won't touch, Timeline reproduces the boring-first-photo problem, and Story flow feels more custom — the better fit for the MVP. (A Timeline mode is a possible later add, not now.)
-- **Also:** the step-1 field is renamed from the vague "intent/vibe" to **"What's the story?"** — one plain line about what happened and the feeling, which drives both ordering and captions.
