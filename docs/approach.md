@@ -232,3 +232,9 @@ Resolving the production-readiness gaps the engineering review surfaced — what
 - **Options:** process all images in parallel (fast, memory-heavy); process sequentially (one at a time, flat peak memory).
 - **Decision:** Process images **sequentially** — decode → downscale → release each before starting the next — so peak memory stays flat regardless of how many were added.
 - **Why:** The story only needs the small proxies before the call, so there's no reason to hold ten full decodes in memory at once. One-at-a-time keeps a cheap phone from OOM-crashing, at a small cost in total processing time (still seconds). Robustness on weak devices beats shaving a second on strong ones.
+
+### 4.6 Lost work on refresh (deferred to Phase 2)
+- **Problem:** Stateless + story-in-memory means an accidental refresh nukes the uploads and the generated story.
+- **Options:** warn-on-unload only; a sessionStorage draft; an IndexedDB draft (state + images); server + accounts (cross-device).
+- **Decision:** Persist a local draft — **story state + downscaled proxies** — to **IndexedDB**, restored on next open in the same browser, plus a `beforeunload` warning. **Sequenced to Phase 2**, not Phase 1. Cross-device sync needs accounts → Phase 3.
+- **Why:** sessionStorage is the wrong tool (≈5 MB, strings only, dies on tab close); IndexedDB stores blobs, has large quota, and survives both refresh and accidental close. Persisting state + proxies restores the preview instantly at low cost (full-res originals re-added if needed). It's Phase 2 because losing a draft is robustness/polish, not the graded story-generation core — Phase 1 proves the value, Phase 2 hardens the session. Cross-device genuinely can't work without server-side accounts, so it lands with Phase 3.

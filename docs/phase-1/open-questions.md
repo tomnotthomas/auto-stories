@@ -4,12 +4,11 @@ All the product / core-value questions are resolved (see `approach.md`, Chapter 
 
 ## Production readiness — remaining (from the eng review)
 
-**P2 — realistic breakage**
-1. **Lost work on refresh.** Stateless + story-in-memory means an accidental refresh nukes uploads and the generated story. At least warn-on-unload or a local draft.
+All P1/P2 breakage items are resolved (Chapter 4) or sequenced to a later phase (lost-work-on-refresh → Phase 2). What's left is P3 hygiene.
 
 **P3 — production hygiene**
-2. **Health-check endpoint** (`/health` or `/api/health`) for Render/container readiness.
-3. **Story-line input** — length cap + basic prompt-injection hygiene (it goes straight into the prompt).
-4. **CI** to run the specified tests; the quality eval needs a baseline/rubric that doesn't exist yet.
-5. **Client-side error capture** and a defined log destination/retention in production.
-6. **Security headers** (CSP, etc.).
+1. **Health-check endpoint** (`/health` or `/api/health`) for Render/container readiness.
+2. **Story-line input** — length cap + basic prompt-injection hygiene (it goes straight into the prompt).
+3. **CI** to run the specified tests; the quality eval needs a baseline/rubric that doesn't exist yet.
+4. **Client-side error capture** and a defined log destination/retention in production.
+5. **Security headers** (CSP, etc.).
