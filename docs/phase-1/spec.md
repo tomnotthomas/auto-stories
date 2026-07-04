@@ -26,6 +26,7 @@ Making Instagram stories takes too much effort — choosing text and a narrative
 - **Hook in the first frame** — strongest visual + text hook up front, so viewers don't tap past.
 - **AI text overlay, user-placed** — AI writes each caption; the app drops it in a smart default position (lower third + legibility background) and lets the user drag/resize it. Static emoji count as text.
 - **Review & refine** — regenerate, swap/drop a photo, edit or regenerate a caption. Nothing leaves the app.
+- **First-open wow (interactive demo)** — first open shows a finished, swipeable **example** Story (real output, not a video), with one CTA — **"Try it with your photos"** → straight to upload. This is the first wow and sets expectations. No blank state, no demo video (see approach 2.3).
 - **Native, low-production feel.**
 
 **Out of scope (moved to later phases):**
@@ -43,4 +44,4 @@ Value-first: the finished story is the first real output. (≤3-step flows compl
 1. **What's the story? + pick** — The user picks a batch of photos (one tap → native photo picker on mobile; drag-drop on desktop) and answers one line: what's the story (what happened, or the feeling they want). This is the custom feel and the ordering signal: the user tells the app what the story is, it isn't guessed.
 2. **Payoff: the story** — The app generates a coherent, ordered, captioned story, then lets the user review & refine in place: regenerate, swap/drop photos, edit or regenerate a caption, and drag/resize the text. **This is the wow moment.** Phase 1 ends here: a finished story on screen.
 
-**Design note:** show a finished example story instead of an empty state on first open.
+**Design note:** the finished example Story on first open *is* the demo — interactive, not a video — and its "Try it with your photos" CTA is the entry to step 1.
