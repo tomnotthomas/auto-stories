@@ -1,0 +1,9 @@
+graph TD
+  S1["User picks up to 10 photos + types intent"]
+  S2["App downscales copies to ~1024px / JPEG80<br/>(originals kept on device)"]
+  S3["POST /generate: intent + photo proxies"]
+  S4["Backend validates, builds prompt, calls Gemini"]
+  S5["Gemini returns frames: photoId, order, caption"]
+  S6["Backend validates: known ids, unique order, non-empty"]
+  S7["App maps frames to full-res originals<br/>renders story with draggable captions"]
+  S1 --> S2 --> S3 --> S4 --> S5 --> S6 --> S7
