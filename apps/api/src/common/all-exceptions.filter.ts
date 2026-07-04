@@ -22,6 +22,9 @@ const CODE_BY_STATUS: Partial<Record<number, ErrorCode>> = {
   [HttpStatus.GATEWAY_TIMEOUT]: 'timeout',
 };
 
+// Numeric floor for 5xx, so the comparison is number-vs-number (not enum).
+const SERVER_ERROR_FLOOR: number = HttpStatus.INTERNAL_SERVER_ERROR;
+
 /**
  * Renders every unhandled exception as the contract's ErrorResponse shape
  * ({ error: { code, message } }) so the client can branch on `code` without
@@ -47,9 +50,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       status = exception.getStatus();
       code =
         CODE_BY_STATUS[status] ??
-        (status >= HttpStatus.INTERNAL_SERVER_ERROR
-          ? 'upstream_error'
-          : 'invalid_request');
+        (status >= SERVER_ERROR_FLOOR ? 'upstream_error' : 'invalid_request');
       message = extractMessage(exception) ?? DEFAULT_MESSAGE[code];
     } else {
       // Unknown/non-HTTP error: log the real cause, surface a safe generic.
