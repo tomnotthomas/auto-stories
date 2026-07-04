@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { APP_FILTER } from '@nestjs/core';
 import { AllExceptionsFilter } from './common/all-exceptions.filter';
 import { HealthController } from './health/health.controller';
+import { StoryModule } from './story/story.module';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { HealthController } from './health/health.controller';
       isGlobal: true,
       envFilePath: ['../../.env', '.env'],
     }),
+    StoryModule,
   ],
   controllers: [HealthController],
   providers: [{ provide: APP_FILTER, useClass: AllExceptionsFilter }],
