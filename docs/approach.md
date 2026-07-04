@@ -226,3 +226,9 @@ Resolving the production-readiness gaps the engineering review surfaced — what
 - **Options:** disable the button only; a request-in-flight guard in the service; + a server idempotency key.
 - **Decision:** A `generating` signal in the story service — set true on submit, false when the call settles. The Generate button is disabled while it's true, **and** the submit handler early-returns if already generating (so a rapid or programmatic re-fire is a no-op too). A server idempotency key is noted as optional, not needed for Phase 1's single linear flow.
 - **Why:** The disabled button is the visible guard; the service-level guard closes the gap where button state can lag a fast double-fire. That's the standard, complete fix for one in-flight request. An idempotency key only earns its keep once there are concurrent clients or automatic retries.
+
+### 4.5 Mobile memory (large-image processing)
+- **Problem:** Ten large images (HEIC especially) decoded + downscaled all at once via `heic2any` + canvas can spike memory and crash a low-end phone tab.
+- **Options:** process all images in parallel (fast, memory-heavy); process sequentially (one at a time, flat peak memory).
+- **Decision:** Process images **sequentially** — decode → downscale → release each before starting the next — so peak memory stays flat regardless of how many were added.
+- **Why:** The story only needs the small proxies before the call, so there's no reason to hold ten full decodes in memory at once. One-at-a-time keeps a cheap phone from OOM-crashing, at a small cost in total processing time (still seconds). Robustness on weak devices beats shaving a second on strong ones.
