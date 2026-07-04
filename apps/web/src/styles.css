@@ -63,6 +63,36 @@
   --radius-mat-xl: var(--mat-sys-corner-extra-large); /* 28px */
 }
 
+/* ── Typography ──────────────────────────────────────────────────────────────
+ * Expose the M3 type scale (compiled into --mat-sys-* by the theme) as
+ * utilities, so hand-built markup uses the one type system instead of ad-hoc
+ * sizes. Material components already read this scale automatically — these are
+ * only for the immersive markup Material doesn't cover. The `font` shorthand
+ * carries family/weight/size/line-height; tracking is a separate token. Add a
+ * role here the first time a screen needs it. */
+@utility mat-title-medium {
+  font: var(--mat-sys-title-medium);
+  letter-spacing: var(--mat-sys-title-medium-tracking);
+}
+@utility mat-label-large {
+  font: var(--mat-sys-label-large);
+  letter-spacing: var(--mat-sys-label-large-tracking);
+}
+@utility mat-label-medium {
+  font: var(--mat-sys-label-medium);
+  letter-spacing: var(--mat-sys-label-medium-tracking);
+}
+
+/* Story caption — a bold display treatment for legibility over photos,
+ * deliberately outside the M3 type scale (approach 5.5). Defined once so every
+ * caption (example, payoff, refine) shares one size rather than repeating px. */
+@utility story-caption {
+  font-weight: 700;
+  font-size: 1.8125rem; /* 29px */
+  line-height: 1.13;
+  text-shadow: 0 2px 16px rgb(0 0 0 / 0.55);
+}
+
 /* Story/creation screens are always dark & immersive (approach 5.4), like
  * Instagram's story composer — independent of the app's light/dark setting.
  * Scoping `color-scheme: dark` here makes every --mat-sys-* token inside resolve
