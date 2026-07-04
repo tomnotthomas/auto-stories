@@ -1,0 +1,30 @@
+# Keep the build context small and reproducible: never ship local installs,
+# build outputs, or secrets into the image (deps are installed fresh, apps are
+# rebuilt, and env comes in at runtime via --env-file / compose).
+node_modules
+**/node_modules
+dist
+**/dist
+coverage
+**/coverage
+*.tsbuildinfo
+
+.git
+.github
+.gitignore
+
+.env
+.env.*
+!.env.example
+.take-home-token
+
+.claude
+.gstack
+.vscode
+.DS_Store
+
+# Docs and design assets aren't part of the runtime image.
+docs
+design
+openapi/openapi.bundled.yaml
+*.md
