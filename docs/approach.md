@@ -265,3 +265,9 @@ Resolving the production-readiness gaps the engineering review surfaced — what
 - **Problem:** A public web app with no security headers is exposed to clickjacking, MIME-sniffing, and mixed-content issues.
 - **Decision:** Apply **`helmet`** on NestJS — CSP, `X-Content-Type-Options`, frame-ancestors, `Referrer-Policy`, HSTS. CSP stays simple because the app and API share one origin (`default-src 'self'`, plus `img-src 'self' data: blob:` for the photos).
 - **Why:** One middleware covers the standard header set; same-origin keeps the CSP tight without special-casing external hosts.
+
+### 4.12 Observability — where logs live on Render
+- **Problem:** We log structured per-request lines (4.3) and client errors (4.10), but never said where they go in production or how you'd actually watch them. Render is the host.
+- **Options:** structured logs to stdout, read in Render's log tab (free); add a hosted aggregator / log drain now (Logtail, Datadog, Papertrail) for retention + alerts; add Sentry for error tracking now.
+- **Decision:** MVP logs structured JSON (Pino) to **stdout/stderr**; Render captures the container's stdout into its **Logs** tab (live tail, searchable) — no agent, no extra service. Client errors POST to the server and land in the same stream. Retention and alerting are a documented upgrade path, not built.
+- **Why:** Zero extra cost, matches the free-tier host (3.6). Render's free logs are **ephemeral** — short retention, lost on restart/spin-down, no alerting — acceptable for a take-home/demo. Production upgrade: Render **Log Streams** forward stdout to an external aggregator (retention, search, alerts) and **Sentry** for error tracking (the 4.10 upgrade). Same log lines, no app rewrite.

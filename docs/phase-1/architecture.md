@@ -98,7 +98,9 @@ Story  { id, story, tone, frames: Frame[], createdAt }
 
 ## Observability
 
-The NestJS server logs per request: `requestId`, `model`, photo count, `latencyMs`, token usage, outcome (`ok` / `partial` / `invalid_json` / `empty` / `quota_exhausted` / `rate_limited` / `safety_blocked` / `timeout` / `upstream_error`). Makes "the model was wrong" visible instead of silent. Client-side failures (upload / decode / render) are caught by a global Angular `ErrorHandler` + `unhandledrejection` hook and POSTed to a server log endpoint, so browser breakage is visible too (and the UI shows a "something went wrong" fallback, not a blank screen).
+The NestJS server logs per request (structured JSON via Pino): `requestId`, `model`, photo count, `latencyMs`, token usage, outcome (`ok` / `partial` / `invalid_json` / `empty` / `quota_exhausted` / `rate_limited` / `safety_blocked` / `timeout` / `upstream_error`). Makes "the model was wrong" visible instead of silent. Client-side failures (upload / decode / render) are caught by a global Angular `ErrorHandler` + `unhandledrejection` hook and POSTed to a server log endpoint, so browser breakage lands in the same stream (and the UI shows a "something went wrong" fallback, not a blank screen).
+
+**Where it goes (Render):** everything logs to **stdout/stderr**; Render captures the container's output into its **Logs** tab — a live, searchable tail, no agent to run. Free-tier logs are **ephemeral** (short retention, lost on restart/spin-down, no alerting) — fine for a take-home, not production-grade. Upgrade path (not built): **Render Log Streams** forward stdout to an external aggregator (retention, search, alerts) + **Sentry** for error tracking. Same log lines, no app change. See approach 4.12.
 
 ## Testing strategy
 
