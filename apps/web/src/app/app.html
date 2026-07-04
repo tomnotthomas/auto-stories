@@ -1,19 +1,24 @@
-<div class="story-surface min-h-dvh">
-  @switch (story.phase()) {
-    @case ('create') {
-      <app-create />
+<!-- The flow is a phone-first immersive Story UI (5.4). On wider screens keep it
+     a centered phone-width column instead of stretching full-bleed, so it stays
+     a Story on laptop/tablet too (responsive web app). -->
+<div class="story-surface flex min-h-dvh justify-center">
+  <div class="w-full max-w-[430px]">
+    @switch (story.phase()) {
+      @case ('create') {
+        <app-create />
+      }
+      @case ('generating') {
+        <app-generating />
+      }
+      @case ('story') {
+        <app-story />
+      }
+      @case ('error') {
+        <app-error />
+      }
+      @default {
+        <app-example />
+      }
     }
-    @case ('generating') {
-      <app-generating />
-    }
-    @case ('story') {
-      <app-story />
-    }
-    @case ('error') {
-      <app-error />
-    }
-    @default {
-      <app-example />
-    }
-  }
+  </div>
 </div>
