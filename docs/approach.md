@@ -407,6 +407,12 @@ Resolving the production-readiness gaps the engineering review surfaced — what
   - Sample imagery is **neutral and broadly appealing** (summer / outdoors / friends), so the mockups read for anyone, not one cuisine or culture.
 - **Why:** A failure is where goodwill drains fastest; a warm, specific message plus a charming image keeps the user oriented and forgiving instead of annoyed — while never hiding what actually happened (fair-use cap / timeout, 4.1/4.3). A wait that visibly advances reassures the app is working; static progress reads as stuck. Neutral imagery keeps the demo universal — it should land for any viewer, not just one who shares the reference.
 
+### 5.10 On wider screens, show the app inside a phone frame
+- **Problem:** The shell only capped the flow's width (a 430px column) but let it fill the full viewport height, and every screen used `h-dvh`. On a laptop the phone UI stretched to the browser's full height and looked distorted; the aspect ratio didn't match any real device.
+- **Options:** (1) keep the full-height column; (2) constrain to a fixed phone-shaped device frame on wider screens, full-bleed on phones.
+- **Decision:** Option 2 — from the `sm` breakpoint up, render the flow inside a fixed phone-shaped frame (~9/19.5, centered, rounded bezel); on a phone it stays full-bleed.
+- **Why:** The app is both created and consumed on a phone — these are Instagram Stories, and Instagram users are mostly on phones. Previewing it in a phone frame is the honest view of the product; a full-height desktop strip is a shape no real user ever sees.
+
 # Chapter 6 — Lessons learned
 
 Working notes about *how* I worked on this, kept so I don't repeat the mistakes.
