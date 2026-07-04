@@ -3,7 +3,7 @@
 Guidance for working in this repo. Keep this file under 200 lines.
 
 ## Project
-Auto Stories — a responsive web app (Angular frontend + Node/Express backend, deployable in a container) that turns a pile of photos into a well-ordered, well-captioned Instagram Story. This is a take-home project. The valuable/hard part is the AI that assembles the story; Instagram posting is done by hand-off, not via API.
+Auto Stories — a responsive web app (Angular frontend + NestJS backend, deployable in a container) that turns a pile of photos into a well-ordered, well-captioned Instagram Story. This is a take-home project. The valuable/hard part is the AI that assembles the story; Instagram posting is done by hand-off, not via API.
 
 ## Docs — what each file is for
 - **`docs/phase-1/spec.md`** — *What* we build, **Phase 1: Create the Story** (the hard core: pick + intent → generate → refine). The product spec, not the reasoning.

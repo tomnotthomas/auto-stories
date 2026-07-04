@@ -6,20 +6,20 @@ How Phase 1 ([spec](spec.md)) is built and deployed: a responsive **web app** wh
 
 | # | Decision | Choice |
 |---|----------|--------|
-| 2.1 | Where AI runs | Server-side (Express) holds the key; browser never sees it |
+| 2.1 | Where AI runs | Server-side (NestJS) holds the key; browser never sees it |
 | 2.2 | Model | Gemini Flash, free tier, swappable via config |
 | 2.3 | Generation shape | Single structured call (pipeline = fallback) |
 | 2.4 | Image input | Cap ~10 photos, downscale ~1024px/JPEG80, keep originals |
-| 2.5 | Stack | Angular frontend + Node/Express API (one origin) |
-| 2.6 | Deploy | One Docker container (Express serves the build + API) + `docker-compose`; hosted free on Render |
+| 2.5 | Stack | Angular frontend + NestJS API (one origin) |
+| 2.6 | Deploy | One Docker container (NestJS serves the build + API) + `docker-compose`; hosted free on Render |
 | 2.8 | State | Angular service holding the story in signals |
 | 2.10 | Component library | Angular Material (+ CDK harnesses for tests) |
 
 ## System architecture
 
-![System architecture: browser → Express API → Gemini Flash](diagrams/system-architecture.png)
+![System architecture: browser → NestJS API → Gemini Flash](diagrams/system-architecture.png)
 
-The browser never holds the API key. The Express server is stateless — no database in Phase 1; a story lives only in browser memory until the user exports it (Phase 2).
+The browser never holds the API key. The NestJS server is stateless — no database in Phase 1; a story lives only in browser memory until the user exports it (Phase 2).
 
 ## Data flow (one generation)
 
@@ -34,7 +34,7 @@ The browser never holds the API key. The Express server is stateless — no data
 - Preview: ordered photos with a draggable/resizable caption layer (Angular **CDK drag-drop**). No pixel baking in Phase 1.
 - State in a small Angular **service (signals)**.
 
-**Backend (Node/Express, `POST /api/generate`)** — also serves the built Angular app from the same origin. Server-side, so the Gemini key stays hidden and users never bring their own key. Jobs: input validation, prompt construction, the Gemini call, output validation, logging.
+**Backend (NestJS, `POST /api/generate`)** — also serves the built Angular app from the same origin (`ServeStaticModule`). Server-side, so the Gemini key stays hidden and users never bring their own key. Jobs: input validation, prompt construction, the Gemini call, output validation, logging.
 
 **Model (Gemini Flash)** — called via the `@google/genai` SDK with `responseSchema` for guaranteed-shape JSON. `MODEL` is an env var, so a stronger model is a one-line swap.
 
@@ -63,7 +63,7 @@ Story  { id, intent, frames: Frame[], createdAt }
 
 ## Deployment
 
-- **App:** one Node/Express server serves the built Angular app (`dist/`) and the `/api/generate` endpoint. Provide a **`docker-compose.yml`** so reviewers can `docker compose up` in a fresh Linux container, and host the same image **free on Render** (spins down when idle; ~30-50s cold start on first hit) for a live URL — both required by the brief.
+- **App:** one NestJS server serves the built Angular app (`dist/`) and the `/api/generate` endpoint. Provide a **`docker-compose.yml`** so reviewers can `docker compose up` in a fresh Linux container, and host the same image **free on Render** (spins down when idle; ~30-50s cold start on first hit) for a live URL — both required by the brief.
 - **Secrets:** `GEMINI_API_KEY` and `MODEL` are server-side env vars only. The browser bundle contains no key.
 
 ## Edge cases & failure modes
@@ -84,14 +84,14 @@ Story  { id, intent, frames: Frame[], createdAt }
 
 ## Observability
 
-The Express server logs per request: `requestId`, `model`, photo count, `latencyMs`, token usage, outcome (`ok` / `invalid_json` / `empty` / `upstream_error`). Makes "the model was wrong" visible instead of silent.
+The NestJS server logs per request: `requestId`, `model`, photo count, `latencyMs`, token usage, outcome (`ok` / `invalid_json` / `empty` / `upstream_error`). Makes "the model was wrong" visible instead of silent.
 
 ## Testing strategy
 
 Model is non-deterministic, so test **plumbing deterministically**, **quality separately**:
 - **Unit** — downscale util, prompt builder, response validator (schema, unknown ids, duplicate order, empty caption).
 - **Component** — Angular components via **CDK component harnesses** (upload, preview, caption drag/edit).
-- **Contract** — Express `/api/generate` against mock Gemini responses (valid / malformed / hallucinated id / empty) → each maps to the right outcome.
+- **Contract** — NestJS `/api/generate` against mock Gemini responses (valid / malformed / hallucinated id / empty) → each maps to the right outcome.
 - **E2E** — Cypress/Playwright: upload → generate → render against a stubbed API.
 - **Quality eval** — fixed sample photo sets + intents → real model → rubric-score ordering + caption specificity. Run on model/prompt change.
 
