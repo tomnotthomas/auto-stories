@@ -3,6 +3,7 @@ import { Component, inject } from '@angular/core';
 import { StoryService } from './story/story.service';
 import { Example } from './features/example/example';
 import { Create } from './features/create/create';
+import { Generating } from './features/generating/generating';
 
 /**
  * Flow shell — renders the current screen for the story flow's phase
@@ -11,7 +12,7 @@ import { Create } from './features/create/create';
  */
 @Component({
   selector: 'app-root',
-  imports: [Example, Create],
+  imports: [Example, Create, Generating],
   templateUrl: './app.html',
 })
 export class App {

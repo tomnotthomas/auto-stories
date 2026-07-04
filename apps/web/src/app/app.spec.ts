@@ -6,6 +6,7 @@ import { App } from './app';
 import { StoryService } from './story/story.service';
 import { ExampleHarness } from './features/example/example.harness';
 import { CreateHarness } from './features/create/create.harness';
+import { GeneratingHarness } from './features/generating/generating.harness';
 
 describe('App', () => {
   async function setup(): Promise<{ loader: HarnessLoader; story: StoryService }> {
@@ -32,5 +33,13 @@ describe('App', () => {
 
     expect(await loader.getHarnessOrNull(CreateHarness)).not.toBeNull();
     expect(await loader.getHarnessOrNull(ExampleHarness)).toBeNull();
+  });
+
+  it('shows the generating screen while the story is being built', async () => {
+    const { loader, story } = await setup();
+
+    story.startGenerating();
+
+    expect(await loader.getHarnessOrNull(GeneratingHarness)).not.toBeNull();
   });
 });
