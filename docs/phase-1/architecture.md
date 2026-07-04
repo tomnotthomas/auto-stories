@@ -101,7 +101,3 @@ Model is non-deterministic, so test **plumbing deterministically**, **quality se
 - **Phase 3 (recurring journal)** — email/push reminders on a cadence; a web app can't auto-scan a photo library, so the user re-uploads when nudged — one tap into the same native photo picker (Recents-first makes grabbing the period's photos quick). Adds light persistence + accounts.
 
 The architecture is a straight line (browser → one API route → model), so Phases 2–3 bolt on without a redesign.
-
-## Open decisions to confirm
-
-1. **Latency UX** — staged loader now; streaming later?
