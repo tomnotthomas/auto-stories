@@ -13,13 +13,17 @@
     "openapi:bundle": "redocly bundle openapi/openapi.yaml -o openapi/openapi.bundled.yaml",
     "openapi:preview": "scalar document serve openapi/openapi.yaml",
     "openapi:mock": "prism mock openapi/openapi.yaml",
-    "openapi:types": "openapi-typescript",
+    "openapi:types": "kubb generate",
     "typecheck": "npm run typecheck --workspaces --if-present"
   },
   "devDependencies": {
+    "@kubb/cli": "^4.39.2",
+    "@kubb/core": "^4.39.2",
+    "@kubb/plugin-oas": "^4.39.2",
+    "@kubb/plugin-ts": "^4.39.2",
     "@redocly/cli": "^2.37.0",
     "@scalar/cli": "^1.3.2",
     "@stoplight/prism-cli": "^5.14.2",
-    "openapi-typescript": "^7.13.0"
+    "typescript": "^6.0.3"
   }
 }
