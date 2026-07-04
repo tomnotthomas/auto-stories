@@ -38,6 +38,25 @@ The generated TypeScript types live in the shared workspace package
 | `POST` | `/api/v1/generate` | Photos + story line → ordered, captioned story. |
 | `GET`  | `/healthz` | Liveness probe (no model call). |
 
+## Versioning
+
+URI-path versioning (approach 3.12) — the version is in the path, matching
+NestJS's `VersioningType.URI`.
+
+- **`/api/v1/…`** is the API **major** version. It only changes on a *breaking*
+  change; a `v2` then ships alongside `v1` so old clients keep working.
+- **`info.version`** (currently `1.0.0`) is the spec document's own semver —
+  bump it on every change (minor for additive fields, etc.). It is not the URL
+  version.
+- **`/healthz` is intentionally unversioned** — it's an ops/liveness endpoint,
+  not part of the product contract. That's why the version stays in each path
+  rather than being hoisted into `servers[].url` (which would force `/healthz`
+  under `/api/v1` too).
+
+Adding v2 later: add `paths/*.v2.yaml` referenced at `/api/v2/…`; once versions
+diverge, split into a second document tracked as `auto-stories@v2` in
+`redocly.yaml`.
+
 ## Scripts (run from repo root)
 
 ```bash
