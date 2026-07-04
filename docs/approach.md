@@ -152,6 +152,12 @@ The technical decisions for building Phase 1 (create the story).
 - **Decision:** URI-path versioning (`/api/v1/generate`).
 - **Why:** Most visible and testable — a reviewer can hit `/api/v1/generate` in a browser, and a `v2` ships alongside `v1` without breaking `v1` clients. The header and media-type styles can't be called or debugged without setting a header. NestJS supports all three as a one-line config, so this isn't a lock-in.
 
+### 2.13 Keeping generated code on the newest framework version
+- **Problem:** LLMs are trained on a mix of Angular versions, so generated code blends old and new patterns (NgModules instead of standalone, no signals). I only want the newest.
+- **Options:** rely on the model's defaults; pin each framework's own current guidance in `CLAUDE.md` so every session follows it.
+- **Decision:** Pin the newest guidance in `CLAUDE.md`. Angular → its official, team-maintained `best-practices.md` (v22+). NestJS → no official file, so reference the live official docs (`docs.nestjs.com`, v11) with the key rules inline. Also prefer `ng generate` / `nest generate` so scaffolding is standardized, not hand-written.
+- **Why:** The official Angular file is updated with the framework, so it forces current patterns (standalone, signals, `inject()`) and stops the model mixing in old syntax. NestJS has no such file — a community one exists (well-starred, updated early 2026) but it's an unofficial snapshot that can lag, so pointing at the live docs guarantees currency without vendoring something that goes stale.
+
 ### 2.9 Native mobile app or web app? (came late)
 - **Problem:** I'd been designing a native mobile app. Re-reading the brief, Option 2 says "deployable web app," reviewers run the code "in a fresh Linux container," and a live URL is wanted.
 - **Options:** native mobile app; responsive web app.
