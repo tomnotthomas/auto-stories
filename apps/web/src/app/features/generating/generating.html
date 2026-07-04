@@ -1,4 +1,21 @@
-<section class="flex h-dvh flex-col items-center justify-center gap-6 bg-surface px-8 text-center text-on-surface">
-  <h1 class="mat-title-medium">Building your story…</h1>
-  <mat-progress-bar class="max-w-xs" mode="indeterminate" aria-label="Building your story" />
+<section class="relative flex h-dvh flex-col overflow-hidden bg-black text-white">
+  @if (backgroundUrl(); as url) {
+    <img [src]="url" alt="" class="absolute inset-0 h-full w-full object-cover" />
+  }
+  <div class="absolute inset-0 bg-gradient-to-b from-black/50 via-black/20 to-black/95"></div>
+
+  <div class="relative z-10 mt-auto flex flex-col gap-5 p-6 pb-10">
+    <h1 class="mat-headline-small">Building your story…</h1>
+    <mat-progress-bar mode="indeterminate" aria-label="Building your story" />
+    <ul class="flex flex-col gap-4">
+      @for (step of steps; track step; let i = $index) {
+        <li class="flex items-center gap-3" [class.opacity-50]="i > activeStep()">
+          <mat-icon class="text-primary">{{
+            i < activeStep() ? 'check_circle' : 'radio_button_unchecked'
+          }}</mat-icon>
+          <span class="mat-label-large">{{ step }}</span>
+        </li>
+      }
+    </ul>
+  </div>
 </section>
