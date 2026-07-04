@@ -34,13 +34,13 @@ The browser never holds the API key. The NestJS server is stateless — no datab
 - Preview: ordered photos with a draggable/resizable caption layer (Angular **CDK drag-drop**). No pixel baking in Phase 1.
 - State in a small Angular **service (signals)**.
 
-**Backend (NestJS, `POST /api/generate`)** — also serves the built Angular app from the same origin (`ServeStaticModule`). Server-side, so the Gemini key stays hidden and users never bring their own key. Jobs: input validation, prompt construction, the Gemini call, output validation, logging.
+**Backend (NestJS, `POST /api/v1/generate`)** — also serves the built Angular app from the same origin (`ServeStaticModule`). Server-side, so the Gemini key stays hidden and users never bring their own key. Jobs: input validation, prompt construction, the Gemini call, output validation, logging.
 
 **Model (Gemini Flash)** — called via the `@google/genai` SDK with `responseSchema` for guaranteed-shape JSON. `MODEL` is an env var, so a stronger model is a one-line swap.
 
 ## The generation contract
 
-**Request** `POST /api/generate`
+**Request** `POST /api/v1/generate`
 ```json
 { "intent": "weekend hike, funny tone",
   "photos": [ { "id": "p1", "b64": "<downscaled jpeg>", "takenAt": "2026-07-04T09:12:00Z" } ] }
@@ -63,7 +63,7 @@ Story  { id, intent, frames: Frame[], createdAt }
 
 ## Deployment
 
-- **App:** one NestJS server serves the built Angular app (`dist/`) and the `/api/generate` endpoint. Provide a **`docker-compose.yml`** so reviewers can `docker compose up` in a fresh Linux container, and host the same image **free on Render** (spins down when idle; ~30-50s cold start on first hit) for a live URL — both required by the brief.
+- **App:** one NestJS server serves the built Angular app (`dist/`) and the `/api/v1/generate` endpoint. Provide a **`docker-compose.yml`** so reviewers can `docker compose up` in a fresh Linux container, and host the same image **free on Render** (spins down when idle; ~30-50s cold start on first hit) for a live URL — both required by the brief.
 - **Secrets:** `GEMINI_API_KEY` and `MODEL` are server-side env vars only. The browser bundle contains no key.
 
 ## Edge cases & failure modes
@@ -91,7 +91,7 @@ The NestJS server logs per request: `requestId`, `model`, photo count, `latencyM
 Model is non-deterministic, so test **plumbing deterministically**, **quality separately**:
 - **Unit** — downscale util, prompt builder, response validator (schema, unknown ids, duplicate order, empty caption).
 - **Component** — Angular components via **CDK component harnesses** (upload, preview, caption drag/edit).
-- **Contract** — NestJS `/api/generate` against mock Gemini responses (valid / malformed / hallucinated id / empty) → each maps to the right outcome.
+- **Contract** — NestJS `/api/v1/generate` against mock Gemini responses (valid / malformed / hallucinated id / empty) → each maps to the right outcome.
 - **E2E** — Cypress/Playwright: upload → generate → render against a stubbed API.
 - **Quality eval** — fixed sample photo sets + intents → real model → rubric-score ordering + caption specificity. Run on model/prompt change.
 

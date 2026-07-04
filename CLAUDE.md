@@ -27,6 +27,7 @@ Auto Stories — a responsive web app (Angular frontend + NestJS backend, deploy
 - Upload is one tap: on mobile the file input opens the OS native photo picker (multi-select, Recents-first); on desktop, drag-drop / browse / paste. Web can't auto-scan the library, so every phase brings the user to this same picker.
 - AI writes captions; user drags/resizes text placement.
 - Music, GIFs, interaction stickers are out; the app only suggests music search terms.
+- API uses NestJS URI-path versioning as standard — every endpoint is versioned in the path (`/api/v1/…`).
 
 ## Git conventions
 - **Conventional Commits only.** Every commit message uses the `type: summary` form (`feat:`, `fix:`, `docs:`, `refactor:`, `chore:`, `test:`, etc.).
