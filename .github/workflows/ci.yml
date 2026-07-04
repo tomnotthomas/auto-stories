@@ -27,6 +27,7 @@ jobs:
       contract: ${{ steps.filter.outputs.contract }}
       backend: ${{ steps.filter.outputs.backend }}
       frontend: ${{ steps.filter.outputs.frontend }}
+      docker: ${{ steps.filter.outputs.docker }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -47,6 +48,15 @@ jobs:
             frontend:
               - *shared
               - 'apps/web/**'
+            # The image bundles both apps, so any app/dep/contract change — or the
+            # container files themselves — must rebuild and re-smoke-test it.
+            docker:
+              - *shared
+              - 'apps/**'
+              - 'packages/api-types/**'
+              - 'Dockerfile'
+              - '.dockerignore'
+              - 'docker-compose.yml'
             # NOTE: the contract (packages/api-types) is a shared dependency of both
             # apps. It is intentionally NOT listed under backend/frontend, so a spec
             # change only runs the contract CI. To also verify consumers on a contract
@@ -144,5 +154,51 @@ jobs:
 
       - name: Build
         run: npm run build --workspace apps/web
+
+  # Build the single deployable container and prove it actually serves the app:
+  # the API health probe answers and the built web app is returned at the root.
+  docker:
+    name: Docker image
+    needs: changes
+    if: ${{ needs.changes.outputs.docker == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: auto-stories:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke test the running container
+        run: |
+          # A dummy key lets the story engine boot; /healthz and / never call the model.
+          docker run -d --name auto-stories -p 3000:3000 \
+            -e GOOGLE_CLOUD_API_KEY=ci-smoke-test auto-stories:ci
+
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:3000/healthz >/dev/null; then
+              up=1; break
+            fi
+            sleep 2
+          done
+          if [ -z "$up" ]; then
+            echo "::error::/healthz never became ready"; docker logs auto-stories; exit 1
+          fi
+
+          echo "healthz OK; checking the web app is served at /"
+          curl -fsS http://localhost:3000/ | grep -qi '<app-root' \
+            || { echo "::error::web app not served at /"; docker logs auto-stories; exit 1; }
+          echo "web app served"
+
+      - name: Tear down
+        if: always()
+        run: docker rm -f auto-stories || true
 
   # End-to-end tests across the running frontend + backend will be added here later.
