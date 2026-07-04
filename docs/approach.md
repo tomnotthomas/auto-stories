@@ -113,7 +113,7 @@ The technical decisions for building Phase 1 (create the story).
 ### 2.6 Deploy
 - **Problem:** The brief wants a live URL and code that runs in a fresh Linux container.
 - **Options:** Vercel (serverless, not our container); Railway (no free tier — trial credit then paid); Render (real free tier, no card); Fly (free tier gone).
-- **Decision:** One Docker container — NestJS serves the built Angular app + `/api/generate` — with a `docker-compose.yml`, hosted **free on Render**.
+- **Decision:** One Docker container — NestJS serves the built Angular app + `/api/v1/generate` — with a `docker-compose.yml`, hosted **free on Render**.
 - **Why:** I don't want to pay for a take-home. Render is the only one of these with a genuine free tier and no credit card, and it runs our Docker image directly (the same one reviewers run via compose). The only cost is a cold start (~30-50s to wake after 15 min idle), fine for a demo. This is a take-home cost call, not a production one — in production the cold start would be unacceptable and I'd move to an always-on paid tier. Hosting doesn't affect the graded outcome (story quality), so for the take-home I picked the free, simplest option.
 
 ### 2.7 Latency UX
@@ -139,6 +139,12 @@ The technical decisions for building Phase 1 (create the story).
 - **Options:** a plain file-browser dialog; a custom uploader UI; a standard `<input type="file" accept="image/*" multiple>`.
 - **Decision:** A standard multi-select file input, styled as one big "Add photos" target.
 - **Why:** On mobile, that input opens the OS **native photo picker** (multi-select, Recents-first) — the same grid a native app shows, with no library-scan permission on our side, so "manual upload" is really one tap + a few selections. On desktop it also takes drag-drop / click-to-browse / paste. Recents-first is what makes Phase 3's "make a story from last week" quick. This is why the web pivot (2.9) doesn't hurt the flow: the only phase where auto-scan would have helped is Phase 3, and the native picker's Recents view covers it.
+
+### 2.12 API versioning
+- **Problem:** Production-like and meant to scale — the API contract will change, and existing clients shouldn't break when it does.
+- **Options:** URI path (`/api/v1/…`); custom header (`X-API-Version: 1`); media-type (`Accept: application/json;version=1`).
+- **Decision:** URI-path versioning (`/api/v1/generate`).
+- **Why:** Most visible and testable — a reviewer can hit `/api/v1/generate` in a browser, and a `v2` ships alongside `v1` without breaking `v1` clients. The header and media-type styles can't be called or debugged without setting a header. NestJS supports all three as a one-line config, so this isn't a lock-in.
 
 ### 2.9 Native mobile app or web app? (came late)
 - **Problem:** I'd been designing a native mobile app. Re-reading the brief, Option 2 says "deployable web app," reviewers run the code "in a fresh Linux container," and a live URL is wanted.
