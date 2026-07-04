@@ -413,6 +413,12 @@ Resolving the production-readiness gaps the engineering review surfaced — what
 - **Decision:** Option 2 — from the `sm` breakpoint up, render the flow inside a fixed phone-shaped frame (~9/19.5, centered, rounded bezel); on a phone it stays full-bleed.
 - **Why:** The app is both created and consumed on a phone — these are Instagram Stories, and Instagram users are mostly on phones. Previewing it in a phone frame is the honest view of the product; a full-height desktop strip is a shape no real user ever sees.
 
+### 5.11 Refine surfaces: tap-to-edit captions, a thumbnail filmstrip for the rest
+- **Problem:** The payoff has to expose five refine actions — edit a caption, move/resize it, regenerate it, reorder the story, drop/add a photo, rebuild the whole story — without adding chrome that buries the finished story.
+- **Options:** (1) one toolbar with a button per action; (2) split by object — direct-manipulate the caption in the frame, put frame-level actions in a filmstrip; (3) a separate full-screen editor.
+- **Decision:** Option 2. "Refine story" enters a refine mode. The caption is edited in place (tap it → editor: text, drag-move, size, legibility, per-caption Regenerate). Frame-level actions live in a horizontal **filmstrip** of thumbnails: drag to reorder, tap to jump, "×" to drop (hidden below the 3-frame minimum), an Add tile to pick more. A single "Regenerate" rebuilds the whole story; adding a photo triggers the same rebuild.
+- **Why:** Each action attaches to the object it changes — captions on the caption, frame order/membership on the frames — so there's no legend to read. The filmstrip is the one place that shows the whole narrative at once, which is what reorder and drop operate on. Dropping a photo also removes it from the pool, so a rebuild can't bring it back (a drop the user has to redo would read as a bug).
+
 # Chapter 6 — Lessons learned
 
 Working notes about *how* I worked on this, kept so I don't repeat the mistakes.
