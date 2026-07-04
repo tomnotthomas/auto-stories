@@ -179,6 +179,7 @@ The technical decisions for building Phase 1 (create the story).
 - **Options:** URI path (`/api/v1/…`); custom header (`X-API-Version: 1`); media-type (`Accept: application/json;version=1`).
 - **Decision:** URI-path versioning (`/api/v1/generate`).
 - **Why:** Most visible and testable — a reviewer can hit `/api/v1/generate` in a browser, and a `v2` ships alongside `v1` without breaking `v1` clients. The header and media-type styles can't be called or debugged without setting a header. NestJS supports all three as a one-line config, so this isn't a lock-in.
+- **In the OpenAPI spec:** the version lives in the path (`/api/v1/generate`), kept as full paths (not hoisted into `servers[].url`) so `/healthz` can stay **unversioned** — it's a liveness/ops endpoint, not part of the product contract. Two version numbers, distinct on purpose: the URL major (`v1`) bumps only on a breaking change; `info.version` (semver) bumps on every spec change. A breaking change adds `/api/v2/…` (new path files, eventually a separate document tracked as `auto-stories@v2` in `redocly.yaml`) while `v1` keeps serving old clients.
 
 ### 3.13 Keeping generated code on the newest framework version
 - **Problem:** LLMs are trained on a mix of Angular versions, so generated code blends old and new patterns (NgModules instead of standalone, no signals). I only want the newest.
