@@ -225,6 +225,12 @@ The technical decisions for building Phase 1 (create the story).
 - **Decision:** **kubb** (`@kubb/plugin-ts`) — generates real named types, one file per schema, into `src/gen/models/`. `openapi-generator` is the documented break-glass fallback if kubb stalls (solo maintainer).
 - **Why:** Real per-file types with no manual materialization or barrel; npm-native (no JVM). No lock-in — it reads the standard spec and emits plain `.ts`, so any generator is a drop-in swap contained to the `api-types` package. Bonus: kubb has no `typescript` peer, so it also removed the earlier TS-5/TS-6 conflict — the monorepo now runs a single TypeScript 6.
 
+### 3.17 How the frontend moves between the flow's screens
+- **Problem:** Phase 1 has a sequence of screens (first-open example → pick + story → generating → payoff/refine → error). How does the app navigate between them?
+- **Options:** Angular Router with a route per screen; a single stateful shell component that swaps the child screen on a `phase` signal in the story service.
+- **Decision:** A single stateful shell driven by a `phase` signal (`example | create | generating | story | error`) held in the signal-based story service — no per-screen routes.
+- **Why:** Phase 1 is one linear, in-memory flow with a single story (3.8). Routes would add URL/deep-link/refresh semantics the flow doesn't want: a refresh mid-flow should not land on a bare `/generating`, and refresh-persistence is deliberately Phase 2 (4.6). A `phase` signal keeps the whole flow's state in the one service (matching 3.8), lets the always-dark story surface (5.4) wrap the shell once, and makes transitions plain signal writes the components already depend on. Routing becomes worth it only when screens need to be independently addressable — not in Phase 1.
+
 ---
 
 # Chapter 4 — Production readiness
