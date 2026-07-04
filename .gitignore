@@ -1,6 +1,10 @@
 .env
 .take-home-token
 node_modules/
+.claude/
+
+# OpenAPI build artifact (regenerate with `npm run openapi:bundle`)
+openapi/openapi.bundled.yaml
 __pycache__/
 .venv/
 .DS_Store
