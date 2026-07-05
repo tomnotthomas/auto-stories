@@ -4,9 +4,10 @@ import type { Tone } from '@auto-stories/api-types';
  * Builds the instruction sent to the model alongside the photos. Pure and
  * deterministic so it can be unit-tested; the model call itself is not.
  *
- * The rules mirror docs/phase-1/architecture.md: order by the story line and
- * what's visible (strongest hook first → payoff), use capture time only as a
- * soft hint, and write specific, grounded captions in the requested tone.
+ * The rules mirror docs/phase-1 decisions: aim for the 5–7 frame engagement
+ * sweet spot rather than cutting to the bone (2.5), order by the story line and
+ * what's visible (strongest hook first → payoff, 2.1), use capture time only as
+ * a soft hint, and write specific, grounded captions in the requested tone.
  */
 export function buildPrompt(story: string, tone?: Tone): string {
   const toneLine = tone
@@ -14,15 +15,17 @@ export function buildPrompt(story: string, tone?: Tone): string {
     : '';
 
   return [
-    'You arrange a batch of photos into a short, coherent Instagram Story.',
+    'You arrange a batch of photos into a coherent Instagram Story.',
     'Each image is provided in the same order as the photos array; the caption text before each image is its photoId.',
     '',
     `The story, in the user's words: "${story}"`,
     '',
     'Do this:',
-    '- Choose which photos to use and put them in narrative order: strongest visual + story hook first, then build, then the payoff last.',
+    '- Aim for a story of 5 to 7 frames, going up to 10 when the batch genuinely has that many distinct moments. Do not trim it down to 3 or 4 unless that is honestly all the batch supports — a story that is too short throws away the day.',
+    '- Keep every distinct moment. Leave a photo out only when it is a near-duplicate of one you already kept, is blurry or badly exposed, or adds nothing new — never just because there are many good photos.',
+    '- Put the chosen photos in narrative order: the single strongest photo (best visual and clearest story hook) goes first, then build, then the payoff last. The first frame decides whether the rest gets watched.',
     '- Order by the story line and what is actually visible in each photo, NOT by the capture timestamp (treat any timestamp as a soft hint only).',
-    '- Write one caption per chosen photo. Ground it in the specifics the user gave (names, occasion, place) and in what the photo shows, so it feels true rather than generic.',
+    '- Write one caption per chosen photo, each making one clear point. Ground it in the specifics the user gave (names, occasion, place) and in what the photo shows, so it feels true rather than generic.',
     toneLine,
     '',
     'Return only the chosen photos, each as a frame with its photoId, its 1-based order, and its caption.',
