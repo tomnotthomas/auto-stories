@@ -434,6 +434,12 @@ Resolving the production-readiness gaps the engineering review surfaced — what
 - **Decision:** Option 2 — one file input, click-to-browse on desktop and the native picker on mobile. Drag-drop and paste are cut.
 - **Why:** The file input already covers desktop upload; drag-drop and paste add code without letting the user do anything they couldn't already, so they're not worth building for the MVP.
 
+### 5.14 Picker tiles are square, columns follow the count (fixes the 1–2 photo state)
+- **Problem:** The step-1 grid used `auto-rows-fr` inside a `flex-1` area, so the tiles stretched to fill all vertical space. With 1 photo that meant one full-height row: a lone 1/3-width, full-height photo sliver next to an equally tall "Add" tile, with a dead third column. It only looked right once ~3 photos filled a row.
+- **Options:** (1) keep filling the height, accept the stretched aspect ratio; (2) fixed square tiles, fixed 3 columns; (3) square tiles with the column count following the photo count so the first row always fills.
+- **Decision:** Option 3 — square tiles (`aspect-square`), packed from the top (`content-start`), scrolling on overflow; columns = 2 when there's 1 photo, else 3, so the Add tile always completes a full edge-to-edge row. Supersedes 5.4's "fills the top, fewer = bigger tiles."
+- **Why:** Square tiles are the standard photo-picker look and read correctly at any count, including the transient 1–2 photo state while the user is still selecting. Following the count keeps the first row full (no lone tall button, no empty column) and makes a single photo a bigger tile — the "fewer = bigger" intent without the aspect distortion that caused the original bug. Fixed 3 columns (option 2) leaves the empty third column at 1 photo.
+
 # Chapter 6 — Lessons learned
 
 Working notes about *how* I worked on this, kept so I don't repeat the mistakes.
