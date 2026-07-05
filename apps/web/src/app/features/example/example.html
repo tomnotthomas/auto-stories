@@ -3,8 +3,10 @@
   <img src="sample/example-1.jpg" alt="" class="absolute inset-0 h-full w-full object-cover" />
   <div class="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/80"></div>
 
-  <!-- Story progress + author row -->
-  <header class="relative z-10 px-3 pt-11">
+  <!-- Story progress + author row. Hidden while editing so it can't bleed
+       through behind the caption editor's own top bar. -->
+  @if (!editing()) {
+    <header class="relative z-10 px-3 pt-11">
     <div class="flex gap-1">
       <span class="h-[3px] flex-1 rounded bg-white"></span>
       <span class="h-[3px] flex-1 rounded bg-white"></span>
@@ -22,7 +24,8 @@
         <small class="block font-normal text-white/75">An example we made — yours is next</small>
       </div>
     </div>
-  </header>
+    </header>
+  }
 
   <!-- Caption: coach mark + the editable text layer (approach 5.5 / 5.9). Tapping
        it opens the same editor the real flow uses, so the first open teaches it. -->
