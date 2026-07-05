@@ -10,7 +10,7 @@ Auto Stories — a responsive web app (Angular frontend + NestJS backend, deploy
 - **`docs/phase-2/spec.md`** — Phase 2: get the story onto Instagram (hand-off posting, music suggestions).
 - **`docs/phase-3/spec.md`** — Phase 3: the recurring journal (cadence, auto-surface photos).
 - Each `docs/phase-N/` folder holds all docs for that phase (spec now; design/eng plans later).
-- **`docs/approach.md`** — *How I decided.* A decision log, one entry per problem faced, structured **Problem → Options → Decision → Why**. This reflects the user's way of thinking. It must NOT duplicate spec content.
+- **`docs/decisions.md`** — *How I decided.* A decision log, one entry per problem faced, structured **Problem → Options → Decision → Why**. This reflects the user's way of thinking. It must NOT duplicate spec content. (The root **`APPROACH.md`** is the separate reviewer-facing summary.)
 - **`docs/phase-N/open-questions.md`** — Open questions and resolutions, scoped to that phase (so you only face the questions relevant to what you're building now).
 
 ## Writing rules for these docs
@@ -18,9 +18,9 @@ Auto Stories — a responsive web app (Angular frontend + NestJS backend, deploy
 - **Objective only.** Never write subjective justifications ("feels wrong", "no wow", "kills the first impression", "this is good/bad"). State the concrete reason.
 - **If reasoning is subjective or unclear, ASK the user to explain — then write the concrete reason they give.** Do not invent a justification.
 - **No duplication between spec and approach.** Spec = what; approach = why.
-- **approach.md is auto-maintained:** whenever the user shares a decision or reasoning while we work, append it to `docs/approach.md` in the Problem→Options→Decision→Why structure, without being asked.
+- **decisions.md is auto-maintained:** whenever the user shares a decision or reasoning while we work, append it to `docs/decisions.md` in the Problem→Options→Decision→Why structure, without being asked.
 
-## Key product decisions (see docs/approach.md for full reasoning)
+## Key product decisions (see docs/decisions.md for full reasoning)
 - 3-step, payoff-first flow (not 6 steps): 3-step onboarding completes ~72% vs ~16% at 7 steps.
 - User picks photos + states intent (no fully automatic generation).
 - No auto-posting via Instagram API (needs business account + Meta app review). Post by hand-off: build frames → download / Web Share to phone → user multi-selects in Instagram.

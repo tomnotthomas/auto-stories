@@ -17,7 +17,7 @@ info:
     responses in `components/responses/`. Run `npm run openapi:bundle` to flatten
     it into a single file.
 
-    Reasoning lives in `docs/approach.md` (Chapter 3); the request/response shapes
+    Reasoning lives in `docs/decisions.md` (Chapter 3); the request/response shapes
     mirror `docs/phase-1/architecture.md`.
   contact:
     name: Auto Stories
