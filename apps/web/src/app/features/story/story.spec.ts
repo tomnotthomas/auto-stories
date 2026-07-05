@@ -40,6 +40,26 @@ describe('Story', () => {
     expect(await harness.getCaption()).toBe('Then she blew out the candle');
   });
 
+  it('preloads the current frame and its neighbours so paging stays in sync', async () => {
+    const three: Frame[] = [
+      { photoId: 'a', order: 1, caption: 'one' },
+      { photoId: 'b', order: 2, caption: 'two' },
+      { photoId: 'c', order: 3, caption: 'three' },
+    ];
+    await TestBed.configureTestingModule({ imports: [Story] }).compileComponents();
+    story = TestBed.inject(StoryService);
+    story.completeStory(three, false);
+    const fixture = TestBed.createComponent(Story);
+    const harness = await TestbedHarnessEnvironment.harnessForFixture(fixture, StoryHarness);
+
+    // On the first frame, the next one is already mounted; the far frame is not.
+    expect(await harness.mountedFrameIds()).toEqual(['a', 'b']);
+
+    await harness.tapNext();
+    // Now on the middle frame, all three fall inside the ±1 preload window.
+    expect(await harness.mountedFrameIds()).toEqual(['a', 'b', 'c']);
+  });
+
   it('hides the dropped-photo banner for a complete story', async () => {
     expect(await (await render(false)).hasDroppedBanner()).toBe(false);
   });
