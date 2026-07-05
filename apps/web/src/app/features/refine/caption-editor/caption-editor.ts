@@ -1,8 +1,7 @@
-import { Component, ElementRef, OnInit, computed, inject, input, output, signal } from '@angular/core';
+import { Component, OnInit, computed, input, output, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSliderModule } from '@angular/material/slider';
-import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { TextFieldModule } from '@angular/cdk/text-field';
 
@@ -10,6 +9,17 @@ import { FramePlacement } from '../../../story/story.service';
 
 /** Caption font size at scale 1; the size slider multiplies it. */
 const BASE_FONT_PX = 24;
+/**
+ * While editing, the caption is lifted into the upper area so it clears the
+ * bottom sheet and stays readable (mockup refine-text.html: the selected caption
+ * sits at the top, the controls at the bottom). Drag can move it within this
+ * band; the smart lower-third default is kept unless the user actually drags.
+ */
+const EDIT_OPEN_Y = 34;
+const DRAG_MIN_Y = 12;
+const DRAG_MAX_Y = 62;
+const DRAG_MIN_X = 10;
+const DRAG_MAX_X = 90;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -31,15 +41,12 @@ function clamp(value: number, min: number, max: number): number {
     MatButtonModule,
     MatIconModule,
     MatSliderModule,
-    MatSlideToggleModule,
     MatProgressSpinnerModule,
     TextFieldModule,
   ],
   templateUrl: './caption-editor.html',
 })
 export class CaptionEditor implements OnInit {
-  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
-
   readonly caption = input.required<string>();
   readonly placement = input.required<FramePlacement>();
   readonly legibility = input.required<boolean>();
@@ -56,6 +63,9 @@ export class CaptionEditor implements OnInit {
 
   /** Local copy of the caption while editing, so typing never fights the parent. */
   protected readonly draft = signal('');
+  /** Where the caption sits *while editing* — lifted clear of the sheet. */
+  protected readonly posX = signal(50);
+  protected readonly posY = signal(EDIT_OPEN_Y);
   private dragging = false;
 
   /** Rendered caption size, in px, from the placement scale. */
@@ -63,6 +73,10 @@ export class CaptionEditor implements OnInit {
 
   ngOnInit(): void {
     this.draft.set(this.caption());
+    // Open at the frame's horizontal placement, but lifted so the text clears
+    // the sheet; a caption already placed high keeps its spot.
+    this.posX.set(this.placement().xPct);
+    this.posY.set(Math.min(this.placement().yPct, EDIT_OPEN_Y));
   }
 
   protected onCaptionInput(event: Event): void {
@@ -80,14 +94,16 @@ export class CaptionEditor implements OnInit {
     this.dragging = true;
   }
 
-  protected onDrag(event: PointerEvent): void {
+  /** Drag within the editing band; the surface is the full-frame overlay. */
+  protected onDrag(event: PointerEvent, surface: HTMLElement): void {
     if (!this.dragging) return;
-    const rect = this.host.nativeElement.getBoundingClientRect();
+    const rect = surface.getBoundingClientRect();
     if (!rect.width || !rect.height) return;
-    this.placementChange.emit({
-      xPct: clamp(((event.clientX - rect.left) / rect.width) * 100, 8, 92),
-      yPct: clamp(((event.clientY - rect.top) / rect.height) * 100, 12, 88),
-    });
+    const xPct = clamp(((event.clientX - rect.left) / rect.width) * 100, DRAG_MIN_X, DRAG_MAX_X);
+    const yPct = clamp(((event.clientY - rect.top) / rect.height) * 100, DRAG_MIN_Y, DRAG_MAX_Y);
+    this.posX.set(xPct);
+    this.posY.set(yPct);
+    this.placementChange.emit({ xPct, yPct });
   }
 
   protected endDrag(event: PointerEvent): void {

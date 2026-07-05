@@ -97,6 +97,28 @@
   text-shadow: 0 2px 16px rgb(0 0 0 / 0.55);
 }
 
+/* Coach mark bob — the first-time "Tap to edit & move" hint gently bobs to draw
+ * the eye (mockup step1-wow.html .coach). Keyframes carry the -50% X so the
+ * utility can sit on an element centred with `left-1/2`. Stilled for users who
+ * prefer reduced motion. */
+@keyframes coach-bob {
+  0%,
+  100% {
+    transform: translate(-50%, 0);
+  }
+  50% {
+    transform: translate(-50%, -6px);
+  }
+}
+@utility coach-bob {
+  animation: coach-bob 1.6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .coach-bob {
+    animation: none;
+  }
+}
+
 /* Story/creation screens are always dark & immersive (approach 5.4), like
  * Instagram's story composer — independent of the app's light/dark setting.
  * Scoping `color-scheme: dark` here makes every --mat-sys-* token inside resolve

@@ -1,7 +1,6 @@
 import { ComponentHarness } from '@angular/cdk/testing';
 import { MatButtonHarness } from '@angular/material/button/testing';
 import { MatSliderHarness } from '@angular/material/slider/testing';
-import { MatSlideToggleHarness } from '@angular/material/slide-toggle/testing';
 
 /** Page-object harness for the refine caption editor. Exposes intent; asserts nothing. */
 export class CaptionEditorHarness extends ComponentHarness {
@@ -9,7 +8,7 @@ export class CaptionEditorHarness extends ComponentHarness {
 
   private readonly captionInput = this.locatorFor('.caption-input');
   private readonly sizeSlider = this.locatorFor(MatSliderHarness);
-  private readonly legibilityToggle = this.locatorFor(MatSlideToggleHarness);
+  private readonly legibilityButton = this.locatorFor(MatButtonHarness.with({ text: /Legibility/ }));
   private readonly regenerateButton = this.locatorForOptional(
     MatButtonHarness.with({ text: /Regenerate/ }),
   );
@@ -35,7 +34,7 @@ export class CaptionEditorHarness extends ComponentHarness {
 
   /** Flip the legibility-background toggle. */
   async toggleLegibility(): Promise<void> {
-    await (await this.legibilityToggle()).toggle();
+    await (await this.legibilityButton()).click();
   }
 
   /** Whether the Regenerate action is offered (hidden in demo mode). */
