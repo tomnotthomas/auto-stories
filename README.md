@@ -3,8 +3,8 @@
 Turn a pile of photos into a well-ordered, well-captioned Instagram Story. Pick photos, write one line about the day, and one AI call returns which photos to use, their order, and a caption for each — a strong first draft you then refine.
 
 - **Live:** https://auto-stories.onrender.com/ (free tier — the first hit after idle cold-starts for ~30–50s)
-- **Reviewer summary:** [`APPROACH.md`](APPROACH.md) — what/why, decisions, tradeoffs, what breaks first.
-- **Take-home prompt:** [`CHALLENGE.md`](CHALLENGE.md) — the original challenge this repo answers (Option 2).
+- **Reviewer summary:** [`docs/APPROACH.md`](docs/APPROACH.md) — what/why, decisions, tradeoffs, what breaks first.
+- **Take-home prompt:** [`docs/CHALLENGE.md`](docs/CHALLENGE.md) — the original challenge this repo answers (Option 2).
 
 ## Run it (one command)
 

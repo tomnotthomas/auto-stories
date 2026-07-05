@@ -10,7 +10,7 @@ Auto Stories — a responsive web app (Angular frontend + NestJS backend, deploy
 - **`docs/phase-2/spec.md`** — Phase 2: get the story onto Instagram (hand-off posting, music suggestions).
 - **`docs/phase-3/spec.md`** — Phase 3: the recurring journal (cadence, auto-surface photos).
 - Each `docs/phase-N/` folder holds all docs for that phase (spec now; design/eng plans later).
-- **`docs/decisions.md`** — *How I decided.* A decision log, one entry per problem faced, structured **Problem → Options → Decision → Why**. This reflects the user's way of thinking. It must NOT duplicate spec content. (The root **`APPROACH.md`** is the separate reviewer-facing summary.)
+- **`docs/decisions.md`** — *How I decided.* A decision log, one entry per problem faced, structured **Problem → Options → Decision → Why**. This reflects the user's way of thinking. It must NOT duplicate spec content. (**`docs/APPROACH.md`** is the separate reviewer-facing summary.)
 - **`docs/phase-N/open-questions.md`** — Open questions and resolutions, scoped to that phase (so you only face the questions relevant to what you're building now).
 
 ## Writing rules for these docs
