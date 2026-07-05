@@ -15,6 +15,7 @@ export class StoryHarness extends ComponentHarness {
   private readonly startOverButton = this.locatorFor(MatButtonHarness.with({ text: /Start over/ }));
   private readonly refineButton = this.locatorFor(MatButtonHarness.with({ text: /Refine story/ }));
   private readonly doneButton = this.locatorFor(MatButtonHarness.with({ text: /Done/ }));
+  private readonly manageButton = this.locatorFor(MatButtonHarness.with({ text: /Reorder/ }));
   private readonly editor = this.locatorForOptional(CaptionEditorHarness);
   private readonly filmstrip = this.locatorForOptional(RefineFilmstripHarness);
 
@@ -56,6 +57,11 @@ export class StoryHarness extends ComponentHarness {
   /** Tap the caption (refine mode) to open the editor. */
   async tapCaption(): Promise<void> {
     await (await this.caption()).click();
+  }
+
+  /** Open the "Reorder & remove" management screen (refine mode). */
+  async clickManage(): Promise<void> {
+    await (await this.manageButton()).click();
   }
 
   /** The caption editor, when open; otherwise null. */

@@ -44,8 +44,13 @@ export class Story {
   /** View vs refine mode, and which caption (if any) is open in the editor. */
   protected readonly refining = signal(false);
   protected readonly editingPhotoId = signal<string | null>(null);
+  /** The "Reorder & remove" management screen is open. */
+  protected readonly managing = signal(false);
   /** True while a per-caption regenerate is in flight. */
   protected readonly regenBusy = signal(false);
+  /** The "tap/swipe to move through the story" hint, shown until first use. */
+  protected readonly navHintSeen = signal(false);
+  private swipeStartX: number | null = null;
   /** True while a whole-story rebuild (Regenerate story / Add photo) is in flight. */
   protected readonly storyBusy = signal(false);
 
@@ -71,12 +76,32 @@ export class Story {
     () => this.frames().find((f) => f.photoId === this.editingPhotoId()) ?? null,
   );
 
+  /** More than one frame, so paging is meaningful. */
+  protected readonly multiFrame = computed(() => this.frameCount() > 1);
+
   protected next(): void {
+    this.navHintSeen.set(true);
     this.index.set(Math.min(this.currentIndex() + 1, this.frameCount() - 1));
   }
 
   protected prev(): void {
+    this.navHintSeen.set(true);
     this.index.set(Math.max(this.currentIndex() - 1, 0));
+  }
+
+  /** Swipe left/right to page (Stories are consumed with a swipe on the web).
+   * Off while a caption editor or the manage screen is open. */
+  protected onSwipeStart(event: PointerEvent): void {
+    this.swipeStartX = this.editingPhotoId() || this.managing() ? null : event.clientX;
+  }
+
+  protected onSwipeEnd(event: PointerEvent): void {
+    if (this.swipeStartX === null) return;
+    const dx = event.clientX - this.swipeStartX;
+    this.swipeStartX = null;
+    if (Math.abs(dx) < 48) return; // a tap, not a swipe — the tap zones handle it
+    if (dx < 0) this.next();
+    else this.prev();
   }
 
   protected dismissBanner(): void {
@@ -128,7 +153,16 @@ export class Story {
     }
   }
 
-  /** Jump the viewer to the frame the user tapped in the filmstrip. */
+  /** Open / close the "Reorder & remove" management screen. */
+  protected openManage(): void {
+    this.managing.set(true);
+  }
+
+  protected closeManage(): void {
+    this.managing.set(false);
+  }
+
+  /** Jump the viewer to the frame the user tapped in the manage list. */
   protected selectFrame(index: number): void {
     this.index.set(index);
   }

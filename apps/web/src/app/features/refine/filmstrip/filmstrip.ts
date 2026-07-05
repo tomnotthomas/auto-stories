@@ -1,25 +1,28 @@
 import { Component, computed, inject, input, output } from '@angular/core';
 import { CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
+import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 
 import { MIN_PHOTOS, StoryService } from '../../../story/story.service';
 
-/** One frame resolved to its picked photo, for the strip. */
+/** One frame resolved to its picked photo, for the list. */
 interface Thumb {
   readonly photoId: string;
   readonly previewUrl: string | null;
+  readonly caption: string;
 }
 
 /**
- * The refine filmstrip (spec 5.1): the story's frames as draggable thumbnails.
- * Drag to reorder the narrative, tap to jump to a frame, "×" to drop one (never
- * below MIN_PHOTOS), and an Add tile picks more photos. Reorder/drop/add write
+ * The "reorder & remove" list (spec 5.1): the story's frames on a clean surface,
+ * one row each (drag handle, thumbnail, caption, delete). Drag a row to reorder
+ * the narrative, tap a thumbnail to jump to that frame, delete to drop one (never
+ * below MIN_PHOTOS), and an Add row picks more photos. Reorder/drop/add write
  * through StoryService directly (the same pattern the picker uses); adding photos
  * emits `photosAdded` so the parent rebuilds the story to place them.
  */
 @Component({
   selector: 'app-refine-filmstrip',
-  imports: [DragDropModule, MatIconModule],
+  imports: [DragDropModule, MatButtonModule, MatIconModule],
   templateUrl: './filmstrip.html',
 })
 export class RefineFilmstrip {
@@ -37,6 +40,7 @@ export class RefineFilmstrip {
     return this.story.frames().map((frame) => ({
       photoId: frame.photoId,
       previewUrl: photos.find((p) => p.id === frame.photoId)?.previewUrl ?? null,
+      caption: frame.caption,
     }));
   });
   /** Dropping is allowed only while the story stays above the minimum length. */
