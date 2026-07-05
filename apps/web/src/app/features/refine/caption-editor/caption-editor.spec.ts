@@ -109,14 +109,15 @@ describe('draggedPosition (grab-offset drag)', () => {
     expect(y).toBe(25);
   });
 
-  it('clamps within the editing band so the caption stays on-frame and clears the sheet', () => {
+  it('clamps within the always-visible band so the caption clears both bars', () => {
     const low = draggedPosition(-100, -100, 0, 0);
     const high = draggedPosition(200, 200, 0, 0);
-    // Below the min / above the max collapse onto the band edges.
+    // Below the min / above the max collapse onto the band edges. The vertical
+    // band stays clear of the top edit bar and the bottom sheet.
     expect(low.x).toBeGreaterThanOrEqual(0);
-    expect(low.y).toBeGreaterThanOrEqual(0);
+    expect(low.y).toBe(14);
     expect(high.x).toBeLessThanOrEqual(100);
-    expect(high.y).toBeLessThanOrEqual(70);
+    expect(high.y).toBe(58);
     expect(low.x).toBeLessThan(high.x);
     expect(low.y).toBeLessThan(high.y);
   });
