@@ -1,24 +1,28 @@
-<section class="relative flex h-full flex-col overflow-hidden bg-black text-white">
+<section
+  class="relative flex h-full flex-col overflow-hidden bg-black text-white"
+  (pointerdown)="onSwipeStart($event)"
+  (pointerup)="onSwipeEnd($event)"
+>
   @if (current(); as frame) {
     @if (frame.previewUrl) {
       <img [src]="frame.previewUrl" alt="" class="absolute inset-0 h-full w-full object-cover" />
     }
     <div class="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/80"></div>
 
-    <!-- Tap zones: left third goes back, right advances (Stories convention).
-         Off in refine so a tap edits the caption instead of paging. -->
-    @if (!refining()) {
+    <!-- Tap zones: left goes back, right advances (Stories convention). Active in
+         refine too (tap the caption itself to edit); off while a sheet is open. -->
+    @if (!editingFrame() && !managing()) {
       <button
         type="button"
         aria-label="Previous frame"
         (click)="prev()"
-        class="absolute bottom-32 left-0 top-20 z-10 w-2/5"
+        class="absolute bottom-40 left-0 top-20 z-10 w-2/5"
       ></button>
       <button
         type="button"
         aria-label="Next frame"
         (click)="next()"
-        class="absolute bottom-32 right-0 top-20 z-10 w-3/5"
+        class="absolute bottom-40 right-0 top-20 z-10 w-3/5"
       ></button>
     }
 
@@ -53,7 +57,9 @@
     }
 
     <!-- The caption, at the placement the user gave it. In refine it becomes a
-         tappable, editable-looking layer; the editor overlay opens on tap. -->
+         tappable, editable-looking layer; the editor overlay opens on tap.
+         Hidden while the editor is open so it doesn't ghost behind it. -->
+    @if (!editingFrame()) {
     <div
       class="absolute z-20 w-[78%] max-w-[320px] -translate-x-1/2 -translate-y-1/2"
       [style.left.%]="frame.placement.xPct"
@@ -62,7 +68,7 @@
       @if (refining()) {
         @if (!coachSeen()) {
           <div
-            class="mat-label-large absolute -top-12 left-1/2 flex -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-full bg-primary px-3 py-1.5 text-on-primary shadow-lg"
+            class="mat-label-large coach-bob absolute -top-12 left-1/2 flex items-center gap-1.5 whitespace-nowrap rounded-full bg-primary px-3 py-1.5 text-on-primary shadow-lg"
           >
             <mat-icon class="h-[18px] w-[18px] text-[18px] leading-none">touch_app</mat-icon>
             Tap to edit &amp; move
@@ -91,28 +97,38 @@
         </p>
       }
     </div>
+    }
 
-    <!-- Bottom action bar -->
+    <!-- One-time nav hint: paging a Story isn't obvious on the web (5.3). -->
+    @if (!refining() && !editingFrame() && multiFrame() && !navHintSeen()) {
+      <p
+        class="mat-label-small absolute inset-x-0 bottom-[136px] z-10 text-center text-white/70"
+      >
+        Tap or swipe the photo to move through the story
+      </p>
+    }
+
+    <!-- Bottom action bar. In refine it's a solid sheet (own surface, clear of the
+         photo) with the frame-level actions; the caption is edited on the photo. -->
     @if (refining()) {
-      <div class="absolute inset-x-4 bottom-6 z-20 flex flex-col gap-3">
-        <app-refine-filmstrip
-          [current]="currentIndex()"
-          (select)="selectFrame($event)"
-          (photosAdded)="regenerateStory()"
-        />
-        <div class="flex gap-3">
-          <button
-            matButton="outlined"
-            class="flex-1 text-white"
-            [disabled]="storyBusy()"
-            (click)="regenerateStory()"
-          >
-            <mat-icon>auto_awesome</mat-icon>
-            Regenerate
-          </button>
-          <button matButton="filled" class="flex-1" (click)="exitRefine()">
+      <div
+        class="absolute inset-x-0 bottom-0 z-20 flex flex-col gap-3 rounded-t-3xl bg-surface-container-low px-4 pb-6 pt-3 text-on-surface"
+      >
+        <div class="flex items-center">
+          <span class="mat-title-medium flex-1">Refining · frame {{ currentIndex() + 1 }} of {{ frameCount() }}</span>
+          <button matButton="filled" (click)="exitRefine()">
             <mat-icon>check</mat-icon>
             Done
+          </button>
+        </div>
+        <div class="flex gap-3">
+          <button matButton="tonal" class="flex-1" (click)="openManage()">
+            <mat-icon>photo_library</mat-icon>
+            Reorder &amp; remove
+          </button>
+          <button matButton="outlined" class="flex-1" [disabled]="storyBusy()" (click)="regenerateStory()">
+            <mat-icon>auto_awesome</mat-icon>
+            Regenerate
           </button>
         </div>
       </div>
@@ -123,6 +139,35 @@
           Refine story
         </button>
         <button matButton class="w-full text-white" (click)="startOver()">Start over</button>
+      </div>
+    }
+
+    <!-- Reorder & remove — a clean, dedicated surface for managing the frames. -->
+    @if (managing()) {
+      <div class="absolute inset-0 z-40 flex flex-col bg-surface text-on-surface">
+        <div class="flex flex-none items-center gap-1 px-1.5 pt-11">
+          <button matIconButton aria-label="Back to refine" (click)="closeManage()">
+            <mat-icon>arrow_back</mat-icon>
+          </button>
+          <h2 class="mat-title-medium flex-1">Reorder &amp; remove</h2>
+        </div>
+        <p class="mat-label-medium px-5 pb-2 text-on-surface-variant">
+          Drag to reorder the story. Remove a photo or add more, then rebuild.
+        </p>
+        <div class="flex-1 overflow-y-auto px-4 pb-4">
+          <app-refine-filmstrip
+            [current]="currentIndex()"
+            (select)="selectFrame($event)"
+            (photosAdded)="regenerateStory()"
+          />
+        </div>
+        <div class="flex flex-none gap-3 px-4 pb-6 pt-2">
+          <button matButton="outlined" class="flex-1" [disabled]="storyBusy()" (click)="regenerateStory()">
+            <mat-icon>auto_awesome</mat-icon>
+            Regenerate
+          </button>
+          <button matButton="filled" class="flex-1" (click)="closeManage()">Done</button>
+        </div>
       </div>
     }
 

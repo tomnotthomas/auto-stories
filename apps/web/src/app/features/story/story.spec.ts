@@ -88,10 +88,11 @@ describe('Story', () => {
       expect(story.frames()[0].legibility).toBe(false);
     });
 
-    it('shows a filmstrip thumbnail for each frame in refine mode', async () => {
+    it('lists every frame on the reorder & remove screen', async () => {
       const harness = await render();
-      expect(await harness.getFilmstrip()).toBeNull();
       await harness.clickRefine();
+      expect(await harness.getFilmstrip()).toBeNull();
+      await harness.clickManage();
       const filmstrip = await harness.getFilmstrip();
       expect(await filmstrip!.getThumbnailCount()).toBe(frames.length);
     });
