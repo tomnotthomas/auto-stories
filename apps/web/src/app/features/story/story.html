@@ -134,6 +134,21 @@
             Done
           </button>
         </div>
+        @if (!isFull()) {
+          <button matButton="tonal" class="w-full" [disabled]="storyBusy()" (click)="addPhotoInput.click()">
+            <mat-icon>add_photo_alternate</mat-icon>
+            Add a photo
+          </button>
+          <input
+            #addPhotoInput
+            type="file"
+            accept="image/*"
+            multiple
+            hidden
+            aria-label="Add a photo"
+            (change)="onAddPhotos($event)"
+          />
+        }
         <div class="flex gap-3">
           <button matButton="tonal" class="flex-1" (click)="openManage()">
             <mat-icon>photo_library</mat-icon>

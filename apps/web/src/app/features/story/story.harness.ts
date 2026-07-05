@@ -17,6 +17,7 @@ export class StoryHarness extends ComponentHarness {
   private readonly refineButton = this.locatorFor(MatButtonHarness.with({ text: /Refine story/ }));
   private readonly doneButton = this.locatorFor(MatButtonHarness.with({ text: /Done/ }));
   private readonly manageButton = this.locatorFor(MatButtonHarness.with({ text: /Reorder/ }));
+  private readonly addPhotoButton = this.locatorForOptional(MatButtonHarness.with({ text: /Add a photo/ }));
   private readonly editor = this.locatorForOptional(CaptionEditorHarness);
   private readonly filmstrip = this.locatorForOptional(RefineFilmstripHarness);
 
@@ -71,6 +72,12 @@ export class StoryHarness extends ComponentHarness {
   /** Open the "Reorder & remove" management screen (refine mode). */
   async clickManage(): Promise<void> {
     await (await this.manageButton()).click();
+  }
+
+  /** Whether the refine bar offers a direct "Add a photo" action (hidden when
+   * the photo pool is full). */
+  async hasAddPhotoButton(): Promise<boolean> {
+    return (await this.addPhotoButton()) !== null;
   }
 
   /** The caption editor, when open; otherwise null. */
