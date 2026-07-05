@@ -18,10 +18,18 @@
       <span class="mat-label-medium text-on-surface-variant">Pick 3–10 to start your story</span>
     </label>
   } @else {
-    <!-- Auto-sizing photo grid: fills the top, holds 3–10, fewer = bigger (5.4) -->
-    <div class="grid flex-1 auto-rows-fr grid-cols-3 gap-[3px] overflow-hidden">
+    <!-- Square-tile photo grid: packs from the top, holds 3–10, scrolls on
+         overflow (5.4). Square tiles keep 1–2 photos looking right instead of
+         stretching into full-height slivers. Columns follow the count so the
+         first row always fills edge-to-edge (1 photo → 2 cols, bigger tiles;
+         the Add tile completes the row) — no lone tall button, no empty column. -->
+    <div
+      class="grid flex-1 auto-rows-min content-start gap-[3px] overflow-y-auto"
+      [class.grid-cols-2]="story.photoCount() === 1"
+      [class.grid-cols-3]="story.photoCount() !== 1"
+    >
       @for (photo of story.photos(); track photo.id) {
-        <div class="relative overflow-hidden">
+        <div class="relative aspect-square overflow-hidden">
           <img [src]="photo.previewUrl" alt="" class="absolute inset-0 h-full w-full object-cover" />
           <button
             type="button"
@@ -35,7 +43,7 @@
       }
       @if (!story.isFull()) {
         <label
-          class="flex cursor-pointer flex-col items-center justify-center gap-0.5 bg-surface-container-high text-primary"
+          class="flex aspect-square cursor-pointer flex-col items-center justify-center gap-0.5 bg-surface-container-high text-primary"
         >
           <input
             type="file"
