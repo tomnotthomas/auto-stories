@@ -18,3 +18,11 @@ properties:
     maxItems: 30
     items:
       $ref: './Photo.yaml'
+  mustInclude:
+    type: array
+    description: >-
+      Photo ids the model must include and caption even past the target length.
+      Set when a photo is added by hand during refine, so it always gets a caption.
+    maxItems: 30
+    items:
+      type: string

@@ -43,4 +43,15 @@ describe('buildPrompt', () => {
   it('treats capture time as a soft hint only', () => {
     expect(buildPrompt(story).toLowerCase()).toContain('timestamp');
   });
+
+  it('forces the model to include and caption a hand-added photo', () => {
+    const prompt = buildPrompt(story, undefined, ['p7']);
+    expect(prompt).toContain('p7');
+    expect(prompt.toLowerCase()).toContain('must include');
+  });
+
+  it('omits the must-include instruction when none are given', () => {
+    expect(buildPrompt(story).toLowerCase()).not.toContain('must include');
+    expect(buildPrompt(story, undefined, []).toLowerCase()).not.toContain('must include');
+  });
 });

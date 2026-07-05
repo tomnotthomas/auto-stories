@@ -158,7 +158,7 @@
           <app-refine-filmstrip
             [current]="currentIndex()"
             (select)="selectFrame($event)"
-            (photosAdded)="regenerateStory()"
+            (photosAdded)="appendPhotos()"
           />
         </div>
         <div class="flex flex-none gap-3 px-4 pb-6 pt-2">

@@ -184,6 +184,28 @@ describe('StoryService', () => {
       expect(service.frames().map((f) => f.photoId)).toEqual(['p1', 'p2', 'p3']);
     });
 
+    it('appends a hand-added photo as a new frame, keeping the rest', () => {
+      seedFour();
+      service.setPlacement('p1', { xPct: 10, yPct: 10 });
+      service.appendFrame({ photoId: 'p5', order: 99, caption: 'newcomer' });
+
+      const frames = service.frames();
+      expect(frames.map((f) => f.photoId)).toEqual(['p1', 'p2', 'p3', 'p4', 'p5']);
+      expect(frames.map((f) => f.order)).toEqual([1, 2, 3, 4, 5]);
+      const p5 = frames[4];
+      expect(p5.caption).toBe('newcomer');
+      expect(p5.placement).toEqual(DEFAULT_PLACEMENT);
+      expect(p5.legibility).toBe(true);
+      // The existing frame keeps the placement the user set.
+      expect(frames[0].placement).toEqual({ xPct: 10, yPct: 10, scale: 1 });
+    });
+
+    it('ignores appending a photo already in the story', () => {
+      seedFour();
+      service.appendFrame({ photoId: 'p2', order: 9, caption: 'dupe' });
+      expect(service.frames()).toHaveLength(4);
+    });
+
     it('records that the refine coach mark has been seen', () => {
       expect(service.coachSeen()).toBe(false);
       service.markCoachSeen();

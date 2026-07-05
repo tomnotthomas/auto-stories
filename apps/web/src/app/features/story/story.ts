@@ -51,7 +51,8 @@ export class Story {
   /** The "tap/swipe to move through the story" hint, shown until first use. */
   protected readonly navHintSeen = signal(false);
   private swipeStartX: number | null = null;
-  /** True while a whole-story rebuild (Regenerate story / Add photo) is in flight. */
+  /** True while a whole-story rebuild (Regenerate story) or an add-photo append
+   * is in flight. */
   protected readonly storyBusy = signal(false);
 
   /** Frames in narrative order, each resolved to its picked photo. */
@@ -174,6 +175,18 @@ export class Story {
     this.storyBusy.set(true);
     try {
       await this.generation.generate();
+    } finally {
+      this.storyBusy.set(false);
+    }
+  }
+
+  /** Refine: caption the photo(s) just added in the filmstrip and append them,
+   * keeping the existing frames and their placements — no full rebuild (2.5). */
+  protected async appendPhotos(): Promise<void> {
+    if (this.storyBusy()) return;
+    this.storyBusy.set(true);
+    try {
+      await this.generation.captionNewPhotos();
     } finally {
       this.storyBusy.set(false);
     }

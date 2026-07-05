@@ -54,7 +54,12 @@ export class StoryGeneratorService {
 
     // The loop lets us drop a safety-flagged photo and retry with the rest.
     for (;;) {
-      const response = await this.call(request.story, photos, request.tone);
+      const response = await this.call(
+        request.story,
+        photos,
+        request.tone,
+        request.mustInclude,
+      );
 
       if (response.promptFeedback?.blockReason) {
         // The API doesn't say which photo tripped safety, so drop one and
@@ -89,9 +94,10 @@ export class StoryGeneratorService {
     story: string,
     photos: Photo[],
     tone?: Tone,
+    mustInclude?: string[],
   ): Promise<GenerateContentResponse> {
     const parts: Part[] = [
-      { text: buildPrompt(story, tone) },
+      { text: buildPrompt(story, tone, mustInclude) },
       ...photos.flatMap((photo): Part[] => [
         { text: photo.id },
         { inlineData: { mimeType: PROXY_MIME_TYPE, data: photo.b64 } },

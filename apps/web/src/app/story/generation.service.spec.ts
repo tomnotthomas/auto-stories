@@ -4,6 +4,7 @@ import { GenerationService } from './generation.service';
 import { StoryService } from './story.service';
 import { StoryGateway, GenerateOutcome } from './story.gateway';
 import { ImageService } from './image.service';
+import type { GenerateRequest } from '@auto-stories/api-types';
 
 function imageFile(name: string): File {
   return new File(['bytes'], name, { type: 'image/jpeg' });
@@ -91,5 +92,82 @@ describe('GenerationService', () => {
     expect(applied).toBe(false);
     expect(story.frames()[0].caption).toBe('first');
     expect(story.phase()).toBe('story');
+  });
+
+  describe('captionNewPhotos (Add photo in refine)', () => {
+    /** Seed a finished 3-frame story from the pool, then add one more photo. */
+    function seedStoryPlusOne(): string {
+      const [a, b, c] = story.photos();
+      story.completeStory(
+        [
+          { photoId: a.id, order: 1, caption: 'first' },
+          { photoId: b.id, order: 2, caption: 'second' },
+          { photoId: c.id, order: 3, caption: 'third' },
+        ],
+        false,
+      );
+      story.setPlacement(a.id, { xPct: 20, yPct: 20 });
+      story.addPhotos([imageFile('d.jpg')]);
+      return story.photos()[3].id;
+    }
+
+    it('appends the added photo captioned by the model, keeping the story', async () => {
+      const newId = seedStoryPlusOne();
+      outcome = {
+        ok: true,
+        response: { frames: [{ photoId: newId, order: 1, caption: 'the newcomer' }] },
+      };
+
+      await generation.captionNewPhotos();
+
+      const frames = story.frames();
+      expect(frames).toHaveLength(4);
+      expect(frames[3].photoId).toBe(newId);
+      expect(frames[3].caption).toBe('the newcomer');
+      // Existing frames and their placements are untouched.
+      expect(frames[0].placement).toEqual({ xPct: 20, yPct: 20, scale: 1 });
+      expect(story.phase()).toBe('story');
+    });
+
+    it('sends the new photo id as mustInclude', async () => {
+      const newId = seedStoryPlusOne();
+      let sent: GenerateRequest | undefined;
+      (generation as unknown as { gateway: Pick<StoryGateway, 'generate'> }).gateway = {
+        generate: async (req) => {
+          sent = req;
+          return { ok: true, response: { frames: [{ photoId: newId, order: 1, caption: 'x' }] } };
+        },
+      };
+
+      await generation.captionNewPhotos();
+
+      expect(sent?.mustInclude).toEqual([newId]);
+    });
+
+    it('still appends the photo (empty caption) when generation fails', async () => {
+      const newId = seedStoryPlusOne();
+      outcome = { ok: false, code: 'network', message: 'nope' };
+
+      await generation.captionNewPhotos();
+
+      const added = story.frames().find((f) => f.photoId === newId);
+      expect(added?.caption).toBe('');
+      // Never bounced off the payoff.
+      expect(story.phase()).toBe('story');
+    });
+
+    it('does nothing when no photos were added', async () => {
+      const [a, b, c] = story.photos();
+      story.completeStory(
+        [
+          { photoId: a.id, order: 1, caption: 'first' },
+          { photoId: b.id, order: 2, caption: 'second' },
+          { photoId: c.id, order: 3, caption: 'third' },
+        ],
+        false,
+      );
+      await generation.captionNewPhotos();
+      expect(story.frames()).toHaveLength(3);
+    });
   });
 });

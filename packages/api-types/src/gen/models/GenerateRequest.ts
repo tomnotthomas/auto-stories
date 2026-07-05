@@ -24,4 +24,9 @@ export type GenerateRequest = {
      * @type array
     */
     photos: Photo[];
+    /**
+     * @description Photo ids the model must include and caption even past the target length. Set when a photo is added by hand during refine, so it always gets a caption.
+     * @type array | undefined
+    */
+    mustInclude?: string[];
 };
