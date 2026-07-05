@@ -29,10 +29,11 @@ export class Generating implements OnDestroy {
   private readonly tick = signal(0);
   /** The step to highlight — advances then holds on the last one. */
   protected readonly activeStep = computed(() => Math.min(this.tick(), this.steps.length - 1));
-  /** The user's photos cycle behind the copy while they wait. */
-  protected readonly backgroundUrl = computed(() => {
-    const photos = this.story.photos();
-    return photos.length ? photos[this.tick() % photos.length].previewUrl : null;
+  /** The user's photos, stacked behind the copy; the active one crossfades in. */
+  protected readonly photos = this.story.photos;
+  protected readonly activePhoto = computed(() => {
+    const count = this.story.photos().length;
+    return count ? this.tick() % count : 0;
   });
 
   private readonly timer = setInterval(() => this.tick.update((t) => t + 1), 1600);
