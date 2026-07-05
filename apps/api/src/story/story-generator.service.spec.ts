@@ -102,7 +102,9 @@ describe('StoryGeneratorService', () => {
   it('threads must-include photo ids into the prompt', async () => {
     const generateContent = jest
       .fn()
-      .mockResolvedValue(jsonResponse([{ photoId: 'p1', order: 1, caption: 'x' }]));
+      .mockResolvedValue(
+        jsonResponse([{ photoId: 'p1', order: 1, caption: 'x' }]),
+      );
     const service = await makeService(generateContent);
 
     await service.generate({ ...makeRequest(3), mustInclude: ['p2'] });

@@ -52,6 +52,8 @@ describe('buildPrompt', () => {
 
   it('omits the must-include instruction when none are given', () => {
     expect(buildPrompt(story).toLowerCase()).not.toContain('must include');
-    expect(buildPrompt(story, undefined, []).toLowerCase()).not.toContain('must include');
+    expect(buildPrompt(story, undefined, []).toLowerCase()).not.toContain(
+      'must include',
+    );
   });
 });
