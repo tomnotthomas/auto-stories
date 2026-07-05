@@ -15,6 +15,8 @@ export class ExampleHarness extends ComponentHarness {
   private readonly caption = this.locatorFor('.story-caption');
   private readonly cta = this.locatorFor(MatButtonHarness.with({ text: /Try it/ }));
   private readonly editor = this.locatorForOptional(CaptionEditorHarness);
+  private readonly nextZone = this.locatorFor('button[aria-label="Next frame"]');
+  private readonly prevZone = this.locatorFor('button[aria-label="Previous frame"]');
 
   /** The caption shown on the example story frame. */
   async getCaptionText(): Promise<string> {
@@ -24,6 +26,16 @@ export class ExampleHarness extends ComponentHarness {
   /** Tap the example caption to open the editor. */
   async tapCaption(): Promise<void> {
     await (await this.caption()).click();
+  }
+
+  /** Advance to the next example frame. */
+  async tapNext(): Promise<void> {
+    await (await this.nextZone()).click();
+  }
+
+  /** Go back to the previous example frame. */
+  async tapPrev(): Promise<void> {
+    await (await this.prevZone()).click();
   }
 
   /** The caption editor, when open; otherwise null. */
