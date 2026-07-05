@@ -72,6 +72,19 @@ export class Story {
     Math.min(this.index(), Math.max(0, this.frameCount() - 1)),
   );
   protected readonly current = computed(() => this.frames()[this.currentIndex()] ?? null);
+  /** The current frame plus its immediate neighbours, each with its absolute
+   * index. Rendering these as layers keeps ≤3 photos decoded, so paging swaps an
+   * already-decoded image and the photo flips in the same paint as the progress
+   * bar — no lag, no bar/photo desync. */
+  protected readonly frameWindow = computed(() => {
+    const frames = this.frames();
+    const i = this.currentIndex();
+    const from = Math.max(0, i - 1);
+    const to = Math.min(frames.length - 1, i + 1);
+    const window: { index: number; frame: ViewFrame }[] = [];
+    for (let j = from; j <= to; j++) window.push({ index: j, frame: frames[j] });
+    return window;
+  });
   /** The frame whose caption is open in the editor, or null. */
   protected readonly editingFrame = computed(
     () => this.frames().find((f) => f.photoId === this.editingPhotoId()) ?? null,

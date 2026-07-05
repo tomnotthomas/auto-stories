@@ -9,6 +9,7 @@ export class StoryHarness extends ComponentHarness {
   static hostSelector = 'app-story';
 
   private readonly caption = this.locatorFor('.story-caption');
+  private readonly frameLayers = this.locatorForAll('[data-frame]');
   private readonly nextZone = this.locatorFor('button[aria-label="Next frame"]');
   private readonly prevZone = this.locatorFor('button[aria-label="Previous frame"]');
   private readonly banner = this.locatorForOptional('[aria-label="Dismiss notice"]');
@@ -22,6 +23,14 @@ export class StoryHarness extends ComponentHarness {
   /** The caption of the frame currently shown. */
   async getCaption(): Promise<string> {
     return (await this.caption()).text();
+  }
+
+  /** photoIds of the frame background layers currently mounted — the current
+   * frame plus its preloaded neighbours. */
+  async mountedFrameIds(): Promise<string[]> {
+    const layers = await this.frameLayers();
+    const ids = await Promise.all(layers.map((el) => el.getAttribute('data-frame')));
+    return ids.filter((id): id is string => id !== null);
   }
 
   /** Advance to the next frame. */

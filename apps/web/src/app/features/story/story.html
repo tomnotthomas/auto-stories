@@ -4,8 +4,21 @@
   (pointerup)="onSwipeEnd($event)"
 >
   @if (current(); as frame) {
-    @if (frame.previewUrl) {
-      <img [src]="frame.previewUrl" alt="" class="absolute inset-0 h-full w-full object-cover" />
+    <!-- Frame backgrounds: the current photo plus its neighbours, kept mounted so
+         they are already decoded when paged to. Only the current one is opaque;
+         the swap is instant (no transition) so it lands in the same paint as the
+         progress bar. -->
+    @for (layer of frameWindow(); track layer.frame.photoId) {
+      <div
+        [attr.data-frame]="layer.frame.photoId"
+        class="absolute inset-0"
+        [class.opacity-0]="layer.index !== currentIndex()"
+        [attr.aria-hidden]="layer.index !== currentIndex()"
+      >
+        @if (layer.frame.previewUrl) {
+          <img [src]="layer.frame.previewUrl" alt="" class="absolute inset-0 h-full w-full object-cover" />
+        }
+      </div>
     }
     <div class="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/80"></div>
 
