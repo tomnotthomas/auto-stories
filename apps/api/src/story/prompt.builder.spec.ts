@@ -21,6 +21,19 @@ describe('buildPrompt', () => {
     expect(prompt).toContain('order');
   });
 
+  it('targets a 5–7 frame story so it is not cut too short', () => {
+    const prompt = buildPrompt(story);
+    expect(prompt).toContain('5');
+    expect(prompt).toContain('7');
+    expect(prompt.toLowerCase()).toContain('frame');
+  });
+
+  it('keeps distinct moments and only drops weak or duplicate photos', () => {
+    const prompt = buildPrompt(story).toLowerCase();
+    expect(prompt).toContain('distinct');
+    expect(prompt).toMatch(/duplicate|blurr|redundant/);
+  });
+
   it('asks for the frames shape the schema enforces', () => {
     const prompt = buildPrompt(story);
     expect(prompt).toContain('photoId');
