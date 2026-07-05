@@ -109,6 +109,8 @@ export class CaptionEditor implements OnInit {
   /** Finger distance and caption scale captured when the second finger lands. */
   private pinchStartDist = 0;
   private pinchStartScale = 1;
+  /** The element holding pointer capture (the caption box), so we release on it. */
+  private captureEl: HTMLElement | null = null;
 
   /** Rendered caption size, in px, from the placement scale. */
   protected readonly fontSize = computed(() => Math.round(BASE_FONT_PX * this.placement().scale));
@@ -134,7 +136,11 @@ export class CaptionEditor implements OnInit {
   /** A finger lands on the caption. One finger drags (record the grab offset so
    * it won't jump); a second finger starts a pinch (record distance + scale). */
   protected startDrag(event: PointerEvent, surface: HTMLElement): void {
-    (event.target as HTMLElement).setPointerCapture?.(event.pointerId);
+    // Capture on the caption box (currentTarget), not whichever child was under
+    // the finger, so capture lives on the stable touch-action:none element.
+    const box = event.currentTarget as HTMLElement;
+    box.setPointerCapture?.(event.pointerId);
+    this.captureEl = box;
     this.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
     const rect = surface.getBoundingClientRect();
     if (this.pointers.size === 2) {
@@ -174,9 +180,10 @@ export class CaptionEditor implements OnInit {
   protected endDrag(event: PointerEvent, surface: HTMLElement): void {
     if (!this.pointers.has(event.pointerId)) return;
     this.pointers.delete(event.pointerId);
-    (event.target as HTMLElement).releasePointerCapture?.(event.pointerId);
+    this.captureEl?.releasePointerCapture?.(event.pointerId);
 
     if (this.pointers.size === 0) {
+      this.captureEl = null;
       this.placementChange.emit({ xPct: this.posX(), yPct: this.posY() });
     } else if (this.pointers.size === 1) {
       const [remaining] = [...this.pointers.values()];

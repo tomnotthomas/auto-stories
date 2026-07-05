@@ -35,10 +35,14 @@
     </div>
 
     <div [class]="legibility() ? 'rounded-2xl bg-black/40 px-4 py-3' : 'px-1'">
+      <!-- touch-none: a <textarea> is a form control that starts its own touch
+           scroll/selection, which overrode the box's touch-action and made Chrome
+           fire pointercancel a few pixels into a drag. Setting it here keeps the
+           one-finger drag alive; tap-to-type still works. -->
       <textarea
         cdkTextareaAutosize
         aria-label="Caption text"
-        class="caption-input block w-full resize-none border-none bg-transparent text-center font-bold leading-tight text-white outline-none"
+        class="caption-input block w-full resize-none touch-none border-none bg-transparent text-center font-bold leading-tight text-white outline-none"
         [style.fontSize.px]="fontSize()"
         [value]="draft()"
         (input)="onCaptionInput($event)"
