@@ -55,7 +55,6 @@ packages/
   api-types/    TypeScript types generated from the OpenAPI contract, shared by both apps
 openapi/        the API contract (source of truth for api-types)
 docs/           specs, architecture, diagrams, and the decision log
-design/         mockups and theme
 ```
 
 The frontend and backend share one contract: types in `packages/api-types` are generated from `openapi/` and imported by both, so the two apps can't drift.
