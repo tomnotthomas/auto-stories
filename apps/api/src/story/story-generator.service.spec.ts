@@ -82,7 +82,9 @@ describe('StoryGeneratorService', () => {
     expect(inlineImages).toHaveLength(3);
   });
 
-  it('flags partial when the model uses fewer photos than requested', async () => {
+  // A curated subset is the product's job (dump 30, keep the best 5–7), not a
+  // failure — so it must NOT flag partial. Only a safety drop does (see below).
+  it('does not flag partial when the model curates a subset', async () => {
     const generateContent = jest.fn().mockResolvedValue(
       jsonResponse([
         { photoId: 'p1', order: 1, caption: 'a' },
@@ -93,7 +95,7 @@ describe('StoryGeneratorService', () => {
 
     const result = await service.generate(makeRequest(3));
 
-    expect(result.partial).toBe(true);
+    expect(result.partial).toBe(false);
     expect(result.frames).toHaveLength(2);
   });
 
