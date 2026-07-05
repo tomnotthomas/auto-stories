@@ -440,6 +440,17 @@ Resolving the production-readiness gaps the engineering review surfaced — what
 - **Decision:** Option 3 — square tiles (`aspect-square`), packed from the top (`content-start`), scrolling on overflow; columns = 2 when there's 1 photo, else 3, so the Add tile always completes a full edge-to-edge row. Supersedes 5.4's "fills the top, fewer = bigger tiles."
 - **Why:** Square tiles are the standard photo-picker look and read correctly at any count, including the transient 1–2 photo state while the user is still selecting. Following the count keeps the first row full (no lone tall button, no empty column) and makes a single photo a bigger tile — the "fewer = bigger" intent without the aspect distortion that caused the original bug. Fixed 3 columns (option 2) leaves the empty third column at 1 photo.
 
+### 5.15 Caption gestures are touch-native: grab-offset drag + two-finger pinch
+- **Problem:** Editing the caption worked with a mouse but not with a thumb. Two faults on a phone: (1) starting a drag snapped the caption's center to the finger, so it jumped on grab and felt like it was being yanked; (2) size could only be changed with the bottom-sheet slider — a pinch with two fingers did nothing, and the corner dots on the selection box implied a resize handle that wasn't wired up.
+- **Options:** (1) leave size on the slider only, just fix the drag jump; (2) add corner-handle drag-to-resize; (3) add a two-finger pinch-to-scale in place, keep the slider as the desktop/accessible path, and fix the drag to preserve the grab offset.
+- **Decision:** Option 3.
+  - **Drag preserves the grab offset.** On finger-down the offset between the finger and the caption center is recorded; on move the caption keeps that offset, so it stays under the finger where it was grabbed instead of jumping.
+  - **Two fingers pinch to scale.** Pointers are tracked; with two down, scale = scale-at-pinch-start × (current finger distance ÷ start distance), clamped to the slider's 0.6–1.8 range and emitted live. One finger drags, two fingers scale — no mixed mode.
+  - **The slider stays** as the resize control for mouse/desktop and for assistive tech (pinch has no keyboard/AT equivalent).
+  - **The decorative corner dots are removed;** the selection border stays and the coach pill reads "Drag to move · pinch to resize", so the affordance matches what the gesture does.
+  - **Gesture math is extracted to pure functions** (`draggedPosition`, `pinchedScale`) and unit-tested; the pointer handlers are thin glue. jsdom returns zero-size rects and stubs pointer capture, so the gesture can't be driven through the DOM in unit tests — the math is tested directly and the live gesture is verified in the browser.
+- **Why:** The app is made and used on a phone, so the caption editor has to feel right under a thumb; Instagram's text tool is the reference — drag from wherever you grab, pinch to size. Snapping the center to the finger is what made the drag read as buggy. Pinch is the expected way to resize on touch; keeping the slider means desktop and assistive-tech users still have a control, and clamping to the same 0.6–1.8 range keeps both paths consistent. Corner dots that don't resize are a false affordance, so they go.
+
 # Chapter 6 — Lessons learned
 
 Working notes about *how* I worked on this, kept so I don't repeat the mistakes.
