@@ -77,7 +77,10 @@ export class StoryGeneratorService {
 
       return {
         frames,
-        partial: safetyDropped || frames.length < request.photos.length,
+        // Curating a subset of the batch is the whole job (the user dumps 30,
+        // we keep the best 5–7), not a failure — so only a safety-dropped photo
+        // makes a story "partial" (4.3, 2.4/2.5).
+        partial: safetyDropped,
       };
     }
   }
