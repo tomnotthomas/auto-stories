@@ -5,7 +5,8 @@
   #surface
   class="absolute inset-0 z-30 bg-black/40"
   (pointermove)="onDrag($event, surface)"
-  (pointerup)="endDrag($event)"
+  (pointerup)="endDrag($event, surface)"
+  (pointercancel)="endDrag($event, surface)"
 >
   <!-- Edit bar -->
   <div class="absolute inset-x-0 top-0 z-10 flex items-center px-2 pt-11 text-white">
@@ -16,24 +17,21 @@
     <button matButton (click)="done.emit()">Done</button>
   </div>
 
-  <!-- The caption, selected and placed. Drag anywhere on the box to move it. -->
+  <!-- The caption, selected and placed. Drag anywhere on the box with one finger
+       to move it; pinch with two fingers to resize. -->
   <div
     class="absolute z-10 w-[78%] max-w-[320px] -translate-x-1/2 -translate-y-1/2 touch-none select-none"
     [style.left.%]="posX()"
     [style.top.%]="posY()"
-    (pointerdown)="startDrag($event)"
+    (pointerdown)="startDrag($event, surface)"
   >
     <div class="pointer-events-none absolute -inset-4 rounded-lg border-[1.5px] border-white/95"></div>
-    <span class="pointer-events-none absolute -left-6 -top-6 h-4 w-4 rounded-full bg-white ring-2 ring-primary"></span>
-    <span class="pointer-events-none absolute -right-6 -top-6 h-4 w-4 rounded-full bg-white ring-2 ring-primary"></span>
-    <span class="pointer-events-none absolute -bottom-6 -left-6 h-4 w-4 rounded-full bg-white ring-2 ring-primary"></span>
-    <span class="pointer-events-none absolute -bottom-6 -right-6 h-4 w-4 rounded-full bg-white ring-2 ring-primary"></span>
 
     <div
       class="pointer-events-none absolute -top-12 left-1/2 flex -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-full bg-black/60 px-3 py-1.5 text-white"
     >
       <mat-icon class="h-[14px] w-[14px] text-[14px] leading-none">open_with</mat-icon>
-      <span class="mat-label-small">Drag to move</span>
+      <span class="mat-label-small">Drag to move · pinch to resize</span>
     </div>
 
     <div [class]="legibility() ? 'rounded-2xl bg-black/40 px-4 py-3' : 'px-1'">
