@@ -94,20 +94,21 @@ export class CaptionEditor implements OnInit {
     this.dragging = true;
   }
 
-  /** Drag within the editing band; the surface is the full-frame overlay. */
+  /** Drag within the editing band; the surface is the full-frame overlay. Only
+   * the local position updates on move (so the caption tracks the finger with no
+   * lag); the parent's placement is committed once on release. */
   protected onDrag(event: PointerEvent, surface: HTMLElement): void {
     if (!this.dragging) return;
     const rect = surface.getBoundingClientRect();
     if (!rect.width || !rect.height) return;
-    const xPct = clamp(((event.clientX - rect.left) / rect.width) * 100, DRAG_MIN_X, DRAG_MAX_X);
-    const yPct = clamp(((event.clientY - rect.top) / rect.height) * 100, DRAG_MIN_Y, DRAG_MAX_Y);
-    this.posX.set(xPct);
-    this.posY.set(yPct);
-    this.placementChange.emit({ xPct, yPct });
+    this.posX.set(clamp(((event.clientX - rect.left) / rect.width) * 100, DRAG_MIN_X, DRAG_MAX_X));
+    this.posY.set(clamp(((event.clientY - rect.top) / rect.height) * 100, DRAG_MIN_Y, DRAG_MAX_Y));
   }
 
   protected endDrag(event: PointerEvent): void {
+    if (!this.dragging) return;
     this.dragging = false;
     (event.target as HTMLElement).releasePointerCapture?.(event.pointerId);
+    this.placementChange.emit({ xPct: this.posX(), yPct: this.posY() });
   }
 }
