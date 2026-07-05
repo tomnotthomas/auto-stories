@@ -497,6 +497,18 @@ Resolving the production-readiness gaps the engineering review surfaced — what
 - **Why:** The textarea was the one hit target inside the box still offering the browser a native touch gesture to steal; setting `touch-action: none` on it removes that, so no `pointercancel` and the one drag runs to completion. Capturing on the box keeps capture on a stable, `touch-action:none` element rather than whatever child was touched. preventDefault (option 1) fights passive-listener rules and is less idiomatic than `touch-action`; a separate drag mode (option 2) is a bigger change for no extra benefit.
 - **Testing:** This is a `touch-action`/`pointercancel` regression that jsdom can't model (no real layout, no touch gestures), so it isn't unit-testable; the existing gesture-math unit tests stay green (99 pass). The fix is proven with a real-touch browser harness — before: 2 moves then `pointercancel`, ~10px; after: all 24 moves delivered, 0 `pointercancel`, the full 120×140px. Pinch and tap-to-type re-verified on real touch.
 
+### 5.19 Caption lives in one fixed always-visible band, not the lower third
+- **Problem:** The default caption placement was the lower third (`yPct 78`), which the refine bar and the edit sheet sit over, so the caption was partly hidden in most frames. To compensate, the editor lifted the caption to `yPct 34` on open and the view reverted to `78` on close, so tapping a caption moved it up and Done moved it back even when the user never dragged it.
+- **Options:** (1) keep the lower-third default and lift on open; (2) keep the lower-third default but slide the whole photo up while a sheet is open; (3) place the caption in one fixed band that clears the top and bottom bars, open the editor at the stored position, and clamp the drag to that band.
+- **Decision:** Option 3. Default `yPct 46`; the editor opens at the caption's stored `yPct` (no lift); the drag band is `yPct 14–58`, above the top edit bar and above the bottom sheet.
+- **Why:** WYSIWYG — the caption is always visible and stays exactly where it is shown, so it never jumps on open or snaps back on Done. The lift was the source of the jump, and the lower-third default was the source of the occlusion; both go. Option 2 keeps the classic lower third but still moves the caption on every edit.
+
+### 5.20 The story viewer preloads neighbour frames so the photo and progress bar stay in sync
+- **Problem:** The viewer rendered the full-resolution original (`URL.createObjectURL(file)`, up to several MB) in a single `<img>` whose `src` swapped on each tap. Decoding the new photo took time while the progress bar (CSS only) flipped instantly, so the bar ran ahead of the still-decoding photo and fast taps queued decodes.
+- **Options:** (1) downscale a screen-sized preview for the viewer; (2) keep the full-res original but keep the current ± 1 frames mounted so they are already decoded; (3) both.
+- **Decision:** Option 2. Render the current frame and its immediate neighbours as stacked layers, kept mounted with `opacity-0` (not `display:none`, which can skip decode). Only the current layer is opaque and the swap has no transition. At most 3 photos are mounted.
+- **Why:** A neighbour is already decoded before it becomes current, so paging swaps a ready image and the photo and the highlighted segment advance in the same paint — no lag, no bar/photo mismatch. Keeping the full-res original avoids a second image pipeline; the originals stay for a future export. Downscaling (option 1) is deferred until the export path exists.
+
 # Chapter 6 — Lessons learned
 
 Working notes about *how* I worked on this, kept so I don't repeat the mistakes.
