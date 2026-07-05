@@ -26,7 +26,12 @@ npm run dev      # starts the API (:3000) and the web app (:4200) together
 
 `npm run dev` runs both dev servers with live reload. The web dev server proxies `/api` → `http://localhost:3000` (see `apps/web/proxy.conf.json`), so the frontend talks to the real backend. The story engine needs `GOOGLE_CLOUD_API_KEY` in `.env` to generate; everything else runs without it.
 
-Requires **Node ≥22.22.3** (the Angular CLI floor — see `.nvmrc`). Run `nvm use` if you use nvm; `npm` warns if your version is too old.
+### Node version
+
+This repo needs **Node ≥22.22.3** — the Angular CLI floor, pinned in `.nvmrc`. On an older Node the web build and `npm test` fail with `The Angular CLI requires a minimum Node.js version of v22.22.3` (the API alone still runs).
+
+- **With a version manager:** run `nvm use` (or `fnm use`) in the repo root — it reads `.nvmrc` and switches you to the right version.
+- **Without one:** install Node 22.22.3+ directly ([nodejs.org](https://nodejs.org), or `brew install node`) and make sure `node -v` reports ≥22.22.3 before running anything.
 
 ## Common commands
 
