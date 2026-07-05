@@ -32,6 +32,15 @@ describe('Example', () => {
     expect(story.phase()).toBe('create');
   });
 
+  it('pages through the example frames', async () => {
+    const first = await harness.getCaptionText();
+    await harness.tapNext();
+    const second = await harness.getCaptionText();
+    expect(second).not.toBe(first);
+    await harness.tapPrev();
+    expect(await harness.getCaptionText()).toBe(first);
+  });
+
   it('opens the caption editor in demo mode when the caption is tapped', async () => {
     expect(await harness.getEditor()).toBeNull();
     await harness.tapCaption();

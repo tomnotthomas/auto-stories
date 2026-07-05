@@ -1,29 +1,48 @@
-<section class="relative flex h-full flex-col overflow-hidden bg-black text-white">
+<section
+  class="relative flex h-full flex-col overflow-hidden bg-black text-white"
+  (pointerdown)="onSwipeStart($event)"
+  (pointerup)="onSwipeEnd($event)"
+>
   <!-- The finished example frame. Decorative for the demo, so alt is empty. -->
-  <img src="sample/example-1.jpg" alt="" class="absolute inset-0 h-full w-full object-cover" />
+  <img [src]="current().src" alt="" class="absolute inset-0 h-full w-full object-cover" />
   <div class="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/80"></div>
+
+  <!-- Tap zones: left goes back, right advances (Stories convention). Tapping the
+       caption itself edits it; off while the editor is open. -->
+  @if (!editing()) {
+    <button
+      type="button"
+      aria-label="Previous frame"
+      (click)="prev()"
+      class="absolute bottom-32 left-0 top-20 z-10 w-2/5"
+    ></button>
+    <button
+      type="button"
+      aria-label="Next frame"
+      (click)="next()"
+      class="absolute bottom-32 right-0 top-20 z-10 w-3/5"
+    ></button>
+  }
 
   <!-- Story progress + author row. Hidden while editing so it can't bleed
        through behind the caption editor's own top bar. -->
   @if (!editing()) {
-    <header class="relative z-10 px-3 pt-11">
-    <div class="flex gap-1">
-      <span class="h-[3px] flex-1 rounded bg-white"></span>
-      <span class="h-[3px] flex-1 rounded bg-white"></span>
-      <span class="h-[3px] flex-1 rounded bg-white"></span>
-      <span class="h-[3px] flex-1 rounded bg-white/40"></span>
-      <span class="h-[3px] flex-1 rounded bg-white/40"></span>
-    </div>
-    <div class="flex items-center gap-2.5 p-3">
-      <span
-        class="mat-label-large flex h-8 w-8 items-center justify-center rounded-full bg-tertiary-container text-on-tertiary-container"
-        >M</span
-      >
-      <div class="mat-label-large">
-        Maya turns one
-        <small class="block font-normal text-white/75">An example we made — yours is next</small>
+    <header class="relative z-20 px-3 pt-11">
+      <div class="flex gap-1">
+        @for (frame of frames(); track frame.src) {
+          <span class="h-[3px] flex-1 rounded bg-white" [class.opacity-40]="$index > index()"></span>
+        }
       </div>
-    </div>
+      <div class="flex items-center gap-2.5 p-3">
+        <span
+          class="mat-label-large flex h-8 w-8 items-center justify-center rounded-full bg-tertiary-container text-on-tertiary-container"
+          >M</span
+        >
+        <div class="mat-label-large">
+          Maya turns one
+          <small class="block font-normal text-white/75">An example we made — yours is next</small>
+        </div>
+      </div>
     </header>
   }
 
@@ -31,33 +50,33 @@
        it opens the same editor the real flow uses, so the first open teaches it.
        Hidden while the editor is open so it doesn't ghost behind it. -->
   @if (!editing()) {
-  <div
-    class="absolute z-10 w-[78%] max-w-[320px] -translate-x-1/2 -translate-y-1/2"
-    [style.left.%]="placement().xPct"
-    [style.top.%]="placement().yPct"
-  >
-    @if (!coachSeen()) {
-      <div
-        class="mat-label-large coach-bob absolute -top-12 left-1/2 flex items-center gap-1.5 whitespace-nowrap rounded-full bg-primary px-3 py-1.5 text-on-primary shadow-lg"
-      >
-        <mat-icon class="h-[18px] w-[18px] text-[18px] leading-none">touch_app</mat-icon>
-        Tap to edit &amp; move
-      </div>
-    }
-    <button
-      type="button"
-      (click)="editCaption()"
-      class="story-caption relative block w-full rounded-2xl border-[1.5px] border-dashed border-white/60 text-center font-bold leading-tight text-white"
-      [class]="legibility() ? 'bg-black/40 px-4 py-3' : 'px-4 py-3'"
-      [style.fontSize.px]="fontSize()"
+    <div
+      class="absolute z-20 w-[78%] max-w-[320px] -translate-x-1/2 -translate-y-1/2"
+      [style.left.%]="current().placement.xPct"
+      [style.top.%]="current().placement.yPct"
     >
-      {{ caption() }}
-      <mat-icon
-        class="absolute -right-2.5 -top-2.5 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-[16px] text-on-primary shadow-lg"
-        >edit</mat-icon
+      @if (index() === 0 && !coachSeen()) {
+        <div
+          class="mat-label-large coach-bob absolute -top-12 left-1/2 flex items-center gap-1.5 whitespace-nowrap rounded-full bg-primary px-3 py-1.5 text-on-primary shadow-lg"
+        >
+          <mat-icon class="h-[18px] w-[18px] text-[18px] leading-none">touch_app</mat-icon>
+          Tap to edit &amp; move
+        </div>
+      }
+      <button
+        type="button"
+        (click)="editCaption()"
+        class="story-caption relative block w-full rounded-2xl border-[1.5px] border-dashed border-white/60 text-center font-bold leading-tight text-white"
+        [class]="current().legibility ? 'bg-black/40 px-4 py-3' : 'px-4 py-3'"
+        [style.fontSize.px]="fontSize()"
       >
-    </button>
-  </div>
+        {{ current().caption }}
+        <mat-icon
+          class="absolute -right-2.5 -top-2.5 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-[16px] text-on-primary shadow-lg"
+          >edit</mat-icon
+        >
+      </button>
+    </div>
   }
 
   <!-- Primary CTA, pinned 24px from the bottom (approach 5.6) -->
@@ -72,9 +91,9 @@
   @if (editing()) {
     <app-caption-editor
       [demo]="true"
-      [caption]="caption()"
-      [placement]="placement()"
-      [legibility]="legibility()"
+      [caption]="current().caption"
+      [placement]="current().placement"
+      [legibility]="current().legibility"
       (captionChange)="onCaption($event)"
       (placementChange)="onPlacement($event)"
       (legibilityToggle)="onLegibility()"
