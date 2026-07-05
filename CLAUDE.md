@@ -24,7 +24,7 @@ Auto Stories — a responsive web app (Angular frontend + NestJS backend, deploy
 - 3-step, payoff-first flow (not 6 steps): 3-step onboarding completes ~72% vs ~16% at 7 steps.
 - User picks photos + states intent (no fully automatic generation).
 - No auto-posting via Instagram API (needs business account + Meta app review). Post by hand-off: build frames → download / Web Share to phone → user multi-selects in Instagram.
-- Upload is one tap: on mobile the file input opens the OS native photo picker (multi-select, Recents-first); on desktop, drag-drop / browse / paste. Web can't auto-scan the library, so every phase brings the user to this same picker.
+- Upload is one tap: on mobile the file input opens the OS native photo picker (multi-select, Recents-first); on desktop, click-to-browse. Web can't auto-scan the library, so every phase brings the user to this same picker.
 - AI writes captions; user drags/resizes text placement.
 - Music, GIFs, interaction stickers are out; the app only suggests music search terms.
 - API uses NestJS URI-path versioning as standard — every endpoint is versioned in the path (`/api/v1/…`).
