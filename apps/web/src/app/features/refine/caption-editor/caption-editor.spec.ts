@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 
-import { CaptionEditor } from './caption-editor';
+import { CaptionEditor, draggedPosition, pinchedScale } from './caption-editor';
 import { CaptionEditorHarness } from './caption-editor.harness';
 import { DEFAULT_PLACEMENT, FramePlacement } from '../../../story/story.service';
 
@@ -92,5 +92,52 @@ describe('CaptionEditor', () => {
     instance.done.subscribe(() => (done = true));
     await harness.clickDone();
     expect(done).toBe(true);
+  });
+});
+
+// Gesture math is unit-tested directly: jsdom returns zero-size rects and stubs
+// pointer capture, so a drag/pinch can't be driven through the DOM here. The live
+// gesture is verified in the browser; this locks down the arithmetic.
+describe('draggedPosition (grab-offset drag)', () => {
+  it('keeps the caption under the finger — the grab offset is preserved, no jump', () => {
+    // Grabbed 8% left / 5% above the caption centre; moving the finger to 40,30
+    // must place the centre at 40-8, 30+... i.e. offset added back, not snapped.
+    const grabDX = 8; // centre was 8% to the right of the finger
+    const grabDY = -5; // centre was 5% above the finger
+    const { x, y } = draggedPosition(40, 30, grabDX, grabDY);
+    expect(x).toBe(48);
+    expect(y).toBe(25);
+  });
+
+  it('clamps within the editing band so the caption stays on-frame and clears the sheet', () => {
+    const low = draggedPosition(-100, -100, 0, 0);
+    const high = draggedPosition(200, 200, 0, 0);
+    // Below the min / above the max collapse onto the band edges.
+    expect(low.x).toBeGreaterThanOrEqual(0);
+    expect(low.y).toBeGreaterThanOrEqual(0);
+    expect(high.x).toBeLessThanOrEqual(100);
+    expect(high.y).toBeLessThanOrEqual(70);
+    expect(low.x).toBeLessThan(high.x);
+    expect(low.y).toBeLessThan(high.y);
+  });
+});
+
+describe('pinchedScale (two-finger resize)', () => {
+  it('scales in proportion to how far the fingers spread', () => {
+    // Fingers moved from 100px apart to 150px apart → 1.5× the start scale.
+    expect(pinchedScale(1, 100, 150)).toBe(1.5);
+  });
+
+  it('shrinks when the fingers come together', () => {
+    expect(pinchedScale(1, 200, 100)).toBe(0.6); // 0.5 clamped up to the floor
+  });
+
+  it('clamps to the slider range so text never vanishes or overflows', () => {
+    expect(pinchedScale(1.5, 100, 400)).toBe(1.8); // would be 6, clamped to max
+    expect(pinchedScale(1, 100, 10)).toBe(0.6); // would be 0.1, clamped to min
+  });
+
+  it('holds the start scale if the start distance is degenerate (no divide-by-zero)', () => {
+    expect(pinchedScale(1.2, 0, 120)).toBe(1.2);
   });
 });
