@@ -2,8 +2,8 @@ import { ValidationPipe, VersioningType } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { json } from 'express';
 
-/** ~1MB proxies × 10 photos, base64-inflated, with headroom. */
-const DEFAULT_JSON_LIMIT = '20mb';
+/** ~1MB proxies × 30 photos, base64-inflated, with headroom. */
+const DEFAULT_JSON_LIMIT = '50mb';
 
 export interface AppSetupOptions {
   /** Max JSON body before a 413 (e.g. '20mb'). */

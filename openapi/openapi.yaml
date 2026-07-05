@@ -6,7 +6,7 @@ info:
   description: |
     Contract between the Auto Stories web client and the NestJS backend.
 
-    One core route turns 3–10 photos plus the user's one-line "What's the story?"
+    One core route turns 3–30 photos plus the user's one-line "What's the story?"
     answer into an ordered, captioned story. This spec is the **source of truth**:
     the backend conforms to it, the frontend generates a typed client from it, and
     a mock server (Prism) serves the examples so both sides can be built in

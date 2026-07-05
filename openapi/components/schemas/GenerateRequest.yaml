@@ -13,8 +13,8 @@ properties:
     $ref: './Tone.yaml'
   photos:
     type: array
-    description: 3–10 downscaled photos.
+    description: 3–30 downscaled photos — a real dump the model selects from, not a pre-filtered handful.
     minItems: 3
-    maxItems: 10
+    maxItems: 30
     items:
       $ref: './Photo.yaml'
