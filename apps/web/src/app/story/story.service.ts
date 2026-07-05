@@ -45,8 +45,9 @@ export interface FramePlacement {
   readonly scale: number;
 }
 
-/** The AI's smart default: lower third, unscaled (1.5). */
-export const DEFAULT_PLACEMENT: FramePlacement = { xPct: 50, yPct: 78, scale: 1 };
+/** The smart default: centred in the always-visible band — high enough that the
+ * refine bar / edit sheet never cover it — unscaled (1.5). */
+export const DEFAULT_PLACEMENT: FramePlacement = { xPct: 50, yPct: 46, scale: 1 };
 
 /** A generated frame plus the state the user refines in place: the caption text,
  * where it sits, and whether it keeps its legibility background (5.3, 5.9). */

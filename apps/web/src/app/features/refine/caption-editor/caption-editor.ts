@@ -10,14 +10,14 @@ import { FramePlacement } from '../../../story/story.service';
 /** Caption font size at scale 1; the size slider multiplies it. */
 const BASE_FONT_PX = 24;
 /**
- * While editing, the caption is lifted into the upper area so it clears the
- * bottom sheet and stays readable (mockup refine-text.html: the selected caption
- * sits at the top, the controls at the bottom). Drag can move it within this
- * band; the smart lower-third default is kept unless the user actually drags.
+ * The caption lives in one fixed, always-visible band: high enough to clear the
+ * top edit bar, low enough to clear the bottom sheet. Opening the editor keeps
+ * the caption exactly where it is shown (no lift), so it never jumps on open or
+ * snaps back on Done; a drag is clamped to the same band so it can't be pushed
+ * behind either bar.
  */
-const EDIT_OPEN_Y = 34;
-const DRAG_MIN_Y = 12;
-const DRAG_MAX_Y = 62;
+const DRAG_MIN_Y = 14;
+const DRAG_MAX_Y = 58;
 const DRAG_MIN_X = 6;
 const DRAG_MAX_X = 94;
 
@@ -97,9 +97,9 @@ export class CaptionEditor implements OnInit {
 
   /** Local copy of the caption while editing, so typing never fights the parent. */
   protected readonly draft = signal('');
-  /** Where the caption sits *while editing* — lifted clear of the sheet. */
+  /** Where the caption sits while editing — its stored placement, unchanged. */
   protected readonly posX = signal(50);
-  protected readonly posY = signal(EDIT_OPEN_Y);
+  protected readonly posY = signal(DRAG_MIN_Y);
 
   /** Live finger positions (clientX/clientY) keyed by pointerId: 1 → drag, 2 → pinch. */
   private readonly pointers = new Map<number, { x: number; y: number }>();
@@ -117,10 +117,10 @@ export class CaptionEditor implements OnInit {
 
   ngOnInit(): void {
     this.draft.set(this.caption());
-    // Open at the frame's horizontal placement, but lifted so the text clears
-    // the sheet; a caption already placed high keeps its spot.
+    // Open exactly where the caption is displayed — no lift — so it doesn't jump
+    // on open or snap back on Done. Placement already lives in the visible band.
     this.posX.set(this.placement().xPct);
-    this.posY.set(Math.min(this.placement().yPct, EDIT_OPEN_Y));
+    this.posY.set(this.placement().yPct);
   }
 
   protected onCaptionInput(event: Event): void {
