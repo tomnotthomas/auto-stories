@@ -38,6 +38,8 @@ export class Story {
   /** True when the model dropped a photo but still built a story (4.3). */
   protected readonly partial = this.story.partial;
   protected readonly pickedCount = this.story.photoCount;
+  /** The photo pool is full — hide the "Add a photo" action (5.4). */
+  protected readonly isFull = this.story.isFull;
   protected readonly coachSeen = this.story.coachSeen;
   protected readonly bannerDismissed = signal(false);
 
@@ -193,8 +195,19 @@ export class Story {
     }
   }
 
-  /** Refine: caption the photo(s) just added in the filmstrip and append them,
-   * keeping the existing frames and their placements — no full rebuild (2.5). */
+  /** Refine: pick photo(s) from the "Add a photo" action and append them to the
+   * story, keeping the existing frames and placements — no full rebuild (2.5). */
+  protected async onAddPhotos(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    if (input.files?.length) {
+      this.story.addPhotos(Array.from(input.files));
+      await this.appendPhotos();
+    }
+    input.value = ''; // let the same file be re-picked
+  }
+
+  /** Refine: caption the photo(s) just added and append them, keeping the
+   * existing frames and their placements — no full rebuild (2.5). */
   protected async appendPhotos(): Promise<void> {
     if (this.storyBusy()) return;
     this.storyBusy.set(true);

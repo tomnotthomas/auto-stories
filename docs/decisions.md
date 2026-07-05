@@ -509,6 +509,12 @@ Resolving the production-readiness gaps the engineering review surfaced — what
 - **Decision:** Option 2. Render the current frame and its immediate neighbours as stacked layers, kept mounted with `opacity-0` (not `display:none`, which can skip decode). Only the current layer is opaque and the swap has no transition. At most 3 photos are mounted.
 - **Why:** A neighbour is already decoded before it becomes current, so paging swaps a ready image and the photo and the highlighted segment advance in the same paint — no lag, no bar/photo mismatch. Keeping the full-res original avoids a second image pipeline; the originals stay for a future export. Downscaling (option 1) is deferred until the export path exists.
 
+### 5.21 "Add a photo" is a first-class action in the refine bar, not only inside Reorder & remove
+- **Problem:** Appending a photo to a finished story (5.16) was only reachable via Refine → "Reorder & remove" → the Add tile at the end of the filmstrip. Neither the viewer nor the refine bar names "add a photo", so the action sat three levels deep behind a label ("Reorder & remove") that does not mention adding.
+- **Options:** (1) leave it in the manage screen only; (2) relabel "Reorder & remove"; (3) surface a dedicated "Add a photo" button in the refine bar.
+- **Decision:** Option 3. A full-width "Add a photo" button sits in the refine action bar, above Reorder & remove / Regenerate, hidden once the pool is full (5.4). It reuses the filmstrip Add pipeline: pick → `addPhotos` → append each new photo as a captioned frame, no rebuild (5.16).
+- **Why:** The append capability already existed but was undiscoverable at that depth and label; a named button one tap into refine makes adding a photo a first-class action. Reusing the existing append path keeps the other frames' placements intact and adds no new generation logic.
+
 # Chapter 6 — Lessons learned
 
 Working notes about *how* I worked on this, kept so I don't repeat the mistakes.

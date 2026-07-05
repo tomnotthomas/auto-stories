@@ -4,12 +4,17 @@ import type { Frame } from '@auto-stories/api-types';
 
 import { Story } from './story';
 import { StoryHarness } from './story.harness';
-import { StoryService } from '../../story/story.service';
+import { MAX_PHOTOS, StoryService } from '../../story/story.service';
+import { GenerationService } from '../../story/generation.service';
 
 const frames: Frame[] = [
   { photoId: 'a', order: 1, caption: 'Everyone made it to the lake' },
   { photoId: 'b', order: 2, caption: 'Then she blew out the candle' },
 ];
+
+function imageFile(name: string): File {
+  return new File(['bytes'], name, { type: 'image/jpeg' });
+}
 
 describe('Story', () => {
   let story: StoryService;
@@ -124,6 +129,65 @@ describe('Story', () => {
       // Back in view mode: tap zones page the story again.
       await harness.tapNext();
       expect(await harness.getCaption()).toBe('Then she blew out the candle');
+    });
+  });
+
+  describe('add a photo', () => {
+    it('surfaces an Add-a-photo action directly in the refine bar', async () => {
+      const harness = await render();
+      await harness.clickRefine();
+      expect(await harness.hasAddPhotoButton()).toBe(true);
+    });
+
+    it('hides Add-a-photo once the photo pool is full', async () => {
+      URL.createObjectURL = () => 'blob:mock';
+      URL.revokeObjectURL = () => undefined;
+      await TestBed.configureTestingModule({ imports: [Story] }).compileComponents();
+      story = TestBed.inject(StoryService);
+      story.addPhotos(Array.from({ length: MAX_PHOTOS }, (_, i) => imageFile(`p${i}.jpg`)));
+      story.completeStory(
+        story.photos().map((p, i) => ({ photoId: p.id, order: i + 1, caption: `c${i}` })),
+        false,
+      );
+      const fixture = TestBed.createComponent(Story);
+      const harness = await TestbedHarnessEnvironment.harnessForFixture(fixture, StoryHarness);
+      await harness.clickRefine();
+      expect(await harness.hasAddPhotoButton()).toBe(false);
+    });
+
+    it('adds a picked photo to the pool and appends it without a full rebuild', async () => {
+      URL.createObjectURL = () => 'blob:mock';
+      URL.revokeObjectURL = () => undefined;
+      let appendCalls = 0;
+      let rebuildCalls = 0;
+      const generation: Pick<
+        GenerationService,
+        'captionNewPhotos' | 'generate' | 'regenerateCaption'
+      > = {
+        captionNewPhotos: async () => {
+          appendCalls++;
+        },
+        generate: async () => {
+          rebuildCalls++;
+        },
+        regenerateCaption: async () => true,
+      };
+      await TestBed.configureTestingModule({
+        imports: [Story],
+        providers: [{ provide: GenerationService, useValue: generation }],
+      }).compileComponents();
+      story = TestBed.inject(StoryService);
+      story.completeStory(frames, false);
+      const fixture = TestBed.createComponent(Story);
+      const before = story.photoCount();
+
+      await (
+        fixture.componentInstance as unknown as { onAddPhotos(e: Event): Promise<void> }
+      ).onAddPhotos({ target: { files: [imageFile('new.jpg')], value: '' } } as unknown as Event);
+
+      expect(story.photoCount()).toBe(before + 1);
+      expect(appendCalls).toBe(1);
+      expect(rebuildCalls).toBe(0);
     });
   });
 });
