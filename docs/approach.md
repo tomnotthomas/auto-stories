@@ -174,7 +174,7 @@ The technical decisions for building Phase 1 (create the story).
 - **Problem:** Going to a web app, the user has to upload photos themselves — there's no camera-roll access like a native app. Uploading has to be frictionless, and it's the first step of every phase (and every recurring cycle in Phase 3).
 - **Options:** a plain file-browser dialog; a custom uploader UI; a standard `<input type="file" accept="image/*" multiple>`.
 - **Decision:** A standard multi-select file input, styled as one big "Add photos" target.
-- **Why:** On mobile, that input opens the OS **native photo picker** (multi-select, Recents-first) — the same grid a native app shows, with no library-scan permission on our side, so "manual upload" is really one tap + a few selections. On desktop it also takes drag-drop / click-to-browse / paste. Recents-first is what makes Phase 3's "make a story from last week" quick. This is why the web pivot (3.9) doesn't hurt the flow: the only phase where auto-scan would have helped is Phase 3, and the native picker's Recents view covers it.
+- **Why:** On mobile, that input opens the OS **native photo picker** (multi-select, Recents-first) — the same grid a native app shows, with no library-scan permission on our side, so "manual upload" is really one tap + a few selections. On desktop the same input is click-to-browse. Recents-first is what makes Phase 3's "make a story from last week" quick. This is why the web pivot (3.9) doesn't hurt the flow: the only phase where auto-scan would have helped is Phase 3, and the native picker's Recents view covers it.
 
 ### 3.12 API versioning
 - **Problem:** Production-like and meant to scale — the API contract will change, and existing clients shouldn't break when it does.
@@ -427,6 +427,12 @@ Resolving the production-readiness gaps the engineering review surfaced — what
   - **Paging is real and taught.** Tap zones work in refine too, a swipe left/right pages the story, and a one-time hint ("Tap or swipe the photo to move through the story") shows until first use.
   - The coach mark gently bobs (reduced-motion aware), as in the mockup.
 - **Why:** Ghost text and controls-on-the-photo failed the "don't make me think" bar — direct manipulation only works if the thing you touch is the only copy and the management controls sit on their own clean surface. A caption you can't see under the sheet can't be edited, so it lifts. Paging that gives no signal reads as broken, so it's both shown (hint) and offered two ways (tap + swipe).
+
+### 5.13 Desktop upload is click-to-browse only (no drag-drop / paste)
+- **Problem:** The spec listed desktop upload as drag-drop / click-to-browse / paste — three ways in.
+- **Options:** (1) build all three; (2) keep only the file-input click-to-browse.
+- **Decision:** Option 2 — one file input, click-to-browse on desktop and the native picker on mobile. Drag-drop and paste are cut.
+- **Why:** The file input already covers desktop upload; drag-drop and paste add code without letting the user do anything they couldn't already, so they're not worth building for the MVP.
 
 # Chapter 6 — Lessons learned
 
