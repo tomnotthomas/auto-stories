@@ -6,41 +6,54 @@
     <h1 class="mat-title-medium">New story</h1>
   </div>
 
-  <!-- Auto-sizing photo grid: fills the top, holds 3–10, fewer = bigger (5.4) -->
-  <div class="grid flex-1 auto-rows-fr grid-cols-3 gap-[3px] overflow-hidden">
-    @for (photo of story.photos(); track photo.id) {
-      <div class="relative overflow-hidden">
-        <img [src]="photo.previewUrl" alt="" class="absolute inset-0 h-full w-full object-cover" />
-        <button
-          type="button"
-          aria-label="Remove photo"
-          (click)="story.removePhoto(photo.id)"
-          class="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur-sm"
+  @if (story.photoCount() === 0) {
+    <!-- Empty state: one centered upload prompt filling the area, not a lone
+         stretched tile in the corner. -->
+    <label
+      class="m-4 flex flex-1 cursor-pointer flex-col items-center justify-center gap-2 rounded-3xl border-2 border-dashed border-outline-variant bg-surface-container-high text-primary"
+    >
+      <input type="file" accept="image/*" multiple hidden aria-label="Add photos" (change)="onPick($event)" />
+      <mat-icon class="h-12 w-12 text-5xl leading-none">add_photo_alternate</mat-icon>
+      <span class="mat-title-medium">Add your photos</span>
+      <span class="mat-label-medium text-on-surface-variant">Pick 3–10 to start your story</span>
+    </label>
+  } @else {
+    <!-- Auto-sizing photo grid: fills the top, holds 3–10, fewer = bigger (5.4) -->
+    <div class="grid flex-1 auto-rows-fr grid-cols-3 gap-[3px] overflow-hidden">
+      @for (photo of story.photos(); track photo.id) {
+        <div class="relative overflow-hidden">
+          <img [src]="photo.previewUrl" alt="" class="absolute inset-0 h-full w-full object-cover" />
+          <button
+            type="button"
+            aria-label="Remove photo"
+            (click)="story.removePhoto(photo.id)"
+            class="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur-sm"
+          >
+            <mat-icon class="h-4 w-4 text-base leading-none">close</mat-icon>
+          </button>
+        </div>
+      }
+      @if (!story.isFull()) {
+        <label
+          class="flex cursor-pointer flex-col items-center justify-center gap-0.5 bg-surface-container-high text-primary"
         >
-          <mat-icon class="h-4 w-4 text-base leading-none">close</mat-icon>
-        </button>
-      </div>
-    }
-    @if (!story.isFull()) {
-      <label
-        class="flex cursor-pointer flex-col items-center justify-center gap-0.5 bg-surface-container-high text-primary"
-      >
-        <input
-          type="file"
-          accept="image/*"
-          multiple
-          hidden
-          aria-label="Add photos"
-          (change)="onPick($event)"
-        />
-        <mat-icon>add_photo_alternate</mat-icon>
-        <span class="mat-label-large">Add</span>
-        <small class="mat-label-medium text-on-surface-variant"
-          >{{ story.photoCount() }} / {{ maxPhotos }}</small
-        >
-      </label>
-    }
-  </div>
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            hidden
+            aria-label="Add photos"
+            (change)="onPick($event)"
+          />
+          <mat-icon>add_photo_alternate</mat-icon>
+          <span class="mat-label-large">Add</span>
+          <small class="mat-label-medium text-on-surface-variant"
+            >{{ story.photoCount() }} / {{ maxPhotos }}</small
+          >
+        </label>
+      }
+    </div>
+  }
 
   <!-- Story line + tone + submit -->
   <div class="flex flex-none flex-col gap-3.5 bg-surface px-5 pb-6 pt-4">
@@ -50,10 +63,12 @@
         matInput
         #storyInput
         cdkTextareaAutosize
-        cdkAutosizeMinRows="1"
-        cdkAutosizeMaxRows="3"
+        [cdkAutosizeMinRows]="storyFocused() ? 3 : 1"
+        cdkAutosizeMaxRows="5"
         [value]="story.storyLine()"
         (input)="story.setStoryLine(storyInput.value)"
+        (focus)="storyFocused.set(true)"
+        (blur)="storyFocused.set(false)"
         placeholder="Maya's 1st birthday at the lake house, all the cousins came"
       ></textarea>
       <mat-hint>What happened, and the feeling.</mat-hint>

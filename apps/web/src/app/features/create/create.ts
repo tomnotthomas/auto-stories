@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -36,6 +36,8 @@ export class Create {
   protected readonly story = inject(StoryService);
   protected readonly maxPhotos = MAX_PHOTOS;
   protected readonly maxStoryLength = MAX_STORY_LENGTH;
+  /** The story field grows to give more room while it's focused (being typed in). */
+  protected readonly storyFocused = signal(false);
 
   /** Tone chips — the labels shown; the value is the contract Tone enum. */
   protected readonly tones: readonly ToneChip[] = [
