@@ -108,6 +108,23 @@ The decisions that make the generated story *good*: which photo leads, how the p
 - **Decision:** Interactive example-first. On first open, show a finished, swipeable example Story (real output, not a clip) with one CTA — **"Try it with your photos"** → straight to upload. No demo video.
 - **Why:** A blank canvas is silent churn; pre-filled examples get users to value faster (Notion templates, Sprout Social's fake-data demo) ([appcues](https://www.appcues.com/blog/aha-moment-examples), [chameleon](https://www.chameleon.io/blog/successful-user-onboarding)). Interactive demos beat passive video — Grammarly shows the product working live rather than a clip ([appcues](https://www.appcues.com/blog/shortening-your-time-to-wow)) — and users who hit an interactive demo are ~80% more likely to complete the next steps ([userpilot](https://userpilot.com/blog/saas-signup-flow/)). An interactive example lets the user feel the platform, see exactly what to expect, and gauge how well it works — cutting the uncertainty a video can't. It's cheap (bundle sample photos + one pre-generated story) and matches the value-first flow (1.1) and the narrative-first reveal (2.1).
 
+### 2.4 How many photos can the user bring in?
+- **Problem:** The pick was capped at 10 photos. A day out easily produces 30+ shots, so a 10-cap forces the user to hand-pick the best ones *before* the app ever sees them — which is exactly the work the app is supposed to do (choose the good photos out of a real dump). At 10, there's nothing left to choose from.
+- **Options:** keep the 10 cap; raise the cap so the user dumps a whole batch and the AI does the selecting.
+- **Decision:** Raise the pick to **30 photos**. The user dumps the day; the AI decides which ones make the story (it already receives every photo and selects — 3.3).
+- **Why:** A 10-photo limit is a pre-filter the *user* does, which defeats the point — the app's core value is picking and ordering the best shots for you. 30 lets the user hand over a real camera-roll batch and actually get that. 30 is still cheap for the model: each photo is sent as a small ~1024px proxy (3.4), and the server re-checks the count so a crafted client can't exceed it (4.2). Supersedes the "~10" count in [3.4](#34-how-many-photos-and-what-size) (the photo *size* rule there is unchanged).
+
+### 2.5 How long should the generated story be?
+- **Problem:** Stories came out too short — the model often cut a good 10-photo day down to 3–4 frames, dropping shots the user wanted. The prompt only said "short, coherent" with no target, so the model trimmed to the bone. How many frames should a story aim for?
+- **Options:** no target (let the model decide — stays short); keep every good photo (longest possible); target the length that keeps viewers watching to the end.
+- **Decision:** Aim for **5–7 frames, up to ~10** when the day genuinely has that many distinct moments. Cut only near-duplicate, blurry, or redundant shots — not good photos just because there are many. Put the **strongest photo first**.
+- **Why:** This is set by how people actually watch Stories, not by taste. The case-study numbers:
+  - Stories with **3–7 frames get the best engagement**, and viewer retention starts to fall once a story runs past ~5–7 frames ([usevisuals](https://usevisuals.com/blog/instagram-stories-best-practices)).
+  - The average Story **completion rate is ~70%**; very short sequences (under 4 frames) do slightly better — but cutting to 3 throws away real moments, so **5–7 is the balance** between telling the whole day and still being watched to the end ([socialinsider](https://www.socialinsider.io/social-media-benchmarks/instagram-stories-benchmarks)).
+  - The **first frame decides the rest: ~23.8% of viewers leave after frame one**, and those who reach frame two are far more likely to finish the whole story ([socialinsider](https://www.socialinsider.io/social-media-benchmarks/instagram-stories-benchmarks)). So the strongest photo leads (this is the same hook-first order as 2.1), and each frame makes one clear point.
+- So the fix for "too short" is *not* "as long as possible" — a 15-frame story loses viewers. It's raising the floor to the engagement sweet spot (5–7). "No target" was rejected because it's what made stories too short; "keep every good photo" was rejected because past ~7 frames people stop watching.
+- **Escape hatch:** when the user still wants a specific extra beat the AI didn't pick, refine lets them **add one photo and caption just that photo**, without a full rebuild that would reset their edits.
+
 ---
 
 # Chapter 3 — Locking the Phase 1 architecture
