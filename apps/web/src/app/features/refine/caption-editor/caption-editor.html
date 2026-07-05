@@ -1,6 +1,12 @@
 <!-- Overlays the frame photo (rendered by the parent). Dims it so the controls
-     read, and captures taps so a tap outside the caption doesn't page the story. -->
-<div class="absolute inset-0 z-30 bg-black/30">
+     read, and captures taps so a tap outside the caption doesn't page the story.
+     #surface is the drag reference for the caption. -->
+<div
+  #surface
+  class="absolute inset-0 z-30 bg-black/40"
+  (pointermove)="onDrag($event, surface)"
+  (pointerup)="endDrag($event)"
+>
   <!-- Edit bar -->
   <div class="absolute inset-x-0 top-0 z-10 flex items-center px-2 pt-11 text-white">
     <button matIconButton aria-label="Close editor" (click)="done.emit()">
@@ -13,11 +19,9 @@
   <!-- The caption, selected and placed. Drag anywhere on the box to move it. -->
   <div
     class="absolute z-10 w-[78%] max-w-[320px] -translate-x-1/2 -translate-y-1/2 touch-none select-none"
-    [style.left.%]="placement().xPct"
-    [style.top.%]="placement().yPct"
+    [style.left.%]="posX()"
+    [style.top.%]="posY()"
     (pointerdown)="startDrag($event)"
-    (pointermove)="onDrag($event)"
-    (pointerup)="endDrag($event)"
   >
     <div class="pointer-events-none absolute -inset-4 rounded-lg border-[1.5px] border-white/95"></div>
     <span class="pointer-events-none absolute -left-6 -top-6 h-4 w-4 rounded-full bg-white ring-2 ring-primary"></span>
@@ -44,11 +48,12 @@
     </div>
   </div>
 
-  <!-- Bottom sheet: size, regenerate, legibility (mockup refine-text.html) -->
+  <!-- Bottom sheet: size, then Regenerate + Legibility (mockup refine-text.html) -->
   <div
-    class="absolute inset-x-0 bottom-0 z-10 flex flex-col gap-4 rounded-t-3xl bg-surface-container-low px-5 pb-6 pt-3 text-on-surface"
+    class="absolute inset-x-0 bottom-0 z-10 flex flex-col gap-3 rounded-t-3xl bg-surface-container-low px-5 pb-6 pt-3 text-on-surface"
   >
     <span class="mx-auto h-1 w-8 rounded-full bg-outline-variant"></span>
+    <span class="mat-label-medium text-on-surface-variant">Text size</span>
     <div class="flex items-center gap-3">
       <span class="font-bold">A</span>
       <mat-slider class="flex-1" min="0.6" max="1.8" step="0.1" aria-label="Text size">
@@ -56,9 +61,9 @@
       </mat-slider>
       <span class="text-xl font-bold">A</span>
     </div>
-    <div class="flex items-center justify-between gap-3">
+    <div class="flex items-stretch gap-3">
       @if (!demo()) {
-        <button matButton="outlined" [disabled]="busy()" (click)="regenerate.emit()">
+        <button matButton="outlined" class="flex-1" [disabled]="busy()" (click)="regenerate.emit()">
           @if (busy()) {
             <mat-spinner diameter="18" />
           } @else {
@@ -67,9 +72,15 @@
           Regenerate
         </button>
       }
-      <mat-slide-toggle [checked]="legibility()" (change)="legibilityToggle.emit()"
-        >Legibility</mat-slide-toggle
+      <button
+        [matButton]="legibility() ? 'tonal' : 'outlined'"
+        class="flex-1"
+        [attr.aria-pressed]="legibility()"
+        (click)="legibilityToggle.emit()"
       >
+        <mat-icon>contrast</mat-icon>
+        Legibility
+      </button>
     </div>
   </div>
 </div>

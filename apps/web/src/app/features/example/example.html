@@ -28,7 +28,9 @@
   }
 
   <!-- Caption: coach mark + the editable text layer (approach 5.5 / 5.9). Tapping
-       it opens the same editor the real flow uses, so the first open teaches it. -->
+       it opens the same editor the real flow uses, so the first open teaches it.
+       Hidden while the editor is open so it doesn't ghost behind it. -->
+  @if (!editing()) {
   <div
     class="absolute z-10 w-[78%] max-w-[320px] -translate-x-1/2 -translate-y-1/2"
     [style.left.%]="placement().xPct"
@@ -36,7 +38,7 @@
   >
     @if (!coachSeen()) {
       <div
-        class="mat-label-large absolute -top-12 left-1/2 flex -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-full bg-primary px-3 py-1.5 text-on-primary shadow-lg"
+        class="mat-label-large coach-bob absolute -top-12 left-1/2 flex items-center gap-1.5 whitespace-nowrap rounded-full bg-primary px-3 py-1.5 text-on-primary shadow-lg"
       >
         <mat-icon class="h-[18px] w-[18px] text-[18px] leading-none">touch_app</mat-icon>
         Tap to edit &amp; move
@@ -56,6 +58,7 @@
       >
     </button>
   </div>
+  }
 
   <!-- Primary CTA, pinned 24px from the bottom (approach 5.6) -->
   <div class="absolute inset-x-4 bottom-6 z-20">
