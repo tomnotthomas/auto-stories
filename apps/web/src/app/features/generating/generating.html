@@ -1,6 +1,13 @@
 <section class="relative flex h-full flex-col overflow-hidden bg-black text-white">
-  @if (backgroundUrl(); as url) {
-    <img [src]="url" alt="" class="absolute inset-0 h-full w-full object-cover" />
+  <!-- The user's photos, stacked; the active one fades in over the previous. -->
+  @for (photo of photos(); track photo.id; let i = $index) {
+    <img
+      [src]="photo.previewUrl"
+      alt=""
+      class="absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ease-in-out"
+      [class.opacity-100]="i === activePhoto()"
+      [class.opacity-0]="i !== activePhoto()"
+    />
   }
   <div class="absolute inset-0 bg-gradient-to-b from-black/50 via-black/20 to-black/95"></div>
 
