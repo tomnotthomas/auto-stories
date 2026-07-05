@@ -5,7 +5,7 @@
 it. Building the contract first lets both sides be developed in parallel and
 gives a new developer a one-page map of every route.
 
-Spec version: **OpenAPI 3.1**. Reasoning: `../docs/approach.md` (3.14); shapes
+Spec version: **OpenAPI 3.1**. Reasoning: `../docs/decisions.md` (3.14); shapes
 mirror `../docs/phase-1/architecture.md`.
 
 ## Layout

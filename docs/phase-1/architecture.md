@@ -1,6 +1,6 @@
 # Auto Stories — Phase 1 Architecture
 
-How Phase 1 ([spec](spec.md)) is built and deployed: a responsive **web app** where the user uploads photos + one "What's the story?" line (+ optional tone) and gets back an ordered, captioned story, previewed with draggable captions. Reasoning lives in [`approach.md`](../approach.md) (Chapter 3; the story-quality decisions are Chapter 2).
+How Phase 1 ([spec](spec.md)) is built and deployed: a responsive **web app** where the user uploads photos + one "What's the story?" line (+ optional tone) and gets back an ordered, captioned story, previewed with draggable captions. Reasoning lives in [`decisions.md`](../decisions.md) (Chapter 3; the story-quality decisions are Chapter 2).
 
 ## Decisions at a glance
 

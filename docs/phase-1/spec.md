@@ -37,7 +37,7 @@ Making Instagram stories takes too much effort — choosing text and a narrative
 - **Music suggestions** → Phase 2.
 - **Connecting an Instagram account, posting cadence, the recurring journal** → Phase 3.
 
-**Out of scope (cut for good — reasons in `approach.md`):**
+**Out of scope (cut for good — reasons in `decisions.md`):**
 - Video; music (audio); media editing (filters/contrast); animated GIFs & interaction stickers; automatic posting via the Instagram API.
 
 ## User Flow (2 steps)

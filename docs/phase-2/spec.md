@@ -19,4 +19,4 @@ Move a finished story from the app onto the user's Instagram Story with the leas
 - Music (audio), animated GIFs, interaction stickers — the user adds these in Instagram.
 
 ## Why hand-off, not API
-Publishing programmatically requires a Business/Creator account, a linked Facebook Page, and Meta App Review (weeks). Personal accounts are excluded. The hand-off needs none of that and keeps the user in control of the final post. (Full reasoning in `approach.md`.)
+Publishing programmatically requires a Business/Creator account, a linked Facebook Page, and Meta App Review (weeks). Personal accounts are excluded. The hand-off needs none of that and keeps the user in control of the final post. (Full reasoning in `decisions.md`.)
