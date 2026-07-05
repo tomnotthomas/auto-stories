@@ -483,6 +483,12 @@ Resolving the production-readiness gaps the engineering review surfaced — what
 - **Decision:** Append. Each added photo becomes a new frame at the end with an AI caption; existing frames, captions, and placements stay exactly as they were. The photo id is sent to the model as a `mustInclude` field so it is always captioned, even past the 5–7 target. If generation fails, the photo is still appended with an empty caption for the user to type or regenerate — it never silently disappears.
 - **Why:** A rebuild that throws away the user's refine work is a bad surprise; appending is the least-destructive way to extend a story past the AI's pick. `mustInclude` is what makes it reliable — without it the model would routinely drop a hand-added photo, which is exactly the one the user wants kept. This is the escape hatch named in 2.5, and it supersedes the "adding a photo triggers the same rebuild" note in 5.11.
 
+### 5.17 Delete the `design/` folder — the built app is the design reference
+- **Problem:** The `design/` folder held static HTML mockups, a palette, and a theme preview from before the app existed. Now that the flow is built, the same design lives in two places that can drift.
+- **Options:** keep the mockups/theme preview as reference; delete the folder.
+- **Decision:** Delete `design/`.
+- **Why:** The design is now implemented in the running app — the color theme is the SCSS Material theme (`--mat-sys-*` tokens, 5.2) and the UI is standard Material components, so opening the app shows the real design and theme. The mockups and the separate theme preview duplicate that, add clutter, and can go out of sync with the code. There is no second theme to keep.
+
 # Chapter 6 — Lessons learned
 
 Working notes about *how* I worked on this, kept so I don't repeat the mistakes.
