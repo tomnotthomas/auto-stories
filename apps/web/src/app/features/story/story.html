@@ -22,14 +22,16 @@
       ></button>
     }
 
-    <header class="relative z-20 flex gap-1 px-3 pt-11">
-      @for (f of frames(); track f.photoId) {
-        <span
-          class="h-[3px] flex-1 rounded bg-white"
-          [class.opacity-40]="$index > currentIndex()"
-        ></span>
-      }
-    </header>
+    @if (!editingFrame()) {
+      <header class="relative z-20 flex gap-1 px-3 pt-11">
+        @for (f of frames(); track f.photoId) {
+          <span
+            class="h-[3px] flex-1 rounded bg-white"
+            [class.opacity-40]="$index > currentIndex()"
+          ></span>
+        }
+      </header>
+    }
 
     @if (partial() && !bannerDismissed() && !refining()) {
       <div
