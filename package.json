@@ -8,15 +8,25 @@
     "packages/*",
     "apps/*"
   ],
+  "engines": {
+    "node": ">=22.22.3"
+  },
   "scripts": {
+    "dev": "concurrently -n api,web -c blue,green \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:api": "npm run start:dev -w @auto-stories/api",
+    "dev:web": "npm start -w web",
+    "build": "npm run build -w @auto-stories/api -w web",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
     "openapi:lint": "redocly lint openapi/openapi.yaml --config openapi/redocly.yaml",
     "openapi:bundle": "redocly bundle openapi/openapi.yaml --config openapi/redocly.yaml -o openapi/openapi.bundled.yaml",
     "openapi:preview": "scalar document serve openapi/openapi.yaml",
     "openapi:mock": "prism mock openapi/openapi.yaml",
-    "openapi:types": "kubb generate --config packages/api-types/kubb.config.ts",
-    "typecheck": "npm run typecheck --workspaces --if-present"
+    "openapi:types": "kubb generate --config packages/api-types/kubb.config.ts"
   },
   "devDependencies": {
+    "concurrently": "^9.1.2",
     "@kubb/cli": "^4.39.2",
     "@kubb/core": "^4.39.2",
     "@kubb/plugin-oas": "^4.39.2",
