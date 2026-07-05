@@ -9,10 +9,21 @@ import type { Tone } from '@auto-stories/api-types';
  * what's visible (strongest hook first → payoff, 2.1), use capture time only as
  * a soft hint, and write specific, grounded captions in the requested tone.
  */
-export function buildPrompt(story: string, tone?: Tone): string {
+export function buildPrompt(
+  story: string,
+  tone?: Tone,
+  mustInclude?: readonly string[],
+): string {
   const toneLine = tone
     ? `\n- Match this tone: ${tone}. Let it color word choice, not the facts.`
     : '';
+
+  // Photos added by hand during refine must appear and be captioned, even if
+  // the story is already at the target length (decision 2.5).
+  const includeLine =
+    mustInclude && mustInclude.length
+      ? `\n- You MUST include these photos and give each its own caption, even beyond the 5–7 target — they were added by hand: ${mustInclude.join(', ')}.`
+      : '';
 
   return [
     'You arrange a batch of photos into a coherent Instagram Story.',
@@ -27,6 +38,7 @@ export function buildPrompt(story: string, tone?: Tone): string {
     '- Order by the story line and what is actually visible in each photo, NOT by the capture timestamp (treat any timestamp as a soft hint only).',
     '- Write one caption per chosen photo, each making one clear point. Ground it in the specifics the user gave (names, occasion, place) and in what the photo shows, so it feels true rather than generic.',
     toneLine,
+    includeLine,
     '',
     'Return only the chosen photos, each as a frame with its photoId, its 1-based order, and its caption.',
   ]

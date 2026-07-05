@@ -158,6 +158,21 @@ export class StoryService {
     this._phase.set('story');
   }
 
+  /** Refine: add a hand-picked photo as a new frame at the end, keeping the
+   * existing frames and their placements untouched (used by "Add photo", 2.5).
+   * The caption is set by the caller; order/placement/legibility are defaulted.
+   * A photoId already in the story is ignored. */
+  appendFrame(frame: Frame): void {
+    this._frames.update((frames) => {
+      if (frames.some((f) => f.photoId === frame.photoId)) return frames;
+      const nextOrder = frames.reduce((max, f) => Math.max(max, f.order), 0) + 1;
+      return [
+        ...frames,
+        { ...frame, order: nextOrder, placement: DEFAULT_PLACEMENT, legibility: true },
+      ];
+    });
+  }
+
   /** Refine: rewrite a frame's caption (manual edit or per-caption regenerate). */
   setCaption(photoId: string, caption: string): void {
     this._frames.update((frames) =>

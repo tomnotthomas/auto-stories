@@ -31,4 +31,10 @@ export class GenerateRequestDto implements GenerateRequest {
   @ValidateNested({ each: true })
   @Type(() => PhotoDto)
   photos!: PhotoDto[];
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(30)
+  @IsString({ each: true })
+  mustInclude?: string[];
 }

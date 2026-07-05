@@ -95,6 +95,13 @@ describe('App (e2e)', () => {
         .expect(200);
     });
 
+    it('accepts a mustInclude list (hand-added photo during refine)', async () => {
+      await request(app.getHttpServer())
+        .post('/api/v1/generate')
+        .send({ story: 'add one more', photos: photos(4), mustInclude: ['p4'] })
+        .expect(200);
+    });
+
     it('rejects more than 30 photos with invalid_request (400)', async () => {
       const res = await request(app.getHttpServer())
         .post('/api/v1/generate')

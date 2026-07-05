@@ -99,6 +99,20 @@ describe('StoryGeneratorService', () => {
     expect(result.frames).toHaveLength(2);
   });
 
+  it('threads must-include photo ids into the prompt', async () => {
+    const generateContent = jest
+      .fn()
+      .mockResolvedValue(jsonResponse([{ photoId: 'p1', order: 1, caption: 'x' }]));
+    const service = await makeService(generateContent);
+
+    await service.generate({ ...makeRequest(3), mustInclude: ['p2'] });
+
+    const promptText = generateContent.mock.calls[0][0].contents[0].parts[0]
+      .text as string;
+    expect(promptText).toContain('p2');
+    expect(promptText.toLowerCase()).toContain('must include');
+  });
+
   it('rejects with empty_result when no frames are usable', async () => {
     const generateContent = jest
       .fn()
