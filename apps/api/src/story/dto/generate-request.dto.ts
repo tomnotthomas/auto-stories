@@ -27,7 +27,7 @@ export class GenerateRequestDto implements GenerateRequest {
 
   @IsArray()
   @ArrayMinSize(3)
-  @ArrayMaxSize(10)
+  @ArrayMaxSize(30)
   @ValidateNested({ each: true })
   @Type(() => PhotoDto)
   photos!: PhotoDto[];

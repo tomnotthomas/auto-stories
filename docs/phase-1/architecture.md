@@ -9,7 +9,7 @@ How Phase 1 ([spec](spec.md)) is built and deployed: a responsive **web app** wh
 | 3.1 | Where AI runs | Server-side (NestJS) holds the key; browser never sees it |
 | 3.2 | Model | Gemini Flash, free tier, swappable via config |
 | 3.3 | Generation shape | Single structured call (pipeline = fallback) |
-| 3.4 | Image input | Cap ~10 photos, downscale ~1024px/JPEG80, keep originals |
+| 3.4 / 2.4 | Image input | Cap 30 photos (a real dump), downscale ~1024px/JPEG80, keep originals |
 | 3.5 | Stack | Angular frontend + NestJS API (one origin) |
 | 3.6 | Deploy | One Docker container (NestJS serves the build + API) + `docker-compose`; hosted free on Render |
 | 3.8 | State | Angular service holding the story in signals |
@@ -34,7 +34,7 @@ The browser never holds the API key. The NestJS server is stateless — no datab
 - Preview: ordered photos with a draggable/resizable caption layer (Angular **CDK drag-drop**). No pixel baking in Phase 1.
 - State in a small Angular **service (signals)**.
 
-**Backend (NestJS, `POST /api/v1/generate`)** — also serves the built Angular app from the same origin (`ServeStaticModule`). Server-side, so the Gemini key stays hidden and users never bring their own key. Jobs: per-IP rate limiting + a global daily budget cap (protect the shared key), input validation (max body size, ≤10 photos, per-image size, JPEG/PNG/WebP/HEIC only, story line length-capped + delimited as data — client checks are re-done here, not trusted), prompt construction, the Gemini call (~25s timeout, typed errors, drop-flagged-photo-and-retry on safety block), output validation, logging.
+**Backend (NestJS, `POST /api/v1/generate`)** — also serves the built Angular app from the same origin (`ServeStaticModule`). Server-side, so the Gemini key stays hidden and users never bring their own key. Jobs: per-IP rate limiting + a global daily budget cap (protect the shared key), input validation (max body size, ≤30 photos, per-image size, JPEG/PNG/WebP/HEIC only, story line length-capped + delimited as data — client checks are re-done here, not trusted), prompt construction, the Gemini call (~25s timeout, typed errors, drop-flagged-photo-and-retry on safety block), output validation, logging.
 
 **Model (Gemini Flash)** — called via the `@google/genai` SDK with `responseSchema` for guaranteed-shape JSON. `MODEL` is an env var, so a stronger model is a one-line swap.
 
@@ -77,7 +77,7 @@ Story  { id, story, tone, frames: Frame[], createdAt }
 |------|----------|-----------|
 | No photos uploaded | Disable Generate | Greyed button + hint |
 | 1–2 photos | Require ≥3; keep Generate disabled | "A story needs at least 3 photos" |
-| >10 uploaded | Enforce cap at upload | "Up to 10 photos per story" |
+| >30 uploaded | Enforce cap at upload | "Up to 30 photos per story" |
 | HEIC upload (iPhone) | Convert client-side (`heic2any`) before downscale/preview | Transparent; else "couldn't read this photo" |
 | Huge / non-image file | Validate type + size at upload | "Please upload images under N MB" |
 | Oversized request body (server) | Reject with 413 before processing | "That upload was too large" |

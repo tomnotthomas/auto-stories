@@ -20,7 +20,7 @@ export type GenerateRequest = {
     */
     tone?: Tone;
     /**
-     * @description 3–10 downscaled photos.
+     * @description 3–30 downscaled photos — a real dump the model selects from, not a pre-filtered handful.
      * @type array
     */
     photos: Photo[];

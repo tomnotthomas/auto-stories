@@ -3,7 +3,7 @@ post:
   tags: [story]
   summary: Generate an ordered, captioned story from a batch of photos.
   description: |
-    Takes 3–10 downscaled photos plus the user's story line (and optional
+    Takes 3–30 downscaled photos plus the user's story line (and optional
     tone) and returns the chosen photos in narrative order with a caption
     each. The model may select a subset and reorder. Every client-side check
     (type, count, size) is re-validated here — the server is the authority.

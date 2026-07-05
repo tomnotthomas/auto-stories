@@ -88,6 +88,23 @@ describe('App (e2e)', () => {
       expect(res.body.error.code).toBe('invalid_request');
     });
 
+    it('accepts a full 30-photo dump', async () => {
+      await request(app.getHttpServer())
+        .post('/api/v1/generate')
+        .send({ story: 'a whole day at the lake', photos: photos(30) })
+        .expect(200);
+    });
+
+    it('rejects more than 30 photos with invalid_request (400)', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/generate')
+        .send({ story: 'too many', photos: photos(31) })
+        .expect(400);
+
+      expect(res.body.error.code).toBe('invalid_request');
+      expect(generateContent).not.toHaveBeenCalled();
+    });
+
     it('rejects an unknown field with invalid_request (400)', async () => {
       const res = await request(app.getHttpServer())
         .post('/api/v1/generate')
