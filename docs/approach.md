@@ -419,6 +419,15 @@ Resolving the production-readiness gaps the engineering review surfaced — what
 - **Decision:** Option 2. "Refine story" enters a refine mode. The caption is edited in place (tap it → editor: text, drag-move, size, legibility, per-caption Regenerate). Frame-level actions live in a horizontal **filmstrip** of thumbnails: drag to reorder, tap to jump, "×" to drop (hidden below the 3-frame minimum), an Add tile to pick more. A single "Regenerate" rebuilds the whole story; adding a photo triggers the same rebuild.
 - **Why:** Each action attaches to the object it changes — captions on the caption, frame order/membership on the frames — so there's no legend to read. The filmstrip is the one place that shows the whole narrative at once, which is what reorder and drop operate on. Dropping a photo also removes it from the pool, so a rebuild can't bring it back (a drop the user has to redo would read as a bug).
 
+### 5.12 Refine, second pass: a dedicated manage screen, editor clear of the sheet, real paging
+- **Problem:** First build of refine had three faults on the payoff: (1) opening the caption editor left the underlying caption showing through as doubled/ghost text; (2) the reorder/drop filmstrip floated directly over the photo, so it read as messy and the reorder/delete affordances weren't clear; (3) frame paging wasn't discoverable — tap zones existed but nothing said so, and there was no swipe.
+- **Decision:**
+  - **Editor mirrors the mockup (refine-text.html).** The underlying caption is hidden while editing; the editor lifts the caption into the upper area so it clears the bottom sheet and stays readable; the sheet carries a "Text size" label and Regenerate/Legibility as two equal pill buttons. The final lower-third placement is kept unless the user actually drags (editing text alone never moves it).
+  - **Frame management gets its own surface.** "Reorder & remove" opens a dedicated screen on a solid `surface` background (not over the photo): each frame is a row (drag handle, thumbnail, caption, delete) with an Add row. The refine bar itself is a solid bottom sheet (Reorder & remove / Regenerate / Done), off the photo.
+  - **Paging is real and taught.** Tap zones work in refine too, a swipe left/right pages the story, and a one-time hint ("Tap or swipe the photo to move through the story") shows until first use.
+  - The coach mark gently bobs (reduced-motion aware), as in the mockup.
+- **Why:** Ghost text and controls-on-the-photo failed the "don't make me think" bar — direct manipulation only works if the thing you touch is the only copy and the management controls sit on their own clean surface. A caption you can't see under the sheet can't be edited, so it lifts. Paging that gives no signal reads as broken, so it's both shown (hint) and offered two ways (tap + swipe).
+
 # Chapter 6 — Lessons learned
 
 Working notes about *how* I worked on this, kept so I don't repeat the mistakes.
