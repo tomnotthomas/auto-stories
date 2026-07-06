@@ -139,7 +139,14 @@ describe('Story', () => {
       expect(await harness.hasAddPhotoButton()).toBe(true);
     });
 
-    it('hides Add-a-photo once the photo pool is full', async () => {
+    it('enables Add-a-photo and shows no limit hint below the photo cap', async () => {
+      const harness = await render();
+      await harness.clickRefine();
+      expect(await harness.isAddPhotoDisabled()).toBe(false);
+      expect(await harness.hasAddPhotoLimitHint()).toBe(false);
+    });
+
+    it('keeps Add-a-photo visible but disabled, with a hint, at the photo cap', async () => {
       URL.createObjectURL = () => 'blob:mock';
       URL.revokeObjectURL = () => undefined;
       await TestBed.configureTestingModule({ imports: [Story] }).compileComponents();
@@ -152,7 +159,10 @@ describe('Story', () => {
       const fixture = TestBed.createComponent(Story);
       const harness = await TestbedHarnessEnvironment.harnessForFixture(fixture, StoryHarness);
       await harness.clickRefine();
-      expect(await harness.hasAddPhotoButton()).toBe(false);
+      // The button never disappears — it stays put and explains the limit (5.21).
+      expect(await harness.hasAddPhotoButton()).toBe(true);
+      expect(await harness.isAddPhotoDisabled()).toBe(true);
+      expect(await harness.hasAddPhotoLimitHint()).toBe(true);
     });
 
     it('adds a picked photo to the pool and appends it without a full rebuild', async () => {
