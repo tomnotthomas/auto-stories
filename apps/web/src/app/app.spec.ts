@@ -31,7 +31,22 @@ describe('App', () => {
     };
   }
 
+  afterEach(() => history.replaceState(null, '', '/'));
+
   it('shows the first-open example by default', async () => {
+    const { loader } = await setup();
+    expect(await loader.getHarnessOrNull(ExampleHarness)).not.toBeNull();
+  });
+
+  it('boots straight into the picker when opened at /app/create', async () => {
+    history.replaceState(null, '', '/app/create');
+    const { loader } = await setup();
+    expect(await loader.getHarnessOrNull(CreateHarness)).not.toBeNull();
+    expect(await loader.getHarnessOrNull(ExampleHarness)).toBeNull();
+  });
+
+  it('shows the example when opened at /app/example', async () => {
+    history.replaceState(null, '', '/app/example');
     const { loader } = await setup();
     expect(await loader.getHarnessOrNull(ExampleHarness)).not.toBeNull();
   });
