@@ -4,7 +4,7 @@ import { MatIconModule } from '@angular/material/icon';
 
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
-import { StoryService, FramePlacement } from '../../story/story.service';
+import { StoryService, FramePlacement, MAX_PHOTOS } from '../../story/story.service';
 import { GenerationService } from '../../story/generation.service';
 import { CaptionEditor } from '../refine/caption-editor/caption-editor';
 import { RefineFilmstrip } from '../refine/filmstrip/filmstrip';
@@ -38,8 +38,10 @@ export class Story {
   /** True when the model dropped a photo but still built a story (4.3). */
   protected readonly partial = this.story.partial;
   protected readonly pickedCount = this.story.photoCount;
-  /** The photo pool is full — hide the "Add a photo" action (5.4). */
+  /** The photo pool is full — the "Add a photo" action disables and explains
+   * the cap rather than disappearing (5.21). */
   protected readonly isFull = this.story.isFull;
+  protected readonly maxPhotos = MAX_PHOTOS;
   protected readonly coachSeen = this.story.coachSeen;
   protected readonly bannerDismissed = signal(false);
 

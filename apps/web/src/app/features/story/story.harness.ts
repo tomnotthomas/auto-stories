@@ -18,6 +18,7 @@ export class StoryHarness extends ComponentHarness {
   private readonly doneButton = this.locatorFor(MatButtonHarness.with({ text: /Done/ }));
   private readonly manageButton = this.locatorFor(MatButtonHarness.with({ text: /Reorder/ }));
   private readonly addPhotoButton = this.locatorForOptional(MatButtonHarness.with({ text: /Add a photo/ }));
+  private readonly addPhotoHint = this.locatorForOptional('[data-add-photo-hint]');
   private readonly editor = this.locatorForOptional(CaptionEditorHarness);
   private readonly filmstrip = this.locatorForOptional(RefineFilmstripHarness);
 
@@ -74,10 +75,20 @@ export class StoryHarness extends ComponentHarness {
     await (await this.manageButton()).click();
   }
 
-  /** Whether the refine bar offers a direct "Add a photo" action (hidden when
-   * the photo pool is full). */
+  /** Whether the refine bar offers a direct "Add a photo" action. */
   async hasAddPhotoButton(): Promise<boolean> {
     return (await this.addPhotoButton()) !== null;
+  }
+
+  /** Whether the "Add a photo" action is disabled (true at the photo cap). */
+  async isAddPhotoDisabled(): Promise<boolean> {
+    const button = await this.addPhotoButton();
+    return button ? button.isDisabled() : true;
+  }
+
+  /** Whether the "photo cap reached" hint is shown beneath the action. */
+  async hasAddPhotoLimitHint(): Promise<boolean> {
+    return (await this.addPhotoHint()) !== null;
   }
 
   /** The caption editor, when open; otherwise null. */
