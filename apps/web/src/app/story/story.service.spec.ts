@@ -26,6 +26,28 @@ describe('StoryService', () => {
     expect(service.phase()).toBe('create');
   });
 
+  describe('startFromPath (landing deep-link)', () => {
+    it('boots into the create/picker phase for /app/create', () => {
+      service.startFromPath('/app/create');
+      expect(service.phase()).toBe('create');
+    });
+
+    it('boots into create even with a trailing slash', () => {
+      service.startFromPath('/app/create/');
+      expect(service.phase()).toBe('create');
+    });
+
+    it('keeps the first-open example for /app/example', () => {
+      service.startFromPath('/app/example');
+      expect(service.phase()).toBe('example');
+    });
+
+    it('keeps the first-open example at the app root', () => {
+      service.startFromPath('/app/');
+      expect(service.phase()).toBe('example');
+    });
+  });
+
   it('adds picked image files as photos', () => {
     service.addPhotos([imageFile('a.jpg'), imageFile('b.jpg')]);
     expect(service.photoCount()).toBe(2);

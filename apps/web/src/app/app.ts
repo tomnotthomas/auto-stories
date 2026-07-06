@@ -1,4 +1,5 @@
 import { Component, inject } from '@angular/core';
+import { DOCUMENT } from '@angular/common';
 
 import { StoryService } from './story/story.service';
 import { Example } from './features/example/example';
@@ -18,5 +19,13 @@ import { ErrorScreen } from './features/error/error-screen';
   templateUrl: './app.html',
 })
 export class App {
+  private readonly document = inject(DOCUMENT);
   protected readonly story = inject(StoryService);
+
+  constructor() {
+    // Honour the landing page's deep-link: /app/create opens the picker,
+    // /app/example (default) opens the demo. There is no router, so the entry
+    // path is read once here from the URL the SPA was served at.
+    this.story.startFromPath(this.document.location.pathname);
+  }
 }

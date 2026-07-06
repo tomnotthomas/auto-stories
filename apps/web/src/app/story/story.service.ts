@@ -114,6 +114,14 @@ export class StoryService {
     this._phase.set('create');
   }
 
+  /** Boot into a phase from the entry URL, called once on app start. The landing
+   * page deep-links its two CTAs to different paths: `/app/create` jumps straight
+   * into the picker, while `/app/example` (and the app root) keep the first-open
+   * example. Anything else leaves the default example untouched. */
+  startFromPath(path: string): void {
+    if (/\/create\/?$/.test(path)) this.startCreating();
+  }
+
   /** Add picked files — images only, capped at MAX_PHOTOS total. */
   addPhotos(files: readonly File[]): void {
     const room = MAX_PHOTOS - this._photos().length;
