@@ -3,10 +3,12 @@ import type { Photo } from '@auto-stories/api-types';
 
 import type { PickedPhoto } from './story.service';
 
-/** ~1024px long edge is ~2 of Gemini's tiles — enough detail, small upload (3.4). */
-export const MAX_EDGE = 1024;
-/** JPEG ~80% keeps faces/text legible while shrinking the payload (3.4). */
-export const JPEG_QUALITY = 0.8;
+/** 768px long edge is one of Gemini's 768px tiles (vs two at 1024) — it halves
+ * both the upload bytes and the per-image model cost, so a 30-photo batch fits
+ * inside Render's fixed ~100s request window (3.4). */
+export const MAX_EDGE = 768;
+/** JPEG ~70% keeps faces/text legible while further shrinking the payload (3.4). */
+export const JPEG_QUALITY = 0.7;
 
 /** Dimensions to draw at: fit within a max long-edge, keep aspect, never upscale. */
 export function fitWithin(
