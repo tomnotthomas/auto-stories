@@ -25,7 +25,7 @@ export interface PickedPhoto {
 /** A story needs a beginning, middle, and payoff — so at least 3 frames (1.11). */
 export const MIN_PHOTOS = 3;
 /** A real photo dump, not a pre-filtered handful — the AI does the choosing (2.4). */
-export const MAX_PHOTOS = 30;
+export const MAX_PHOTOS = 10;
 /** The story line is one guided sentence; a soft cap keeps it focused (5.6). */
 export const MAX_STORY_LENGTH = 150;
 
