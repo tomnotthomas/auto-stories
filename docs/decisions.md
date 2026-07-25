@@ -8,7 +8,8 @@ How this project was thought through, in chapters, so a reader can jump to the p
 3. [Locking the Phase 1 architecture](#chapter-3--locking-the-phase-1-architecture)
 4. [Production readiness](#chapter-4--production-readiness)
 5. [Design system](#chapter-5--design-system)
-6. [Lessons learned](#chapter-6--lessons-learned)
+6. [Phase 2 — longer stories without timing out](#chapter-6--phase-2-longer-stories-without-timing-out)
+7. [Lessons learned](#chapter-7--lessons-learned)
 
 ---
 
@@ -510,7 +511,42 @@ Resolving the production-readiness gaps the engineering review surfaced — what
 - **Decision:** Option 2. Render the current frame and its immediate neighbours as stacked layers, kept mounted with `opacity-0` (not `display:none`, which can skip decode). Only the current layer is opaque and the swap has no transition. At most 3 photos are mounted.
 - **Why:** A neighbour is already decoded before it becomes current, so paging swaps a ready image and the photo and the highlighted segment advance in the same paint — no lag, no bar/photo mismatch. Keeping the full-res original avoids a second image pipeline; the originals stay for a future export. Downscaling (option 1) is deferred until the export path exists.
 
-# Chapter 6 — Lessons learned
+# Chapter 6 — Phase 2: longer stories without timing out
+
+The value in [2.4](#24-how-many-photos-can-the-user-bring-in) is the AI picking the best frames from a real camera-roll dump. Phase 1 decided **30** photos for that but ships **10** (commit `c5525bf`, "cap the photo pick back for a stable deploy"): a single synchronous request has the vision model process every photo while the browser holds the connection open, and at 30 that runtime competes with Render's request timeout and drops on cold start. Phase 2 removes that constraint so 30 can ship for real.
+
+### 6.1 Restore the 30-photo cap by generating as an async job
+- **Problem:** At 30 photos the model's runtime on one request is long enough to hit Render's proxy/idle request timeout and to drop if the free container cold-starts or the mobile connection closes. The synchronous request/response that worked for 10 photos (3.3) doesn't survive 30.
+- **Options:** keep 10, synchronous; send 30 but stay synchronous and hope it fits the timeout; send 30 and process it as an async background job.
+- **Decision:** 30, as an async job. `POST /api/v1/generate` enqueues the work and returns **`202 { jobId }`** immediately; a background worker runs the Gemini call; the finished frames are delivered when ready (6.3).
+- **Why:** It decouples the HTTP request from the model's runtime, so generation time no longer competes with the request timeout or with keeping a mobile connection open. This is what lets the 30-cap value decided in 2.4 actually ship — the synchronous path is why it was pulled back to 10.
+
+### 6.2 In-memory queue, single worker — not Redis/BullMQ yet
+- **Problem:** The job has to live somewhere between enqueue and completion, with its status readable while it runs.
+- **Options:** a durable external queue (Redis + BullMQ); an in-process in-memory queue plus a job map.
+- **Decision:** In-memory queue with **one worker (concurrency 1)** in the single NestJS container; job state (`queued → processing → done | failed`, plus result or typed error) held in an in-memory map keyed by `jobId`.
+- **Why:** The free tier runs exactly one container, so there is nothing to coordinate across instances and an in-process queue matches the deployment (3.6). Concurrency 1 serializes jobs, which bounds memory (30 downscaled images per job, 4.5) and protects the shared free Gemini key — the same intent as the daily budget cap (4.1). **Accepted limit:** a spin-down or restart mid-job loses that job; acceptable at this stage. **Production upgrade, no API change:** swap the map/queue for Redis + BullMQ for durability across restarts and instances.
+
+### 6.3 Deliver the result over Server-Sent Events, not polling or a webhook
+- **Problem:** The client needs to learn the job finished and receive the frames (or a typed error).
+- **Options:** the client polls `GET /jobs/:id` on an interval; a webhook; a Server-Sent Events stream.
+- **Decision:** **SSE.** The client opens an `EventSource` on `GET /api/v1/jobs/:id/events`; the server pushes status transitions and the final result. On connect the server first replays the current status, so a dropped connection (e.g. a cold start) recovers. A plain `GET /jobs/:id` stays as a polling fallback.
+- **Why:** A webhook is server→server — it POSTs to a public URL, which a browser client does not have, so it cannot deliver to the Angular app; SSE is the browser-native push (`EventSource`). Against polling, SSE delivers the result the moment it is ready instead of on the next poll tick, and removes the repeated poll requests from the backend, for marginally more code. A bidirectional WebSocket is not needed — the flow is one-directional, server→client.
+
+### 6.4 Keep 30 images under the request body cap by downscaling harder
+- **Problem:** 30 downscaled proxies in one POST body can exceed the max-body cap (4.2) that 10 images fit under.
+- **Options:** raise the server body cap; downscale each proxy harder so 30 fit under the current cap.
+- **Decision:** Downscale the per-image proxy harder on the 30-photo path so the batch stays under the existing cap, rather than raising the cap. The long edge stays **above ~512px** (below that, faces and in-photo text blur and captions get less accurate — 3.4).
+- **Why:** A smaller proxy keeps the request inside a limit already validated server-side and keeps upload fast — the main latency lever (3.4) — even with more images. Raising the cap would widen the accepted body size for oversized-payload abuse for no user benefit.
+
+### 6.5 Stories over 10 photos run a describe-then-decide pipeline
+- **Problem:** The model handles ≤10 images well per call (3.4), but a 30-photo story needs every candidate judged on the same bar, then selected, ordered, and captioned — more than one 10-image call can see at once.
+- **Options:** (a) send all 30 in one call (past the ≤10 sweet spot — selection and captions degrade); (b) parallel batches scored against a fixed rubric (drifts — no batch sees the others); (c) sequential batches carrying a running shortlist (calibrates, but slower and more complex); (d) describe + rate each photo in batches of ≤10, then one text call that ranks all of them, selects, orders, and captions.
+- **Decision:** Option (d), sized to the input. **`ceil(N/10)` describe-and-rate calls** (each ≤10 images) produce a `{description, rating}` per photo; **one final "decide" call** then reasons over all N descriptions + ratings as *text* — ranking them on one bar, selecting 5–7, ordering hook-first with EXIF capture time as a soft hint (2.1), and writing each caption. **N ≤ 10 skips the batching entirely — it stays the Phase 1 single call.** Calls run sequentially (concurrency 1, 6.2).
+- **Why:** The ≤10 limit is on *images*, not text — so once each photo is a description + rating, the decide call weighs all N together in one pass and holds one consistent bar. That fixes the cross-batch-consistency problem more simply than a carried-forward shortlist (c) and more reliably than independent rubric scoring (b). Splitting describe (vision, per batch) from decide (reasons over text) keeps each call within the model's strength, and sizing to `ceil(N/10)` means a small pick pays for no extra calls.
+- **Trade-off:** captions are written in the decide call from the stage-1 *descriptions*, not by re-viewing the pixels — so the describe prompt has to capture caption-worthy specifics (who / what / the moment). If captions come out thin, the fix is a follow-up caption pass that re-sends the 5–7 finalists' images (one more call); not built now.
+
+# Chapter 7 — Lessons learned
 
 Working notes about *how* I worked on this, kept so I don't repeat the mistakes.
 
