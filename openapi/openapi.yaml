@@ -21,7 +21,7 @@ info:
     mirror `docs/phase-1/architecture.md`.
   contact:
     name: Auto Stories
-    url: https://github.com/tomnotthomas/my-take-home
+    url: https://github.com/tomnotthomas/auto-stories
   license:
     name: MIT
     identifier: MIT

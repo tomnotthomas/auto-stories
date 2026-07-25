@@ -9,7 +9,7 @@ Making Instagram stories takes too much effort — choosing text and a narrative
 ## Assumptions
 
 - **"Mini app" = MVP that builds the hardest / most valuable part first.** Ship the core value first; layer secondary features on top only if time remains.
-- **Responsive web app.** A deployable web app (per the take-home brief), responsive so it gives the best experience on whatever device it's opened on — laptop, tablet, or phone. No install; the user just visits the URL and uploads photos.
+- **Responsive web app.** A deployable web app, responsive so it gives the best experience on whatever device it's opened on — laptop, tablet, or phone. No install; the user just visits the URL and uploads photos.
 - **Photos only.** Videos are out of scope for v1. Media editing (filters, contrast) is not the job — assembling the story is.
 - **One product: a private memory journal.** For personal memory-keeping, not business growth or selling.
 - **Hooked from the first open.** A first-time tester must be hooked from the start, with the fastest path to a result. The "would you open it twice?" bar.

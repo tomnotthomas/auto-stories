@@ -14,7 +14,7 @@ services:
   - type: web
     name: auto-stories
     runtime: docker
-    repo: https://github.com/tomnotthomas/my-take-home
+    repo: https://github.com/tomnotthomas/auto-stories
     dockerfilePath: ./Dockerfile
     plan: free
     region: oregon

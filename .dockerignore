@@ -16,7 +16,6 @@ coverage
 .env
 .env.*
 !.env.example
-.take-home-token
 
 .claude
 .gstack
