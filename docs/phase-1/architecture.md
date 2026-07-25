@@ -17,7 +17,7 @@ How Phase 1 ([spec](spec.md)) is built and deployed: a responsive **web app** wh
 
 ## System architecture
 
-![System architecture: browser → NestJS API → Gemini Flash](diagrams/system-architecture.png)
+![System architecture: Angular web app → NestJS backend → vision AI model](diagrams/system-architecture.png)
 
 The browser never holds the API key. The NestJS server is stateless — no database in Phase 1; a story lives only in browser memory until the user exports it (Phase 2).
 
@@ -65,7 +65,7 @@ Story  { id, story, tone, frames: Frame[], createdAt }
 
 ## Deployment
 
-![Deployment: one Docker image from the repo runs on Render (live URL) and in a reviewer's container; browser hits Render over HTTPS; Render calls Gemini Flash](diagrams/deployment.png)
+![Deployment: GitHub repo builds a Docker image, deployed to Render (free tier), which calls the Gemini Flash API](diagrams/deployment.png)
 
 - **App:** one NestJS server serves the built Angular app (`dist/`) and the `/api/v1/generate` endpoint. Provide a **`docker-compose.yml`** so reviewers can `docker compose up` in a fresh Linux container, and host the same image **free on Render** (spins down when idle; ~30-50s cold start on first hit) for a live URL — both required by the brief.
 - **Secrets:** `GEMINI_API_KEY` and `MODEL` are server-side env vars only. The browser bundle contains no key.
