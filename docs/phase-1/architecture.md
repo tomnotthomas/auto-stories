@@ -17,7 +17,7 @@ How Phase 1 ([spec](spec.md)) is built and deployed: a responsive **web app** wh
 
 ## System architecture
 
-![System architecture: Angular web app → NestJS backend → vision AI model](diagrams/system-architecture.png)
+![System architecture: Angular web app → NestJS backend → multimodal AI model (vision + text)](diagrams/system-architecture.png)
 
 The browser never holds the API key. The NestJS server is stateless — no database in Phase 1; a story lives only in browser memory until the user exports it (Phase 2).
 
