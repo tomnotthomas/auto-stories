@@ -27,7 +27,7 @@ How I worked:
 Three biggest calls (full reasoning in [`docs/decisions.md`](docs/decisions.md)):
 - **Payoff-first flow, 6 steps → 2.** Example Story on open, then pick + one line → refine. Less config, far higher completion.
 - **Narrative-first order, one model call.** Not chronological (EXIF stripped; oldest photo = boring). One structured Gemini call returns photos + order + captions. Better coherence, lower latency; no mid-stream reveal.
-- **Free Gemini + one container on free Render.** Swappable model. Accept a shared quota + cold start — take-home calls, not production.
+- **Free Gemini + one container on free Render.** Swappable model. Accept a shared quota + cold start — demo calls, not production.
 
 ## Intentionally left out
 
