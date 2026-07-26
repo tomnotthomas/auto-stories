@@ -1,0 +1,27 @@
+type: object
+description: |
+  The lifecycle state of an async generation job. `done` carries `result`;
+  `failed` carries `error`. Delivered over SSE (`GET /jobs/{id}/events`) and as
+  JSON (`GET /jobs/{id}`). `queued` → `processing` → `done` | `failed`; the last
+  two are terminal.
+required: [status]
+additionalProperties: false
+properties:
+  status:
+    type: string
+    enum: [queued, processing, done, failed]
+    description: The job's phase. `done` and `failed` are terminal.
+  result:
+    description: The finished story. Present only when status is `done`.
+    $ref: './GenerateResponse.yaml'
+  error:
+    type: object
+    description: The typed failure. Present only when status is `failed`.
+    required: [code, message]
+    additionalProperties: false
+    properties:
+      code:
+        $ref: './ErrorCode.yaml'
+      message:
+        type: string
+        description: Human-readable message safe to surface to the user.

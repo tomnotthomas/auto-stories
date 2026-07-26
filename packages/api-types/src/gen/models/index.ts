@@ -1,10 +1,14 @@
 export type { ErrorCode, ErrorCodeEnum } from "./ErrorCode.js";
 export type { ErrorResponse } from "./ErrorResponse.js";
 export type { Frame } from "./Frame.js";
+export type { GenerateAccepted } from "./GenerateAccepted.js";
 export type { GenerateRequest } from "./GenerateRequest.js";
 export type { GenerateResponse } from "./GenerateResponse.js";
-export type { GenerateStory200, GenerateStory400, GenerateStory413, GenerateStory422, GenerateStory429, GenerateStory503, GenerateStory504, GenerateStoryMutation, GenerateStoryMutationRequest, GenerateStoryMutationResponse } from "./GenerateStory.js";
+export type { GenerateStory202, GenerateStory400, GenerateStory413, GenerateStory429, GenerateStoryMutation, GenerateStoryMutationRequest, GenerateStoryMutationResponse } from "./GenerateStory.js";
+export type { GetJob200, GetJob404, GetJobPathParams, GetJobQuery, GetJobQueryResponse } from "./GetJob.js";
 export type { HealthCheck200, HealthCheck503, HealthCheckQuery, HealthCheckQueryResponse } from "./HealthCheck.js";
 export type { HealthResponse, HealthResponseStatusEnum } from "./HealthResponse.js";
+export type { JobState, JobStateStatusEnum } from "./JobState.js";
 export type { Photo } from "./Photo.js";
+export type { StreamJobEvents200, StreamJobEvents404, StreamJobEventsPathParams, StreamJobEventsQuery, StreamJobEventsQueryResponse } from "./StreamJobEvents.js";
 export type { Tone, ToneEnum } from "./Tone.js";

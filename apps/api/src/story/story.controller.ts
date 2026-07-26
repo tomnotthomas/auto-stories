@@ -6,6 +6,7 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import type { GenerateAccepted } from '@auto-stories/api-types';
 import { ApiErrors } from '../common/api-exception';
 import { FairUseGuard } from '../fair-use/fair-use.guard';
 import { FairUseService } from '../fair-use/fair-use.service';
@@ -13,11 +14,6 @@ import { JobService } from '../job/job.service';
 import { GenerateRequestDto } from './dto/generate-request.dto';
 import { sniffImageType } from './image.util';
 import { StoryGeneratorService } from './story-generator.service';
-
-/** The 202 body: a handle the client uses to open the SSE result stream. */
-interface GenerateAccepted {
-  jobId: string;
-}
 
 /**
  * POST /api/v1/generate — the one core route (openapi/paths/generate.yaml).
