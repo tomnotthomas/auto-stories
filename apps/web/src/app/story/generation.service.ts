@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 
 import { StoryService } from './story.service';
-import { StoryGateway } from './story.gateway';
+import { StoryGateway, type GenerateOutcome } from './story.gateway';
 import { ImageService } from './image.service';
 
 /**
@@ -91,13 +91,24 @@ export class GenerationService {
     }
   }
 
-  private async request(mustInclude?: readonly string[]) {
+  /**
+   * One round trip: downscale the picks, enqueue the job, then wait on its SSE
+   * stream for the finished story (architecture 6.1). Returns the same
+   * GenerateOutcome as before, so the three callers above are unchanged — the
+   * async transport is hidden here. A synchronous accept error (400/413/429) is
+   * returned as-is without opening a stream.
+   */
+  private async request(
+    mustInclude?: readonly string[],
+  ): Promise<GenerateOutcome> {
     const photos = await this.images.toProxies(this.story.photos());
-    return this.gateway.generate({
+    const accepted = await this.gateway.generate({
       story: this.story.storyLine().trim(),
       tone: this.story.tone() ?? undefined,
       photos,
       mustInclude: mustInclude && mustInclude.length ? [...mustInclude] : undefined,
     });
+    if (!accepted.ok) return accepted;
+    return this.gateway.streamStory(accepted.jobId);
   }
 }

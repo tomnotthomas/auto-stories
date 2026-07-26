@@ -65,8 +65,12 @@ describe('Accessibility (WCAG 2 A/AA)', () => {
   });
 
   it('generating screen has no violations', async () => {
-    const gateway: Pick<StoryGateway, 'generate'> = {
-      generate: async (): Promise<GenerateOutcome> => ({ ok: true, response: { frames: FRAMES } }),
+    const gateway: Pick<StoryGateway, 'generate' | 'streamStory'> = {
+      generate: async () => ({ ok: true, jobId: 'job-1' }),
+      streamStory: async (): Promise<GenerateOutcome> => ({
+        ok: true,
+        response: { frames: FRAMES },
+      }),
     };
     const images: Pick<ImageService, 'toProxies'> = { toProxies: async () => [{ id: 'p1', b64: 'x' }] };
     await TestBed.configureTestingModule({
