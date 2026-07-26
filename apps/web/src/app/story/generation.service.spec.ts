@@ -19,7 +19,12 @@ describe('GenerationService', () => {
     URL.createObjectURL = () => 'blob:mock';
     URL.revokeObjectURL = () => undefined;
 
-    const gateway: Pick<StoryGateway, 'generate'> = { generate: async () => outcome };
+    // Accept always succeeds with a jobId; the SSE stream returns the outcome
+    // the test controls, so these tests exercise the terminal states.
+    const gateway: Pick<StoryGateway, 'generate' | 'streamStory'> = {
+      generate: async () => ({ ok: true, jobId: 'job-1' }),
+      streamStory: async () => outcome,
+    };
     const images: Pick<ImageService, 'toProxies'> = {
       toProxies: async () => [{ id: 'p1', b64: 'x' }],
     };
@@ -132,11 +137,19 @@ describe('GenerationService', () => {
     it('sends the new photo id as mustInclude', async () => {
       const newId = seedStoryPlusOne();
       let sent: GenerateRequest | undefined;
-      (generation as unknown as { gateway: Pick<StoryGateway, 'generate'> }).gateway = {
+      (
+        generation as unknown as {
+          gateway: Pick<StoryGateway, 'generate' | 'streamStory'>;
+        }
+      ).gateway = {
         generate: async (req) => {
           sent = req;
-          return { ok: true, response: { frames: [{ photoId: newId, order: 1, caption: 'x' }] } };
+          return { ok: true, jobId: 'job-1' };
         },
+        streamStory: async () => ({
+          ok: true,
+          response: { frames: [{ photoId: newId, order: 1, caption: 'x' }] },
+        }),
       };
 
       await generation.captionNewPhotos();

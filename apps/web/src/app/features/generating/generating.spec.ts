@@ -17,7 +17,10 @@ describe('Generating', () => {
     story: StoryService;
     harness: GeneratingHarness;
   }> {
-    const gateway: Pick<StoryGateway, 'generate'> = { generate: async () => outcome };
+    const gateway: Pick<StoryGateway, 'generate' | 'streamStory'> = {
+      generate: async () => ({ ok: true, jobId: 'job-1' }),
+      streamStory: async () => outcome,
+    };
     const images: Pick<ImageService, 'toProxies'> = {
       toProxies: async () => [{ id: 'p1', b64: 'x' }],
     };
