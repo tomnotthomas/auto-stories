@@ -1,0 +1,13 @@
+type: object
+description: |
+  Acknowledges an accepted generation job. Generation runs in the background;
+  open the SSE stream at `GET /api/v1/jobs/{jobId}/events` (or poll
+  `GET /api/v1/jobs/{jobId}`) to receive the finished story.
+required: [jobId]
+additionalProperties: false
+properties:
+  jobId:
+    type: string
+    description: Opaque id of the enqueued generation job.
+    examples:
+      - b1f2c3d4-5e6f-7a8b-9c0d-1e2f3a4b5c6d

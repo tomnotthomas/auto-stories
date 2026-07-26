@@ -1,0 +1,31 @@
+get:
+  operationId: streamJobEvents
+  tags: [story]
+  summary: Stream a job's state (and the finished story) over Server-Sent Events.
+  description: |
+    Opens a `text/event-stream`. Each event's `data` is a JobState JSON object.
+    The server pushes `processing` then a terminal `done` (carrying the story)
+    or `failed` (carrying a typed error), and ends the stream. On (re)connect the
+    current state is replayed first, so a dropped connection recovers. A ~15s
+    heartbeat comment keeps the stream open through proxies. An unknown or
+    evicted id is a 404.
+  parameters:
+    - name: id
+      in: path
+      required: true
+      description: The job id returned by POST /api/v1/generate.
+      schema:
+        type: string
+  responses:
+    '200':
+      description: An SSE stream whose events each carry a JobState.
+      content:
+        text/event-stream:
+          schema:
+            $ref: '../components/schemas/JobState.yaml'
+    '404':
+      description: No such job — unknown id, or the job expired and was evicted.
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/ErrorResponse.yaml'

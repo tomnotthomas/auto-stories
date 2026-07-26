@@ -45,5 +45,9 @@ tags:
 paths:
   /api/v1/generate:
     $ref: './paths/generate.yaml'
+  /api/v1/jobs/{id}:
+    $ref: './paths/jobs-id.yaml'
+  /api/v1/jobs/{id}/events:
+    $ref: './paths/jobs-id-events.yaml'
   /healthz:
     $ref: './paths/healthz.yaml'

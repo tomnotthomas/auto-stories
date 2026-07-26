@@ -4,13 +4,13 @@
 */
 
 import type { ErrorResponse } from "./ErrorResponse.js";
+import type { GenerateAccepted } from "./GenerateAccepted.js";
 import type { GenerateRequest } from "./GenerateRequest.js";
-import type { GenerateResponse } from "./GenerateResponse.js";
 
 /**
- * @description A generated story.
+ * @description The generation job was accepted. Open the SSE stream at\n`GET /api/v1/jobs/{jobId}/events` for the finished story.\n
 */
-export type GenerateStory200 = GenerateResponse;
+export type GenerateStory202 = GenerateAccepted;
 
 /**
  * @description Invalid request — failed server-side validation (type, count, size, or story line).
@@ -23,31 +23,16 @@ export type GenerateStory400 = ErrorResponse;
 export type GenerateStory413 = ErrorResponse;
 
 /**
- * @description Request was valid but no story could be shaped (e.g. too few usable photos after safety filtering).
-*/
-export type GenerateStory422 = ErrorResponse;
-
-/**
  * @description Per-IP rate limit hit — slow down and retry shortly.
 */
 export type GenerateStory429 = ErrorResponse;
 
-/**
- * @description At capacity — the global daily budget cap is reached or the model is temporarily unavailable.
-*/
-export type GenerateStory503 = ErrorResponse;
-
-/**
- * @description The model call timed out.
-*/
-export type GenerateStory504 = ErrorResponse;
-
 export type GenerateStoryMutationRequest = GenerateRequest;
 
-export type GenerateStoryMutationResponse = GenerateStory200;
+export type GenerateStoryMutationResponse = GenerateStory202;
 
 export type GenerateStoryMutation = {
-    Response: GenerateStory200;
+    Response: GenerateStory202;
     Request: GenerateStoryMutationRequest;
-    Errors: GenerateStory400 | GenerateStory413 | GenerateStory422 | GenerateStory429 | GenerateStory503 | GenerateStory504;
+    Errors: GenerateStory400 | GenerateStory413 | GenerateStory429;
 };
