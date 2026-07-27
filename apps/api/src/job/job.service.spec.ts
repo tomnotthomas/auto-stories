@@ -37,7 +37,7 @@ describe('JobService', () => {
   });
 
   it('runs the work and settles to done with the result', async () => {
-    const id = service.enqueue(async () => STORY);
+    const id = service.enqueue(() => Promise.resolve(STORY));
     await tick();
     expect(service.get(id)).toEqual({ status: 'done', result: STORY });
   });
@@ -63,9 +63,7 @@ describe('JobService', () => {
   });
 
   it('maps a thrown ApiException to a typed failed state', async () => {
-    const id = service.enqueue(async () => {
-      throw ApiErrors.timeout();
-    });
+    const id = service.enqueue(() => Promise.reject(ApiErrors.timeout()));
     await tick();
     const state = service.get(id);
     expect(state?.status).toBe('failed');
@@ -76,9 +74,7 @@ describe('JobService', () => {
   });
 
   it('maps an unknown thrown error to upstream_error', async () => {
-    const id = service.enqueue(async () => {
-      throw new Error('boom');
-    });
+    const id = service.enqueue(() => Promise.reject(new Error('boom')));
     await tick();
     expect(service.get(id)).toMatchObject({
       status: 'failed',
@@ -87,7 +83,7 @@ describe('JobService', () => {
   });
 
   it('replays the current state to a late subscriber (BehaviorSubject)', async () => {
-    const id = service.enqueue(async () => STORY);
+    const id = service.enqueue(() => Promise.resolve(STORY));
     await tick();
     const stream = service.stream(id);
     expect(stream).toBeDefined();
@@ -105,7 +101,7 @@ describe('JobService', () => {
 
   it('evicts a terminal job after its TTL', async () => {
     service.ttlMs = 5;
-    const id = service.enqueue(async () => STORY);
+    const id = service.enqueue(() => Promise.resolve(STORY));
     await tick();
     expect(service.get(id)).toBeDefined();
     await new Promise((r) => setTimeout(r, 20));

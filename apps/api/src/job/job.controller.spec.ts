@@ -29,7 +29,10 @@ function collectUntilComplete(obs: {
 }): Promise<MessageEvent[]> {
   return new Promise((resolve) => {
     const events: MessageEvent[] = [];
-    obs.subscribe({ next: (e) => events.push(e), complete: () => resolve(events) });
+    obs.subscribe({
+      next: (e) => events.push(e),
+      complete: () => resolve(events),
+    });
   });
 }
 
@@ -48,7 +51,7 @@ describe('JobController', () => {
 
   describe('status', () => {
     it('returns the current job state', async () => {
-      const id = jobs.enqueue(async () => STORY);
+      const id = jobs.enqueue(() => Promise.resolve(STORY));
       await tick();
       expect(controller.status(id)).toEqual({ status: 'done', result: STORY });
     });
@@ -60,7 +63,7 @@ describe('JobController', () => {
 
   describe('events (SSE)', () => {
     it('replays the terminal state to a late subscriber and completes', async () => {
-      const id = jobs.enqueue(async () => STORY);
+      const id = jobs.enqueue(() => Promise.resolve(STORY));
       await tick();
       const events = await collectUntilComplete(controller.events(id));
       expect(events).toEqual([{ data: { status: 'done', result: STORY } }]);

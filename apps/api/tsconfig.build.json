@@ -8,5 +8,12 @@
     // .tsbuildinfo makes tsc skip emit and produce an empty dist.
     "tsBuildInfoFile": "./dist/tsconfig.build.tsbuildinfo"
   },
-  "exclude": ["node_modules", "test", "dist", "**/*spec.ts", "**/*.fixture.ts"]
+  "exclude": [
+    "node_modules",
+    "test",
+    "dist",
+    "scripts",
+    "**/*spec.ts",
+    "**/*.fixture.ts"
+  ]
 }
