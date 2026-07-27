@@ -8,6 +8,11 @@ dist/
 coverage/
 *.tsbuildinfo
 
+# Local eval fixtures — sample photos for the single-call quality eval
+# (apps/api/scripts/eval-single-call). Kept out of git so the repo stays light;
+# point EVAL_FIXTURES_DIR at your own folder to run it.
+sample-story-photos/
+
 # OpenAPI build artifact (regenerate with `npm run openapi:bundle`)
 openapi/openapi.bundled.yaml
 __pycache__/
