@@ -144,5 +144,40 @@ describe('StoryGateway', () => {
       source.emit({ status: 'done', result: STORY });
       expect(await pending).toEqual({ ok: true, response: STORY });
     });
+
+    it('times out with a typed error when no terminal state arrives in maxWaitMs', async () => {
+      vi.useFakeTimers();
+      try {
+        const pending = gateway.streamStory('job-123');
+        const source = sources[0];
+
+        // Stream stays open (heartbeats, still processing) but never settles.
+        await vi.advanceTimersByTimeAsync(gateway.maxWaitMs);
+
+        expect(await pending).toEqual({
+          ok: false,
+          code: 'timeout',
+          message: 'The story engine timed out — retry.',
+        });
+        expect(source.closed).toBe(true);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('does not time out once a terminal state has already arrived', async () => {
+      vi.useFakeTimers();
+      try {
+        const pending = gateway.streamStory('job-123');
+        sources[0].emit({ status: 'done', result: STORY });
+
+        // Advancing past the deadline must not overwrite the settled result.
+        await vi.advanceTimersByTimeAsync(gateway.maxWaitMs + 1_000);
+
+        expect(await pending).toEqual({ ok: true, response: STORY });
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 });
