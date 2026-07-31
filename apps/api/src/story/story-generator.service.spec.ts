@@ -5,6 +5,7 @@ import { ApiError } from '@google/genai';
 import type { GenerateRequest } from '@auto-stories/api-types';
 import { StoryGeneratorService } from './story-generator.service';
 import { GENAI } from './story.constants';
+import { DEFAULT_STYLE } from './caption-style';
 
 // The service logs unexpected causes on purpose; keep them out of test output.
 beforeAll(() => {
@@ -57,9 +58,9 @@ describe('StoryGeneratorService', () => {
 
     expect(result).toEqual({
       frames: [
-        { photoId: 'p2', order: 1, caption: 'hook' },
-        { photoId: 'p1', order: 2, caption: 'build' },
-        { photoId: 'p3', order: 3, caption: 'payoff' },
+        { photoId: 'p2', order: 1, caption: 'hook', style: DEFAULT_STYLE },
+        { photoId: 'p1', order: 2, caption: 'build', style: DEFAULT_STYLE },
+        { photoId: 'p3', order: 3, caption: 'payoff', style: DEFAULT_STYLE },
       ],
       partial: false,
     });

@@ -37,10 +37,11 @@ export function buildPrompt(
     '- Put the chosen photos in narrative order: the single strongest photo (best visual and clearest story hook) goes first, then build, then the payoff last. The first frame decides whether the rest gets watched.',
     '- Order by the story line and what is actually visible in each photo, NOT by the capture timestamp (treat any timestamp as a soft hint only).',
     '- Write one caption per chosen photo, each making one clear point. Ground it in the specifics the user gave (names, occasion, place) and in what the photo shows, so it feels true rather than generic.',
+    '- For each caption, choose a style that fits the mood, picking one value from each set: font (inter, playfair, space-mono, caveat); weight (regular, bold); case (normal, upper); align (left, center, right); size (s, m, l); position (top-left, top-center, top-right, bottom-left, bottom-center, bottom-right — keep the caption off faces and the main subject in the middle); letterbox (solid, blur — how to fill the frame when the photo is not 9:16). Text colour and any backdrop are handled automatically, so do not choose those.',
     toneLine,
     includeLine,
     '',
-    'Return only the chosen photos, each as a frame with its photoId, its 1-based order, and its caption.',
+    'Return only the chosen photos, each as a frame with its photoId, its 1-based order, its caption, and its style.',
   ]
     .filter((line) => line !== '')
     .join('\n');
