@@ -1,0 +1,52 @@
+type: object
+description: >-
+  How the caption is styled on the frame. The model picks each value from the
+  fixed sets below; the client computes text colour and scrim for readability
+  (not the model, which only saw a downscaled proxy).
+required: [font, weight, case, align, size, position, letterbox]
+additionalProperties: false
+properties:
+  font:
+    type: string
+    enum: [inter, playfair, space-mono, caveat]
+    description: Caption typeface (bundled, self-hosted).
+    examples:
+      - inter
+  weight:
+    type: string
+    enum: [regular, bold]
+    examples:
+      - bold
+  case:
+    type: string
+    enum: [normal, upper]
+    examples:
+      - normal
+  align:
+    type: string
+    enum: [left, center, right]
+    examples:
+      - center
+  size:
+    type: string
+    enum: [s, m, l]
+    examples:
+      - m
+  position:
+    type: string
+    description: Anchor zone (2 rows x 3 columns), kept off the subject in the middle.
+    enum:
+      - top-left
+      - top-center
+      - top-right
+      - bottom-left
+      - bottom-center
+      - bottom-right
+    examples:
+      - bottom-center
+  letterbox:
+    type: string
+    description: How to fill the frame when the photo is not 9:16.
+    enum: [solid, blur]
+    examples:
+      - blur

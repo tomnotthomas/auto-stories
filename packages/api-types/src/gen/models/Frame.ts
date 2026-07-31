@@ -3,9 +3,10 @@
 * Do not edit manually.
 */
 
+import type { Style } from "./Style.js";
 
 /**
- * @description One chosen photo in narrative order, with its caption.
+ * @description One chosen photo in narrative order, with its caption and style.
 */
 export type Frame = {
     /**
@@ -24,4 +25,9 @@ export type Frame = {
      * @type string
     */
     caption: string;
+    /**
+     * @description How the caption is styled on the frame. The model picks each value from the fixed sets below; the client computes text colour and scrim for readability (not the model, which only saw a downscaled proxy).
+     * @type object | undefined
+    */
+    style?: Style;
 };

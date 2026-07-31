@@ -1,5 +1,5 @@
 type: object
-description: One chosen photo in narrative order, with its caption.
+description: One chosen photo in narrative order, with its caption and style.
 required: [photoId, order, caption]
 additionalProperties: false
 properties:
@@ -19,3 +19,5 @@ properties:
     description: Caption grounded in the story line and what's visible.
     examples:
       - The moment she saw the cake — pure disbelief.
+  style:
+    $ref: ./Style.yaml

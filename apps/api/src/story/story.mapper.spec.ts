@@ -1,4 +1,5 @@
 import { shapeFrames } from './story.mapper';
+import { DEFAULT_STYLE } from './caption-style';
 
 const ids = new Set(['a', 'b', 'c']);
 
@@ -9,8 +10,8 @@ describe('shapeFrames', () => {
       { photoId: 'a', order: 2, caption: 'first' },
     ];
     expect(shapeFrames(raw, ids)).toEqual([
-      { photoId: 'a', order: 1, caption: 'first' },
-      { photoId: 'c', order: 2, caption: 'last' },
+      { photoId: 'a', order: 1, caption: 'first', style: DEFAULT_STYLE },
+      { photoId: 'c', order: 2, caption: 'last', style: DEFAULT_STYLE },
     ]);
   });
 
@@ -36,7 +37,7 @@ describe('shapeFrames', () => {
       { photoId: 'a', order: 1, caption: 'earlier' },
     ];
     expect(shapeFrames(raw, ids)).toEqual([
-      { photoId: 'a', order: 1, caption: 'earlier' },
+      { photoId: 'a', order: 1, caption: 'earlier', style: DEFAULT_STYLE },
     ]);
   });
 
