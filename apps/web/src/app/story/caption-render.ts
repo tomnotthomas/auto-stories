@@ -3,7 +3,9 @@ import type { Style } from '@auto-stories/api-types';
 /**
  * Maps the AI's caption `style` to concrete CSS/canvas values. The four font
  * choices map to generic families for now (real self-hosted fonts are a later
- * polish) so the model's choice is still visible: sans / serif / mono / script.
+ * polish) so the model's choice is still visible: neutral sans / serif / mono /
+ * rounded sans. The `caveat` slot is the casual/handwriting choice — rendered as
+ * a modern rounded sans (`ui-rounded`), never a dated script/cursive face.
  */
 export function fontFamily(font: Style['font']): string {
   switch (font) {
@@ -12,7 +14,7 @@ export function fontFamily(font: Style['font']): string {
     case 'space-mono':
       return 'ui-monospace, "SF Mono", Menlo, monospace';
     case 'caveat':
-      return '"Segoe Script", "Bradley Hand", "Comic Sans MS", cursive';
+      return 'ui-rounded, "SF Pro Rounded", "Segoe UI Variable", system-ui, sans-serif';
     case 'inter':
     default:
       return 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';

@@ -11,7 +11,10 @@ describe('caption-render style mapping', () => {
     expect(fontFamily('inter')).toContain('sans-serif');
     expect(fontFamily('playfair')).toContain('serif');
     expect(fontFamily('space-mono')).toContain('monospace');
-    expect(fontFamily('caveat')).toContain('cursive');
+    // The casual/handwriting slot renders as a modern rounded sans, never a
+    // dated script/cursive face.
+    expect(fontFamily('caveat')).toContain('sans-serif');
+    expect(fontFamily('caveat')).not.toContain('cursive');
   });
 
   it('maps weight, case, and align to CSS values', () => {
