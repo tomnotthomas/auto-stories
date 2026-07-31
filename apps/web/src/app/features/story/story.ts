@@ -6,6 +6,15 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
 import { StoryService, FramePlacement } from '../../story/story.service';
 import { GenerationService } from '../../story/generation.service';
+import { StoryExporter } from '../../story/story-exporter.service';
+import { DEFAULT_STYLE } from '../../story/caption-style';
+import {
+  fontFamily,
+  fontWeightCss,
+  sizeScale,
+  textAlignCss,
+  textTransformCss,
+} from '../../story/caption-render';
 import { CaptionEditor } from '../refine/caption-editor/caption-editor';
 import { RefineFilmstrip } from '../refine/filmstrip/filmstrip';
 
@@ -16,6 +25,15 @@ interface ViewFrame {
   readonly caption: string;
   readonly placement: FramePlacement;
   readonly legibility: boolean;
+  /** The AI style resolved to CSS + the device-computed caption colour. */
+  readonly fontFamily: string;
+  readonly fontWeight: number;
+  readonly textAlign: 'left' | 'center' | 'right';
+  readonly textTransform: 'none' | 'uppercase';
+  readonly sizeMult: number;
+  readonly color: string;
+  /** Tailwind scrim class (dark on light text, light on dark text), or ''. */
+  readonly scrimClass: string;
 }
 
 /**
@@ -27,12 +45,19 @@ interface ViewFrame {
  */
 @Component({
   selector: 'app-story',
-  imports: [MatButtonModule, MatIconModule, MatProgressSpinnerModule, CaptionEditor, RefineFilmstrip],
+  imports: [
+    MatButtonModule,
+    MatIconModule,
+    MatProgressSpinnerModule,
+    CaptionEditor,
+    RefineFilmstrip,
+  ],
   templateUrl: './story.html',
 })
 export class Story {
   private readonly story = inject(StoryService);
   private readonly generation = inject(GenerationService);
+  private readonly exporter = inject(StoryExporter);
   private readonly index = signal(0);
 
   /** True when the model dropped a photo but still built a story (4.3). */
@@ -54,17 +79,31 @@ export class Story {
   /** True while a whole-story rebuild (Regenerate story) or an add-photo append
    * is in flight. */
   protected readonly storyBusy = signal(false);
+  /** True while rendering + handing off the frames. */
+  protected readonly exporting = signal(false);
+  /** True once the frames have been shared/downloaded (shows the next-step copy). */
+  protected readonly posted = signal(false);
 
   /** Frames in narrative order, each resolved to its picked photo. */
   protected readonly frames = computed<ViewFrame[]>(() => {
     const photos = this.story.photos();
-    return this.story.frames().map((frame) => ({
-      photoId: frame.photoId,
-      previewUrl: photos.find((p) => p.id === frame.photoId)?.previewUrl ?? null,
-      caption: frame.caption,
-      placement: frame.placement,
-      legibility: frame.legibility,
-    }));
+    return this.story.frames().map((frame) => {
+      const style = frame.style ?? DEFAULT_STYLE;
+      return {
+        photoId: frame.photoId,
+        previewUrl: photos.find((p) => p.id === frame.photoId)?.previewUrl ?? null,
+        caption: frame.caption,
+        placement: frame.placement,
+        legibility: frame.legibility,
+        fontFamily: fontFamily(style.font),
+        fontWeight: fontWeightCss(style.weight),
+        textAlign: textAlignCss(style.align),
+        textTransform: textTransformCss(style.case),
+        sizeMult: sizeScale(style.size),
+        color: frame.light ? '#ffffff' : '#141414',
+        scrimClass: frame.legibility ? (frame.light ? 'bg-black/40' : 'bg-white/60') : '',
+      };
+    });
   });
   protected readonly frameCount = computed(() => this.frames().length);
   /** Clamped so a drop that shortens the story never strands the index. */
@@ -207,5 +246,21 @@ export class Story {
 
   protected startOver(): void {
     this.story.reset();
+  }
+
+  /** Render the frames to images and hand them off (Web Share on mobile, else a
+   * download), then show the "open Instagram → Select Multiple" next step. */
+  protected async postToInstagram(): Promise<void> {
+    if (this.exporting()) return;
+    this.exporting.set(true);
+    try {
+      await this.exporter.post();
+      this.posted.set(true);
+    } catch {
+      // A cancelled share or a failed render leaves the user on the payoff; they
+      // can tap again. Nothing destructive happened.
+    } finally {
+      this.exporting.set(false);
+    }
   }
 }

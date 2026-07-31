@@ -16,7 +16,11 @@
         [attr.aria-hidden]="layer.index !== currentIndex()"
       >
         @if (layer.frame.previewUrl) {
-          <img [src]="layer.frame.previewUrl" alt="" class="absolute inset-0 h-full w-full object-cover" />
+          <img
+            [src]="layer.frame.previewUrl"
+            alt=""
+            class="absolute inset-0 h-full w-full object-cover"
+          />
         }
       </div>
     }
@@ -73,50 +77,58 @@
          tappable, editable-looking layer; the editor overlay opens on tap.
          Hidden while the editor is open so it doesn't ghost behind it. -->
     @if (!editingFrame()) {
-    <div
-      class="absolute z-20 w-[78%] max-w-[320px] -translate-x-1/2 -translate-y-1/2"
-      [style.left.%]="frame.placement.xPct"
-      [style.top.%]="frame.placement.yPct"
-    >
-      @if (refining()) {
-        @if (!coachSeen()) {
-          <div
-            class="mat-label-large coach-bob absolute -top-12 left-1/2 flex items-center gap-1.5 whitespace-nowrap rounded-full bg-primary px-3 py-1.5 text-on-primary shadow-lg"
+      <div
+        class="absolute z-20 w-[78%] max-w-[320px] -translate-x-1/2 -translate-y-1/2"
+        [style.left.%]="frame.placement.xPct"
+        [style.top.%]="frame.placement.yPct"
+      >
+        @if (refining()) {
+          @if (!coachSeen()) {
+            <div
+              class="mat-label-large coach-bob absolute -top-12 left-1/2 flex items-center gap-1.5 whitespace-nowrap rounded-full bg-primary px-3 py-1.5 text-on-primary shadow-lg"
+            >
+              <mat-icon class="h-[18px] w-[18px] text-[18px] leading-none">touch_app</mat-icon>
+              Tap to edit &amp; move
+            </div>
+          }
+          <button
+            type="button"
+            (click)="editCaption(frame.photoId)"
+            class="story-caption relative block w-full rounded-2xl border-[1.5px] border-dashed border-white/60 px-4 py-3 leading-tight"
+            [class]="frame.scrimClass"
+            [style.fontFamily]="frame.fontFamily"
+            [style.fontWeight]="frame.fontWeight"
+            [style.textAlign]="frame.textAlign"
+            [style.textTransform]="frame.textTransform"
+            [style.color]="frame.color"
+            [style.fontSize.px]="frame.placement.scale * 24 * frame.sizeMult"
           >
-            <mat-icon class="h-[18px] w-[18px] text-[18px] leading-none">touch_app</mat-icon>
-            Tap to edit &amp; move
-          </div>
+            {{ frame.caption }}
+            <mat-icon
+              class="absolute -right-2.5 -top-2.5 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-[16px] text-on-primary shadow-lg"
+              >edit</mat-icon
+            >
+          </button>
+        } @else {
+          <p
+            class="story-caption leading-tight"
+            [class]="frame.scrimClass ? 'rounded-2xl px-4 py-3 ' + frame.scrimClass : ''"
+            [style.fontFamily]="frame.fontFamily"
+            [style.fontWeight]="frame.fontWeight"
+            [style.textAlign]="frame.textAlign"
+            [style.textTransform]="frame.textTransform"
+            [style.color]="frame.color"
+            [style.fontSize.px]="frame.placement.scale * 24 * frame.sizeMult"
+          >
+            {{ frame.caption }}
+          </p>
         }
-        <button
-          type="button"
-          (click)="editCaption(frame.photoId)"
-          class="story-caption relative block w-full rounded-2xl border-[1.5px] border-dashed border-white/60 text-center font-bold leading-tight text-white"
-          [class]="frame.legibility ? 'bg-black/40 px-4 py-3' : 'px-4 py-3'"
-          [style.fontSize.px]="frame.placement.scale * 24"
-        >
-          {{ frame.caption }}
-          <mat-icon
-            class="absolute -right-2.5 -top-2.5 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-[16px] text-on-primary shadow-lg"
-            >edit</mat-icon
-          >
-        </button>
-      } @else {
-        <p
-          class="story-caption text-center font-bold leading-tight text-white"
-          [class]="frame.legibility ? 'rounded-2xl bg-black/40 px-4 py-3' : ''"
-          [style.fontSize.px]="frame.placement.scale * 24"
-        >
-          {{ frame.caption }}
-        </p>
-      }
-    </div>
+      </div>
     }
 
     <!-- One-time nav hint: paging a Story isn't obvious on the web (5.3). -->
     @if (!refining() && !editingFrame() && multiFrame() && !navHintSeen()) {
-      <p
-        class="mat-label-small absolute inset-x-0 bottom-[136px] z-10 text-center text-white/70"
-      >
+      <p class="mat-label-small absolute inset-x-0 bottom-[136px] z-10 text-center text-white/70">
         Tap or swipe the photo to move through the story
       </p>
     }
@@ -128,7 +140,9 @@
         class="absolute inset-x-0 bottom-0 z-20 flex flex-col gap-3 rounded-t-3xl bg-surface-container-low px-4 pb-6 pt-3 text-on-surface"
       >
         <div class="flex items-center">
-          <span class="mat-title-medium flex-1">Refining · frame {{ currentIndex() + 1 }} of {{ frameCount() }}</span>
+          <span class="mat-title-medium flex-1"
+            >Refining · frame {{ currentIndex() + 1 }} of {{ frameCount() }}</span
+          >
           <button matButton="filled" (click)="exitRefine()">
             <mat-icon>check</mat-icon>
             Done
@@ -139,15 +153,37 @@
             <mat-icon>photo_library</mat-icon>
             Reorder &amp; remove
           </button>
-          <button matButton="outlined" class="flex-1" [disabled]="storyBusy()" (click)="regenerateStory()">
+          <button
+            matButton="outlined"
+            class="flex-1"
+            [disabled]="storyBusy()"
+            (click)="regenerateStory()"
+          >
             <mat-icon>auto_awesome</mat-icon>
             Regenerate
           </button>
         </div>
       </div>
     } @else {
-      <div class="absolute inset-x-4 bottom-6 z-20 flex flex-col gap-1">
-        <button matButton="filled" class="w-full" (click)="enterRefine()">
+      <div class="absolute inset-x-4 bottom-6 z-20 flex flex-col gap-2">
+        @if (posted()) {
+          <p
+            class="mat-body-medium rounded-2xl bg-surface-container-high px-4 py-3 text-center text-on-surface"
+          >
+            Saved to your photos. Open Instagram → Story → <b>Select Multiple</b> → pick these
+            {{ frameCount() }}.
+          </p>
+        }
+        <button
+          matButton="filled"
+          class="w-full"
+          [disabled]="exporting()"
+          (click)="postToInstagram()"
+        >
+          <mat-icon>ios_share</mat-icon>
+          {{ exporting() ? 'Preparing…' : 'Post to Instagram' }}
+        </button>
+        <button matButton="tonal" class="w-full" (click)="enterRefine()">
           <mat-icon>tune</mat-icon>
           Refine story
         </button>
@@ -175,7 +211,12 @@
           />
         </div>
         <div class="flex flex-none gap-3 px-4 pb-6 pt-2">
-          <button matButton="outlined" class="flex-1" [disabled]="storyBusy()" (click)="regenerateStory()">
+          <button
+            matButton="outlined"
+            class="flex-1"
+            [disabled]="storyBusy()"
+            (click)="regenerateStory()"
+          >
             <mat-icon>auto_awesome</mat-icon>
             Regenerate
           </button>
@@ -186,7 +227,9 @@
 
     <!-- Whole-story rebuild in progress -->
     @if (storyBusy()) {
-      <div class="absolute inset-0 z-40 flex flex-col items-center justify-center gap-3 bg-black/70 text-white">
+      <div
+        class="absolute inset-0 z-40 flex flex-col items-center justify-center gap-3 bg-black/70 text-white"
+      >
         <mat-spinner diameter="40" />
         <span class="mat-label-large">Rebuilding your story…</span>
       </div>

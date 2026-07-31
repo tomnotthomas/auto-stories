@@ -1,7 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import type { Style } from '@auto-stories/api-types';
 
-import { DEFAULT_PLACEMENT, MAX_PHOTOS, MAX_STORY_LENGTH, StoryService } from './story.service';
+import { MAX_PHOTOS, MAX_STORY_LENGTH, StoryService } from './story.service';
+import { zoneToPlacement } from './caption-style';
 
 function imageFile(name = 'photo.jpg'): File {
   return new File(['bytes'], name, { type: 'image/jpeg' });
@@ -120,7 +121,7 @@ describe('StoryService', () => {
     // Each frame gains editable placement + legibility state for refine.
     const [frame] = service.frames();
     expect(frame).toMatchObject({ photoId: 'p1', order: 1, caption: 'By the water', style: STYLE });
-    expect(frame.placement).toEqual(DEFAULT_PLACEMENT);
+    expect(frame.placement).toEqual(zoneToPlacement(STYLE.position));
     expect(frame.legibility).toBe(true);
   });
 
@@ -228,7 +229,7 @@ describe('StoryService', () => {
       expect(frames.map((f) => f.order)).toEqual([1, 2, 3, 4, 5]);
       const p5 = frames[4];
       expect(p5.caption).toBe('newcomer');
-      expect(p5.placement).toEqual(DEFAULT_PLACEMENT);
+      expect(p5.placement).toEqual(zoneToPlacement(STYLE.position));
       expect(p5.legibility).toBe(true);
       // The existing frame keeps the placement the user set.
       expect(frames[0].placement).toEqual({ xPct: 10, yPct: 10, scale: 1 });

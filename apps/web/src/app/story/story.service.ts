@@ -1,6 +1,8 @@
 import { Injectable, computed, signal } from '@angular/core';
 import type { ErrorCode, Frame, Tone } from '@auto-stories/api-types';
 
+import { DEFAULT_STYLE, pickReadable, sampleLuminance, zoneToPlacement } from './caption-style';
+
 /**
  * The screen the flow is currently on. Phase 1 is one linear, in-memory flow
  * (approach 3.17), so navigation is a signal here rather than the router:
@@ -54,6 +56,8 @@ export const DEFAULT_PLACEMENT: FramePlacement = { xPct: 50, yPct: 46, scale: 1 
 export interface EditableFrame extends Frame {
   readonly placement: FramePlacement;
   readonly legibility: boolean;
+  /** Computed on-device: true → light (white) caption text, false → dark. */
+  readonly light: boolean;
 }
 
 /** Sort by narrative order, then renumber 1..n so `order` stays contiguous
@@ -161,10 +165,50 @@ export class StoryService {
    * editable refine state (default placement, legibility on). */
   completeStory(frames: readonly Frame[], partial: boolean): void {
     this._frames.set(
-      reindex(frames.map((frame) => ({ ...frame, placement: DEFAULT_PLACEMENT, legibility: true }))),
+      reindex(
+        frames.map((frame) => ({
+          ...frame,
+          // Start the caption where the AI placed it (its style zone); the user
+          // can still drag. Legibility + colour start safe (white + scrim) and
+          // are refined by computeReadable() from the real pixels.
+          placement: zoneToPlacement((frame.style ?? DEFAULT_STYLE).position),
+          legibility: true,
+          light: true,
+        })),
+      ),
     );
     this._partial.set(partial);
     this._phase.set('story');
+    void this.computeReadable();
+  }
+
+  /**
+   * For each frame, sample the photo under the caption and pick a legible text
+   * colour + whether a scrim is needed (decisions 7.10 — the device does this,
+   * not the model). Runs after the story is shown, so the payoff isn't blocked
+   * on decoding; frames update in place when each is ready.
+   */
+  private async computeReadable(): Promise<void> {
+    const files = new Map(this._photos().map((photo) => [photo.id, photo.file]));
+    const readable = new Map<string, { light: boolean; scrim: boolean }>();
+    for (const frame of this._frames()) {
+      const file = files.get(frame.photoId);
+      if (!file) continue;
+      try {
+        const bitmap = await createImageBitmap(file);
+        readable.set(frame.photoId, pickReadable(sampleLuminance(bitmap, frame.placement)));
+        bitmap.close();
+      } catch {
+        // Keep the safe defaults (white text + scrim) if a photo can't decode.
+      }
+    }
+    if (readable.size === 0) return;
+    this._frames.update((frames) =>
+      frames.map((frame) => {
+        const r = readable.get(frame.photoId);
+        return r ? { ...frame, light: r.light, legibility: r.scrim } : frame;
+      }),
+    );
   }
 
   /** Refine: add a hand-picked photo as a new frame at the end, keeping the
@@ -177,7 +221,13 @@ export class StoryService {
       const nextOrder = frames.reduce((max, f) => Math.max(max, f.order), 0) + 1;
       return [
         ...frames,
-        { ...frame, order: nextOrder, placement: DEFAULT_PLACEMENT, legibility: true },
+        {
+          ...frame,
+          order: nextOrder,
+          placement: zoneToPlacement((frame.style ?? DEFAULT_STYLE).position),
+          legibility: true,
+          light: true,
+        },
       ];
     });
   }

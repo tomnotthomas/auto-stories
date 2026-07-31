@@ -73,3 +73,25 @@ export function pickReadable(luminance: number): Readable {
     scrim: Math.abs(luminance - CONTRAST_MID) < SCRIM_BAND,
   };
 }
+
+/**
+ * Sample the photo's average luminance in the band where the caption sits, so
+ * {@link pickReadable} can pick a legible colour. Impure (decodes to a canvas);
+ * returns 0.5 (→ scrim, white text) if a 2D context isn't available.
+ */
+export function sampleLuminance(bitmap: ImageBitmap, placement: FramePlacement): number {
+  const W = 32;
+  const H = 12;
+  const canvas = new OffscreenCanvas(W, H);
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return CONTRAST_MID;
+  const sx = bitmap.width * 0.1;
+  const sw = bitmap.width * 0.8;
+  const bandH = bitmap.height * 0.16;
+  const sy = Math.max(
+    0,
+    Math.min(bitmap.height - bandH, (bitmap.height * placement.yPct) / 100 - bandH / 2),
+  );
+  ctx.drawImage(bitmap, sx, sy, sw, bandH, 0, 0, W, H);
+  return averageLuminance(ctx.getImageData(0, 0, W, H).data);
+}
