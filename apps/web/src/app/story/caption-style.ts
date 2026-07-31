@@ -18,15 +18,20 @@ export const DEFAULT_STYLE: Style = {
  * The AI picks a caption `position` (one of six anchor zones, kept off the
  * subject in the middle); we turn that into the starting {@link FramePlacement}
  * the user can then drag. Percentages of the frame, matching DEFAULT_PLACEMENT's
- * convention (box centre + scale). Top/bottom sit inside the always-visible band.
+ * convention (box centre + scale).
+ *
+ * Both axes stay inside the always-visible band the editor drag also clamps to
+ * (caption-editor DRAG_MIN/MAX_X/Y): the caption box is `w-[78%]`, so its centre
+ * must sit within [~40, ~60] horizontally to stay on-frame, and top/bottom stay
+ * high/low enough to clear the top progress row and the bottom action bar.
  */
 const ZONE_TO_PLACEMENT: Record<StylePositionEnum, FramePlacement> = {
-  'top-left': { xPct: 28, yPct: 16, scale: 1 },
-  'top-center': { xPct: 50, yPct: 16, scale: 1 },
-  'top-right': { xPct: 72, yPct: 16, scale: 1 },
-  'bottom-left': { xPct: 28, yPct: 84, scale: 1 },
-  'bottom-center': { xPct: 50, yPct: 84, scale: 1 },
-  'bottom-right': { xPct: 72, yPct: 84, scale: 1 },
+  'top-left': { xPct: 42, yPct: 22, scale: 1 },
+  'top-center': { xPct: 50, yPct: 22, scale: 1 },
+  'top-right': { xPct: 58, yPct: 22, scale: 1 },
+  'bottom-left': { xPct: 42, yPct: 56, scale: 1 },
+  'bottom-center': { xPct: 50, yPct: 56, scale: 1 },
+  'bottom-right': { xPct: 58, yPct: 56, scale: 1 },
 };
 
 export function zoneToPlacement(position: StylePositionEnum): FramePlacement {
