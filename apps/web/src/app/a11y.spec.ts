@@ -20,9 +20,9 @@ function imageFile(name: string): File {
 }
 
 const FRAMES: Frame[] = [
-  { photoId: 'a', order: 1, caption: 'Everyone made it to the lake' },
-  { photoId: 'b', order: 2, caption: 'Then she blew out the candle' },
-  { photoId: 'c', order: 3, caption: 'And every cousin cheered' },
+  { photoId: 'a', order: 1, caption: 'Everyone made it to the lake', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } },
+  { photoId: 'b', order: 2, caption: 'Then she blew out the candle', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } },
+  { photoId: 'c', order: 3, caption: 'And every cousin cheered', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } },
 ];
 
 describe('Accessibility (WCAG 2 A/AA)', () => {

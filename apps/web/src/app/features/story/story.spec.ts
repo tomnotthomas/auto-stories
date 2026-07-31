@@ -7,8 +7,8 @@ import { StoryHarness } from './story.harness';
 import { StoryService } from '../../story/story.service';
 
 const frames: Frame[] = [
-  { photoId: 'a', order: 1, caption: 'Everyone made it to the lake' },
-  { photoId: 'b', order: 2, caption: 'Then she blew out the candle' },
+  { photoId: 'a', order: 1, caption: 'Everyone made it to the lake', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } },
+  { photoId: 'b', order: 2, caption: 'Then she blew out the candle', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } },
 ];
 
 describe('Story', () => {
@@ -42,9 +42,9 @@ describe('Story', () => {
 
   it('preloads the current frame and its neighbours so paging stays in sync', async () => {
     const three: Frame[] = [
-      { photoId: 'a', order: 1, caption: 'one' },
-      { photoId: 'b', order: 2, caption: 'two' },
-      { photoId: 'c', order: 3, caption: 'three' },
+      { photoId: 'a', order: 1, caption: 'one', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } },
+      { photoId: 'b', order: 2, caption: 'two', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } },
+      { photoId: 'c', order: 3, caption: 'three', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } },
     ];
     await TestBed.configureTestingModule({ imports: [Story] }).compileComponents();
     story = TestBed.inject(StoryService);

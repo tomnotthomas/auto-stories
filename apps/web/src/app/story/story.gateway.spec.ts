@@ -19,7 +19,7 @@ const request: GenerateRequest = {
 };
 
 const STORY: GenerateResponse = {
-  frames: [{ photoId: 'p1', order: 1, caption: 'By the water' }],
+  frames: [{ photoId: 'p1', order: 1, caption: 'By the water', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } }],
   partial: false,
 };
 

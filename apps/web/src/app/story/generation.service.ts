@@ -3,6 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { StoryService } from './story.service';
 import { StoryGateway, type GenerateOutcome } from './story.gateway';
 import { ImageService } from './image.service';
+import { DEFAULT_STYLE } from './caption-style';
 
 /**
  * Owns the "build a story" round trip so both the generating screen and refine
@@ -87,7 +88,12 @@ export class GenerationService {
     }
 
     for (const id of newIds) {
-      this.story.appendFrame({ photoId: id, order: 0, caption: captions.get(id) ?? '' });
+      this.story.appendFrame({
+        photoId: id,
+        order: 0,
+        caption: captions.get(id) ?? '',
+        style: DEFAULT_STYLE,
+      });
     }
   }
 
