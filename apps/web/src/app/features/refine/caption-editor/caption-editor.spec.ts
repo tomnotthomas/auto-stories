@@ -121,6 +121,15 @@ describe('draggedPosition (grab-offset drag)', () => {
     expect(low.x).toBeLessThan(high.x);
     expect(low.y).toBeLessThan(high.y);
   });
+
+  it('clamps X so the centred 78%-wide caption box never leaves the frame', () => {
+    // The box is w-[78%] centred on x, so its half-width is 39% of the frame.
+    const halfWidth = 39;
+    const farLeft = draggedPosition(-100, 30, 0, 0);
+    const farRight = draggedPosition(200, 30, 0, 0);
+    expect(farLeft.x - halfWidth).toBeGreaterThanOrEqual(0);
+    expect(farRight.x + halfWidth).toBeLessThanOrEqual(100);
+  });
 });
 
 describe('pinchedScale (two-finger resize)', () => {

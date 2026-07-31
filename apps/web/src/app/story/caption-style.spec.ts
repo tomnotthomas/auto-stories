@@ -1,4 +1,21 @@
 import { averageLuminance, pickReadable, zoneToPlacement } from './caption-style';
+import type { StylePositionEnum } from '@auto-stories/api-types';
+
+/** The caption box is `w-[78%]` centred on xPct, so its half-width is 39% of the
+ * frame. To stay fully on-frame the centre must sit within [39, 61]. */
+const CAPTION_HALF_WIDTH_PCT = 39;
+/** The refine/view bottom bar occupies the lower band; captions must clear it
+ * (matches the editor's DRAG_MAX_Y). */
+const SAFE_MAX_Y = 58;
+
+const ALL_ZONES: StylePositionEnum[] = [
+  'top-left',
+  'top-center',
+  'top-right',
+  'bottom-left',
+  'bottom-center',
+  'bottom-right',
+];
 
 describe('zoneToPlacement', () => {
   it('maps top zones high and bottom zones low', () => {
@@ -10,6 +27,20 @@ describe('zoneToPlacement', () => {
     expect(zoneToPlacement('bottom-left').xPct).toBeLessThan(50);
     expect(zoneToPlacement('bottom-center').xPct).toBe(50);
     expect(zoneToPlacement('bottom-right').xPct).toBeGreaterThan(50);
+  });
+
+  it('keeps the caption box on-frame horizontally for every zone', () => {
+    for (const zone of ALL_ZONES) {
+      const { xPct } = zoneToPlacement(zone);
+      expect(xPct - CAPTION_HALF_WIDTH_PCT).toBeGreaterThanOrEqual(0);
+      expect(xPct + CAPTION_HALF_WIDTH_PCT).toBeLessThanOrEqual(100);
+    }
+  });
+
+  it('keeps bottom captions clear of the action bar', () => {
+    for (const zone of ['bottom-left', 'bottom-center', 'bottom-right'] as StylePositionEnum[]) {
+      expect(zoneToPlacement(zone).yPct).toBeLessThanOrEqual(SAFE_MAX_Y);
+    }
   });
 });
 

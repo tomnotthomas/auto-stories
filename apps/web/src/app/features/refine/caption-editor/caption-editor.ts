@@ -18,8 +18,11 @@ const BASE_FONT_PX = 24;
  */
 const DRAG_MIN_Y = 14;
 const DRAG_MAX_Y = 58;
-const DRAG_MIN_X = 6;
-const DRAG_MAX_X = 94;
+// The caption box is `w-[78%]` centred on x, so its half-width is 39% of the
+// frame; the centre must stay within [39, 61] to keep both edges on-frame. The
+// band is kept a hair tighter so the box never touches the very edge.
+const DRAG_MIN_X = 40;
+const DRAG_MAX_X = 60;
 
 /** Caption scale range — matches the size slider's min/max in the template. */
 const SCALE_MIN = 0.6;
