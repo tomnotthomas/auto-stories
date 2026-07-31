@@ -23,7 +23,20 @@ describe('RefineFilmstrip', () => {
     story.addPhotos(Array.from({ length: count }, (_, i) => imageFile(`p${i}.jpg`)));
     const frames: Frame[] = story
       .photos()
-      .map((photo, i) => ({ photoId: photo.id, order: i + 1, caption: `caption ${i + 1}` }));
+      .map((photo, i) => ({
+        photoId: photo.id,
+        order: i + 1,
+        caption: `caption ${i + 1}`,
+        style: {
+          font: 'inter',
+          weight: 'regular',
+          case: 'normal',
+          align: 'center',
+          size: 'm',
+          position: 'bottom-center',
+          letterbox: 'blur',
+        },
+      }));
     story.completeStory(frames, false);
     fixture = TestBed.createComponent(RefineFilmstrip);
     return TestbedHarnessEnvironment.harnessForFixture(fixture, RefineFilmstripHarness);

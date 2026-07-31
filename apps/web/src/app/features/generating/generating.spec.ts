@@ -43,7 +43,7 @@ describe('Generating', () => {
 
   const success: GenerateOutcome = {
     ok: true,
-    response: { frames: [{ photoId: 'p1', order: 1, caption: 'By the water' }] },
+    response: { frames: [{ photoId: 'p1', order: 1, caption: 'By the water', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } }] },
   };
 
   it('tells the user the story is being built', async () => {
@@ -61,7 +61,11 @@ describe('Generating', () => {
     await flush();
     expect(story.phase()).toBe('story');
     // frames() now carry editable refine state on top of the contract fields.
-    expect(story.frames().map((f) => ({ photoId: f.photoId, order: f.order, caption: f.caption }))).toEqual(
+    expect(
+      story
+        .frames()
+        .map((f) => ({ photoId: f.photoId, order: f.order, caption: f.caption, style: f.style })),
+    ).toEqual(
       success.response.frames,
     );
   });

@@ -44,7 +44,7 @@ describe('GenerationService', () => {
   it('lands the finished story on the payoff when generation succeeds', async () => {
     outcome = {
       ok: true,
-      response: { frames: [{ photoId: 'p1', order: 1, caption: 'By the water' }], partial: true },
+      response: { frames: [{ photoId: 'p1', order: 1, caption: 'By the water', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } }], partial: true },
     };
     await generation.generate();
     expect(story.phase()).toBe('story');
@@ -62,8 +62,8 @@ describe('GenerationService', () => {
   it('regenerates only the target caption, keeping the rest of the refined story', async () => {
     story.completeStory(
       [
-        { photoId: 'p1', order: 1, caption: 'first' },
-        { photoId: 'p2', order: 2, caption: 'second' },
+        { photoId: 'p1', order: 1, caption: 'first', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } },
+        { photoId: 'p2', order: 2, caption: 'second', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } },
       ],
       false,
     );
@@ -73,8 +73,8 @@ describe('GenerationService', () => {
       ok: true,
       response: {
         frames: [
-          { photoId: 'p1', order: 1, caption: 'first — reworded' },
-          { photoId: 'p2', order: 2, caption: 'second — reworded' },
+          { photoId: 'p1', order: 1, caption: 'first — reworded', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } },
+          { photoId: 'p2', order: 2, caption: 'second — reworded', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } },
         ],
       },
     };
@@ -91,7 +91,7 @@ describe('GenerationService', () => {
   });
 
   it('leaves the caption untouched when a regenerate fails', async () => {
-    story.completeStory([{ photoId: 'p1', order: 1, caption: 'first' }], false);
+    story.completeStory([{ photoId: 'p1', order: 1, caption: 'first', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } }], false);
     outcome = { ok: false, code: 'network', message: 'nope' };
     const applied = await generation.regenerateCaption('p1');
     expect(applied).toBe(false);
@@ -105,9 +105,9 @@ describe('GenerationService', () => {
       const [a, b, c] = story.photos();
       story.completeStory(
         [
-          { photoId: a.id, order: 1, caption: 'first' },
-          { photoId: b.id, order: 2, caption: 'second' },
-          { photoId: c.id, order: 3, caption: 'third' },
+          { photoId: a.id, order: 1, caption: 'first', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } },
+          { photoId: b.id, order: 2, caption: 'second', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } },
+          { photoId: c.id, order: 3, caption: 'third', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } },
         ],
         false,
       );
@@ -120,7 +120,7 @@ describe('GenerationService', () => {
       const newId = seedStoryPlusOne();
       outcome = {
         ok: true,
-        response: { frames: [{ photoId: newId, order: 1, caption: 'the newcomer' }] },
+        response: { frames: [{ photoId: newId, order: 1, caption: 'the newcomer', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } }] },
       };
 
       await generation.captionNewPhotos();
@@ -148,7 +148,7 @@ describe('GenerationService', () => {
         },
         streamStory: async () => ({
           ok: true,
-          response: { frames: [{ photoId: newId, order: 1, caption: 'x' }] },
+          response: { frames: [{ photoId: newId, order: 1, caption: 'x', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } }] },
         }),
       };
 
@@ -173,9 +173,9 @@ describe('GenerationService', () => {
       const [a, b, c] = story.photos();
       story.completeStory(
         [
-          { photoId: a.id, order: 1, caption: 'first' },
-          { photoId: b.id, order: 2, caption: 'second' },
-          { photoId: c.id, order: 3, caption: 'third' },
+          { photoId: a.id, order: 1, caption: 'first', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } },
+          { photoId: b.id, order: 2, caption: 'second', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } },
+          { photoId: c.id, order: 3, caption: 'third', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } },
         ],
         false,
       );

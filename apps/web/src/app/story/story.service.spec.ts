@@ -1,10 +1,22 @@
 import { TestBed } from '@angular/core/testing';
+import type { Style } from '@auto-stories/api-types';
 
 import { DEFAULT_PLACEMENT, MAX_PHOTOS, MAX_STORY_LENGTH, StoryService } from './story.service';
 
 function imageFile(name = 'photo.jpg'): File {
   return new File(['bytes'], name, { type: 'image/jpeg' });
 }
+
+/** A valid caption style for Frame fixtures (the model always returns one). */
+const STYLE: Style = {
+  font: 'inter',
+  weight: 'regular',
+  case: 'normal',
+  align: 'center',
+  size: 'm',
+  position: 'bottom-center',
+  letterbox: 'blur',
+};
 
 describe('StoryService', () => {
   let service: StoryService;
@@ -101,13 +113,13 @@ describe('StoryService', () => {
   });
 
   it('shows the payoff with the finished frames, ready to refine', () => {
-    const frames = [{ photoId: 'p1', order: 1, caption: 'By the water' }];
+    const frames = [{ photoId: 'p1', order: 1, caption: 'By the water', style: STYLE }];
     service.completeStory(frames, true);
     expect(service.phase()).toBe('story');
     expect(service.partial()).toBe(true);
     // Each frame gains editable placement + legibility state for refine.
     const [frame] = service.frames();
-    expect(frame).toMatchObject({ photoId: 'p1', order: 1, caption: 'By the water' });
+    expect(frame).toMatchObject({ photoId: 'p1', order: 1, caption: 'By the water', style: STYLE });
     expect(frame.placement).toEqual(DEFAULT_PLACEMENT);
     expect(frame.legibility).toBe(true);
   });
@@ -122,7 +134,7 @@ describe('StoryService', () => {
     service.addPhotos([imageFile('a.jpg')]);
     service.setStoryLine('something');
     service.setTone('funny');
-    service.completeStory([{ photoId: 'photo-1', order: 1, caption: 'x' }], false);
+    service.completeStory([{ photoId: 'photo-1', order: 1, caption: 'x', style: STYLE }], false);
     service.failStory({ code: 'timeout', message: 'took too long' });
 
     service.reset();
@@ -139,10 +151,10 @@ describe('StoryService', () => {
     const seedFour = () =>
       service.completeStory(
         [
-          { photoId: 'p1', order: 1, caption: 'first' },
-          { photoId: 'p2', order: 2, caption: 'second' },
-          { photoId: 'p3', order: 3, caption: 'third' },
-          { photoId: 'p4', order: 4, caption: 'fourth' },
+          { photoId: 'p1', order: 1, caption: 'first', style: STYLE },
+          { photoId: 'p2', order: 2, caption: 'second', style: STYLE },
+          { photoId: 'p3', order: 3, caption: 'third', style: STYLE },
+          { photoId: 'p4', order: 4, caption: 'fourth', style: STYLE },
         ],
         false,
       );
@@ -179,10 +191,10 @@ describe('StoryService', () => {
       const pooled = service.photos()[0].id;
       service.completeStory(
         [
-          { photoId: 'p1', order: 1, caption: 'first' },
-          { photoId: pooled, order: 2, caption: 'second' },
-          { photoId: 'p3', order: 3, caption: 'third' },
-          { photoId: 'p4', order: 4, caption: 'fourth' },
+          { photoId: 'p1', order: 1, caption: 'first', style: STYLE },
+          { photoId: pooled, order: 2, caption: 'second', style: STYLE },
+          { photoId: 'p3', order: 3, caption: 'third', style: STYLE },
+          { photoId: 'p4', order: 4, caption: 'fourth', style: STYLE },
         ],
         false,
       );
@@ -196,9 +208,9 @@ describe('StoryService', () => {
     it('refuses to drop below the minimum photo count', () => {
       service.completeStory(
         [
-          { photoId: 'p1', order: 1, caption: 'a' },
-          { photoId: 'p2', order: 2, caption: 'b' },
-          { photoId: 'p3', order: 3, caption: 'c' },
+          { photoId: 'p1', order: 1, caption: 'a', style: STYLE },
+          { photoId: 'p2', order: 2, caption: 'b', style: STYLE },
+          { photoId: 'p3', order: 3, caption: 'c', style: STYLE },
         ],
         false,
       );
@@ -209,7 +221,7 @@ describe('StoryService', () => {
     it('appends a hand-added photo as a new frame, keeping the rest', () => {
       seedFour();
       service.setPlacement('p1', { xPct: 10, yPct: 10 });
-      service.appendFrame({ photoId: 'p5', order: 99, caption: 'newcomer' });
+      service.appendFrame({ photoId: 'p5', order: 99, caption: 'newcomer', style: STYLE });
 
       const frames = service.frames();
       expect(frames.map((f) => f.photoId)).toEqual(['p1', 'p2', 'p3', 'p4', 'p5']);
@@ -224,7 +236,7 @@ describe('StoryService', () => {
 
     it('ignores appending a photo already in the story', () => {
       seedFour();
-      service.appendFrame({ photoId: 'p2', order: 9, caption: 'dupe' });
+      service.appendFrame({ photoId: 'p2', order: 9, caption: 'dupe', style: STYLE });
       expect(service.frames()).toHaveLength(4);
     });
 
