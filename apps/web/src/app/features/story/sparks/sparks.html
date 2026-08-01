@@ -1,0 +1,48 @@
+<!-- Click-through overlay: only the dots and blooms take pointer events, so tapping
+     the photo between sparks still pages the story underneath. -->
+<div class="pointer-events-none absolute inset-0 z-20">
+  @for (spark of sparks(); track spark.index) {
+    <div
+      data-spark
+      class="pointer-events-auto absolute -translate-x-1/2 -translate-y-1/2"
+      [style.left.%]="spark.xPct"
+      [style.top.%]="spark.yPct"
+    >
+      <!-- The dot: a small tappable anchor at the suggested spot, breathing gently. -->
+      <button
+        type="button"
+        data-spark-dot
+        [attr.aria-label]="'Suggested ' + spark.label + ': ' + spark.query"
+        [attr.aria-expanded]="openIndex() === spark.index"
+        (click)="toggle(spark.index)"
+        class="press relative flex h-9 w-9 items-center justify-center rounded-full bg-primary text-on-primary shadow-lg"
+      >
+        <span
+          aria-hidden="true"
+          class="spark-pulse absolute inset-0 rounded-full bg-primary"
+        ></span>
+        <mat-icon class="relative h-5 w-5 text-[20px] leading-none">{{ spark.icon }}</mat-icon>
+      </button>
+
+      <!-- The bloom: the ghost of the element, scaling out from its dot. Shows what
+           to add and the exact term, with a one-tap Copy for the hand-off. -->
+      @if (openIndex() === spark.index) {
+        <div
+          class="drop-in absolute bottom-full left-1/2 mb-2 flex max-w-[240px] -translate-x-1/2 items-center gap-2.5 rounded-2xl border border-white/10 bg-surface-container-high p-2.5 pl-3 text-on-surface shadow-xl"
+        >
+          <mat-icon class="flex-none text-primary">{{ spark.icon }}</mat-icon>
+          <div class="min-w-0 flex-1">
+            <p class="mat-label-medium text-on-surface-variant">{{ spark.label }}</p>
+            <p data-spark-query class="mat-label-large truncate text-on-surface">
+              {{ spark.query }}
+            </p>
+          </div>
+          <button matButton="filled" class="flex-none" (click)="copy(spark)">
+            <mat-icon>{{ copiedIndex() === spark.index ? 'check' : 'content_copy' }}</mat-icon>
+            {{ copiedIndex() === spark.index ? 'Copied' : 'Copy' }}
+          </button>
+        </div>
+      }
+    </div>
+  }
+</div>

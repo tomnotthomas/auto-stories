@@ -127,6 +127,14 @@
       </div>
     }
 
+    <!-- Sparks: the AI's optional Instagram add-ons for this frame, shown as
+         tappable dots the user copies into Instagram during the hand-off. View
+         mode only — refine has its own gestures, and nothing is baked into the
+         export (decision 7.10). -->
+    @if (!refining() && !editingFrame() && !managing()) {
+      <app-story-sparks [suggestions]="frame.suggestions" />
+    }
+
     <!-- One-time nav hint: paging a Story isn't obvious on the web (5.3). -->
     @if (!refining() && !editingFrame() && multiFrame() && !navHintSeen()) {
       <p class="mat-label-small absolute inset-x-0 bottom-[136px] z-10 text-center text-white/70">
