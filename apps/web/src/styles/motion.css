@@ -1,9 +1,5 @@
-/* ── Motion ──────────────────────────────────────────────────────────────────
- * Enter transitions + press feedback for the immersive story surfaces. Strong
- * custom easing, transform/opacity only, sub-300ms, reduced-motion respected.
- * These are applied as utility classes on the bespoke story markup — never on a
- * Material component, and never as per-component CSS. Kept out of styles.css so
- * the motion system reads as one unit; imported there right after Tailwind. */
+/* Motion utilities for the story surfaces: enter transitions + press feedback.
+ * Applied as classes on bespoke markup; transform/opacity only; reduced-motion aware. */
 
 @theme {
   /* Stronger than the stock CSS curves, which lack punch (Emil Kowalski). */
@@ -49,10 +45,20 @@
   }
 }
 
+/* Reduced motion: gentler, not zero. Opacity fades are vestibular-safe, so keep
+ * them and drop only the movement — sheets/banners fade in place, press feedback
+ * is removed. (.overlay-fade is already opacity-only, so it's left untouched.) */
 @media (prefers-reduced-motion: reduce) {
   .sheet-enter,
-  .overlay-fade,
-  .drop-in,
+  .drop-in {
+    transition-property: opacity;
+  }
+  @starting-style {
+    .sheet-enter,
+    .drop-in {
+      transform: none;
+    }
+  }
   .press {
     transition: none;
   }
