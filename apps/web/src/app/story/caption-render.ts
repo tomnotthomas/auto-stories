@@ -64,3 +64,16 @@ export function sizeScale(size: Style['size']): number {
       return 1;
   }
 }
+
+/**
+ * Content-aware type fit: a size multiplier from the caption's length, so a
+ * short caption reads as a big headline and a long one shrinks to fit the box
+ * instead of overflowing. Deterministic and clamped; sits on top of the size
+ * bucket + the user's drag scale, which still adjust from here.
+ */
+export function fitMultiplier(text: string): number {
+  const length = text.trim().length;
+  // ~14 chars → 1.25 (headline), decaying to the floor by ~110 chars.
+  const raw = 1.25 - (length - 14) * 0.006;
+  return Math.min(1.25, Math.max(0.72, Math.round(raw * 100) / 100));
+}

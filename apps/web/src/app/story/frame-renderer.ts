@@ -1,6 +1,7 @@
 import { DEFAULT_STYLE } from './caption-style';
 import { paletteFor } from './caption-palette';
 import {
+  fitMultiplier,
   fontFamily,
   fontWeightCss,
   loadCaptionFonts,
@@ -48,7 +49,9 @@ function drawCover(ctx: OffscreenCanvasRenderingContext2D, bitmap: ImageBitmap):
 
 function drawCaption(ctx: OffscreenCanvasRenderingContext2D, frame: EditableFrame): void {
   const style = frame.style ?? DEFAULT_STYLE;
-  const fontPx = Math.round(64 * frame.placement.scale * sizeScale(style.size));
+  const fontPx = Math.round(
+    64 * frame.placement.scale * sizeScale(style.size) * fitMultiplier(frame.caption),
+  );
   ctx.font = `${fontWeightCss(style.weight)} ${fontPx}px ${fontFamily(style.font)}`;
   ctx.textAlign = style.align;
   ctx.textBaseline = 'middle';

@@ -10,6 +10,7 @@ import { StoryExporter } from '../../story/story-exporter.service';
 import { DEFAULT_STYLE } from '../../story/caption-style';
 import { paletteFor } from '../../story/caption-palette';
 import {
+  fitMultiplier,
   fontFamily,
   fontWeightCss,
   sizeScale,
@@ -34,6 +35,8 @@ interface ViewFrame {
   readonly textAlign: 'left' | 'center' | 'right';
   readonly textTransform: 'none' | 'uppercase';
   readonly sizeMult: number;
+  /** Length-based fit: short caption → bigger, long → smaller. */
+  readonly fitMult: number;
   readonly color: string;
   /** Tailwind scrim class (dark on light text, light on dark text), or ''. */
   readonly scrimClass: string;
@@ -105,6 +108,7 @@ export class Story {
         textAlign: textAlignCss(style.align),
         textTransform: textTransformCss(style.case),
         sizeMult: sizeScale(style.size),
+        fitMult: fitMultiplier(frame.caption),
         color: frame.light ? palette.textLight : palette.textDark,
         scrimClass: frame.legibility ? (frame.light ? 'bg-black/40' : 'bg-white/60') : '',
       };
