@@ -19,29 +19,28 @@ The look comes from type, layout, and palette — not from a filter on the photo
 
 **Render path.** All of the above runs in the canvas frame-renderer (1080×1920) — client-side, on the phone. The in-app preview mirrors the look via a CSS filter so it shows before export.
 
-## Part B — Guided stickers ("Malen nach Zahlen")
-The app can't post Instagram's stickers via API (hand-off). So it does not bake a flat sticker — it guides the user to place Instagram's own. **Ships after Part A** (a share-worthy frame is the prerequisite), and **starts minimal**, not as a cue subsystem ([7.17](../decisions.md#717-guided-stickers-scoped-down-to-one-high-confidence-tag-name-not-handle-never-auto-assert)).
+## Part B — Guided suggestions, the "sparks" engine ("Malen nach Zahlen")
+The app can't post Instagram's stickers via API (hand-off). So it does not bake a flat sticker — it guides the user to place Instagram's own. **Ships after Part A** (a share-worthy frame is the prerequisite). Now the full engine, not the one-tag minimum ([7.18](../decisions.md#718-re-expand-guided-suggestions-into-the-full-sparks-engine-supersedes-717) supersedes [7.17](../decisions.md#717-guided-stickers-scoped-down-to-one-high-confidence-tag-name-not-handle-never-auto-assert)).
 
-- **v1: one high-confidence suggestion on the hero frame** — editable and skippable. The model emits `{ type, query, position }` (Location, GIF search term, Poll / Question, Time, Mention). Sparse: most frames get nothing.
-- **Tags = name, not handle.** For a place / account, hand the user the **name** ("Blue Bottle Coffee, Hayes Valley") and let Instagram's own sticker search resolve the exact tag. **Never auto-assert an `@handle`** — a confidently-wrong tag erodes trust more than no tag. Confidence sets the tone: assertive when sure, tentative ("Coffee shop? name it") when not; always one-tap editable.
-- **In-app:** a placeholder marker (dashed outline + label) at the position — "GIF: search 'cake'", "Location here".
-- **Export stays clean** (no baked marker); the placeholder becomes a guided post checklist at hand-off — "Add a Location sticker, place it bottom-left." One-tap copy of the search term.
-- Sibling of the music-search-term suggestion; extends the suggest-don't-bake pattern to stickers ([7.14](../decisions.md#714-guided-stickers-the-ai-marks-what--where-the-user-places-instagrams-own)).
-- **Later enhancements** (not v1): draggable / swipe-to-dismiss cues, per-type motion hints, more than one suggestion per story.
+- **Per frame: 0–2 suggestions**, `{ type, query, position?, confidence }` (Location, Mention, GIF, Poll, Music). Validated, capped, defaulted server-side (`normalizeSuggestions`). Sparse: most frames get none.
+- **In-app "sparks":** a dot at the suggested spot **blooms** on tap into the element's ghost (icon + what it is + the exact term) with a one-tap **Copy**. Flick sideways or a button to **dismiss**; a **Done** check to tick off as you add it. Music is story-level → a docked search-term **pill**, no dot.
+- **Tags = name, not handle.** Hand the user the **name** and let Instagram's own search resolve the exact tag. **Never auto-assert an `@handle`.** Confidence sets the tone; the term is always one-tap editable/copyable.
+- **Export stays clean** (nothing baked); after posting, a **hand-off checklist** lists every kept suggestion with Copy + Done, so the terms survive the switch to Instagram.
+- **Dropped:** drag-to-reposition a spark — its exact spot doesn't transfer to Instagram, so moving it adds gesture load for no hand-off value.
 
-**Open question — how to detect a specific place.** The strongest signal is **EXIF GPS from the original photo** → reverse-geocode to a business name. That needs a Places API (a new dependency + a privacy line: reading photo location). Without it we lean on the story-line text (they often name it) and what the vision model sees. Decide the GPS power-up separately.
+**Place detection — free only.** The location `query` comes from the **story-line text + what the vision model sees** (both free, already in the pipeline). Optional hint: read **EXIF GPS** from the original photo and pass raw lat/lng to the model to *name* the place. **No paid geocoder** (Google Places is out) and **no free OSM geocoder** (Nominatim/Photon fair-use ~1 req/s + no-bulk — far stricter than the model API's limits). Accuracy is handled by confidence + the editable term, not a lookup.
 
 ## AI contract (metadata only, holds 7.10)
 - Story-level `palette` (chosen from a small curated set, not free colour).
 - Per-frame `position` reused for negative-space placement.
-- Per-frame optional `stickers: [{ type, query, position }]`.
+- Per-frame optional `suggestions: [{ type, query, position?, confidence }]` (0–2).
 - Client composites everything (canvas + preview). No server render, no bucket.
 
 ## Build order
 1. Content-aware type fit + self-hosted display type — biggest "not generic" lever, smallest surface.
 2. Curated palette + neutral cohesion (canvas grade + grain).
 3. Composition-aware placement + authored band.
-4. Guided sticker placeholders (in-app markers + hand-off checklist).
+4. Guided suggestions — the sparks engine: AI contract → read-only sparks → interactive (dismiss/done) + music pill → hand-off checklist → free EXIF-GPS place hint. Each its own PR.
 
 Each step is its own PR.
 
