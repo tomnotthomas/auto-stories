@@ -20,6 +20,7 @@ import {
 import { CaptionEditor } from '../refine/caption-editor/caption-editor';
 import { RefineFilmstrip } from '../refine/filmstrip/filmstrip';
 import { StorySparks } from './sparks/sparks';
+import { HandoffChecklist } from './handoff-checklist/handoff-checklist';
 import type { Suggestion } from '@auto-stories/api-types';
 
 /** A frame resolved for display: the picked photo plus its editable state. */
@@ -62,6 +63,7 @@ interface ViewFrame {
     CaptionEditor,
     RefineFilmstrip,
     StorySparks,
+    HandoffChecklist,
   ],
   templateUrl: './story.html',
 })
