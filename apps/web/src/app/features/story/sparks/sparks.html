@@ -8,27 +8,35 @@
       [style.left.%]="spark.xPct"
       [style.top.%]="spark.yPct"
     >
-      <!-- The dot: a small tappable anchor at the suggested spot, breathing gently. -->
+      <!-- The dot: a tappable anchor at the suggested spot. Tap to bloom; flick
+           sideways to dismiss. `touch-none` so the flick doesn't scroll the page. -->
       <button
         type="button"
         data-spark-dot
         [attr.aria-label]="'Suggested ' + spark.label + ': ' + spark.query"
         [attr.aria-expanded]="openIndex() === spark.index"
-        (click)="toggle(spark.index)"
-        class="press relative flex h-9 w-9 items-center justify-center rounded-full bg-primary text-on-primary shadow-lg"
+        (click)="onTap(spark.index)"
+        (pointerdown)="onPointerDown($event, spark)"
+        (pointermove)="onPointerMove($event)"
+        (pointerup)="onPointerUp($event, spark)"
+        (pointercancel)="onPointerCancel($event)"
+        class="press relative flex h-9 w-9 touch-none items-center justify-center rounded-full text-on-primary shadow-lg"
+        [class]="spark.done ? 'bg-primary/60' : 'bg-primary'"
+        [style.transform]="'translateX(' + flickDx(spark.index) + 'px)'"
       >
-        <span
-          aria-hidden="true"
-          class="spark-pulse absolute inset-0 rounded-full bg-primary"
-        ></span>
-        <mat-icon class="relative h-5 w-5 text-[20px] leading-none">{{ spark.icon }}</mat-icon>
+        @if (!spark.done) {
+          <span aria-hidden="true" class="spark-pulse absolute inset-0 rounded-full bg-primary"></span>
+        }
+        <mat-icon class="relative h-5 w-5 text-[20px] leading-none">
+          {{ spark.done ? 'check' : spark.icon }}
+        </mat-icon>
       </button>
 
       <!-- The bloom: the ghost of the element, scaling out from its dot. Shows what
-           to add and the exact term, with a one-tap Copy for the hand-off. -->
+           to add and the exact term, with Copy (for the hand-off), Done, and Dismiss. -->
       @if (openIndex() === spark.index) {
         <div
-          class="drop-in absolute bottom-full left-1/2 mb-2 flex max-w-[240px] -translate-x-1/2 items-center gap-2.5 rounded-2xl border border-white/10 bg-surface-container-high p-2.5 pl-3 text-on-surface shadow-xl"
+          class="drop-in absolute bottom-full left-1/2 mb-2 flex max-w-[260px] -translate-x-1/2 items-center gap-1.5 rounded-2xl border border-white/10 bg-surface-container-high p-2 pl-3 text-on-surface shadow-xl"
         >
           <mat-icon class="flex-none text-primary">{{ spark.icon }}</mat-icon>
           <div class="min-w-0 flex-1">
@@ -40,6 +48,25 @@
           <button matButton="filled" class="flex-none" (click)="copy(spark)">
             <mat-icon>{{ copiedIndex() === spark.index ? 'check' : 'content_copy' }}</mat-icon>
             {{ copiedIndex() === spark.index ? 'Copied' : 'Copy' }}
+          </button>
+          <button
+            matIconButton
+            data-spark-done
+            class="flex-none"
+            [attr.aria-label]="spark.done ? 'Mark not added' : 'Mark added in Instagram'"
+            [attr.aria-pressed]="spark.done"
+            (click)="toggleDone(spark)"
+          >
+            <mat-icon>{{ spark.done ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>
+          </button>
+          <button
+            matIconButton
+            data-spark-dismiss
+            class="flex-none"
+            aria-label="Dismiss suggestion"
+            (click)="dismiss(spark)"
+          >
+            <mat-icon>close</mat-icon>
           </button>
         </div>
       }
