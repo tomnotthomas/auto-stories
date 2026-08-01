@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import type { Style } from '@auto-stories/api-types';
 
-import { MAX_PHOTOS, MAX_STORY_LENGTH, StoryService } from './story.service';
+import { MAX_PHOTOS, MAX_STORY_LENGTH, StoryService, sparkKey } from './story.service';
 import { zoneToPlacement } from './caption-style';
 
 function imageFile(name = 'photo.jpg'): File {
@@ -245,6 +245,49 @@ describe('StoryService', () => {
       expect(service.coachSeen()).toBe(false);
       service.markCoachSeen();
       expect(service.coachSeen()).toBe(true);
+    });
+  });
+
+  describe('sparks (per-suggestion user edits)', () => {
+    const seed = () =>
+      service.completeStory([{ photoId: 'p1', order: 1, caption: 'a', style: STYLE }], false);
+
+    it('starts with no spark edits', () => {
+      seed();
+      expect(service.sparks().size).toBe(0);
+    });
+
+    it('records where a spark was dragged, keyed by frame + index', () => {
+      seed();
+      service.moveSpark('p1', 0, 30, 70);
+      expect(service.sparks().get(sparkKey('p1', 0))).toMatchObject({ xPct: 30, yPct: 70 });
+    });
+
+    it('marks a spark dismissed', () => {
+      seed();
+      service.dismissSpark('p1', 1);
+      expect(service.sparks().get(sparkKey('p1', 1))?.dismissed).toBe(true);
+    });
+
+    it('toggles a spark done on and off, preserving other edits', () => {
+      seed();
+      service.moveSpark('p1', 0, 25, 25);
+      service.toggleSparkDone('p1', 0);
+      expect(service.sparks().get(sparkKey('p1', 0))).toMatchObject({
+        xPct: 25,
+        yPct: 25,
+        done: true,
+      });
+      service.toggleSparkDone('p1', 0);
+      expect(service.sparks().get(sparkKey('p1', 0))?.done).toBe(false);
+    });
+
+    it('clears spark edits when a new story is generated', () => {
+      seed();
+      service.dismissSpark('p1', 0);
+      expect(service.sparks().size).toBe(1);
+      service.completeStory([{ photoId: 'p9', order: 1, caption: 'fresh', style: STYLE }], false);
+      expect(service.sparks().size).toBe(0);
     });
   });
 });

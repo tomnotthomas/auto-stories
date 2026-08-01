@@ -64,6 +64,25 @@ export interface EditableFrame extends Frame {
   readonly imageFilter: string;
 }
 
+/** The user's in-app edits to one suggested "spark": where they dragged its dot
+ * (a guide only — Instagram placement is manual), whether they dismissed it, and
+ * whether they've marked it added. Kept separate from the contract `suggestions`
+ * so a regenerate resets it. Absent fields mean "as the AI proposed / not yet". */
+export interface SparkState {
+  /** Dragged-to centre, in % of the frame; unset → the AI's suggested spot. */
+  readonly xPct?: number;
+  readonly yPct?: number;
+  /** The user swiped/flicked it away — hide it. */
+  readonly dismissed?: boolean;
+  /** The user checked it off after adding it in Instagram. */
+  readonly done?: boolean;
+}
+
+/** Stable key for a spark: its frame plus its index within that frame's list. */
+export function sparkKey(photoId: string, index: number): string {
+  return `${photoId}#${index}`;
+}
+
 /** Sort by narrative order, then renumber 1..n so `order` stays contiguous
  * after a reorder or drop. */
 function reindex(frames: readonly EditableFrame[]): EditableFrame[] {
@@ -88,6 +107,7 @@ export class StoryService {
   private readonly _partial = signal(false);
   private readonly _error = signal<StoryError | null>(null);
   private readonly _coachSeen = signal(false);
+  private readonly _sparks = signal<ReadonlyMap<string, SparkState>>(new Map());
   private seq = 0;
 
   /** The screen the flow shell should render. */
@@ -107,6 +127,8 @@ export class StoryService {
   readonly error = this._error.asReadonly();
   /** True once the first-time refine coach mark has been shown (5.9). */
   readonly coachSeen = this._coachSeen.asReadonly();
+  /** Per-spark user edits (dragged spot / dismissed / done), keyed by {@link sparkKey}. */
+  readonly sparks = this._sparks.asReadonly();
 
   /** How many photos are picked. */
   readonly photoCount = computed(() => this._photos().length);
@@ -183,6 +205,7 @@ export class StoryService {
       ),
     );
     this._partial.set(partial);
+    this._sparks.set(new Map()); // a new story → fresh suggestions, fresh spark edits
     this._phase.set('story');
     void this.computeReadable();
   }
@@ -271,6 +294,32 @@ export class StoryService {
     );
   }
 
+  /** Merge a patch into one spark's state, immutably (creating the entry if new). */
+  private patchSpark(photoId: string, index: number, patch: Partial<SparkState>): void {
+    const key = sparkKey(photoId, index);
+    this._sparks.update((sparks) => {
+      const next = new Map(sparks);
+      next.set(key, { ...next.get(key), ...patch });
+      return next;
+    });
+  }
+
+  /** Sparks: move a suggestion's dot to where the user dragged it (guide only). */
+  moveSpark(photoId: string, index: number, xPct: number, yPct: number): void {
+    this.patchSpark(photoId, index, { xPct, yPct });
+  }
+
+  /** Sparks: hide a suggestion the user swiped away. */
+  dismissSpark(photoId: string, index: number): void {
+    this.patchSpark(photoId, index, { dismissed: true });
+  }
+
+  /** Sparks: toggle whether the user has marked a suggestion added in Instagram. */
+  toggleSparkDone(photoId: string, index: number): void {
+    const key = sparkKey(photoId, index);
+    this.patchSpark(photoId, index, { done: !this._sparks().get(key)?.done });
+  }
+
   /** Refine: drag-to-reorder the narrative (5.1). Moves the frame at `from` to
    * `to` and renumbers `order`. */
   reorderFrames(from: number, to: number): void {
@@ -312,6 +361,7 @@ export class StoryService {
     this._frames.set([]);
     this._partial.set(false);
     this._error.set(null);
+    this._sparks.set(new Map());
     this._phase.set('example');
   }
 }

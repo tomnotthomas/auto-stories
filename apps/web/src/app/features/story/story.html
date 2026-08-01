@@ -132,7 +132,7 @@
          mode only — refine has its own gestures, and nothing is baked into the
          export (decision 7.10). -->
     @if (!refining() && !editingFrame() && !managing()) {
-      <app-story-sparks [suggestions]="frame.suggestions" />
+      <app-story-sparks [photoId]="frame.photoId" [suggestions]="frame.suggestions" />
     }
 
     <!-- One-time nav hint: paging a Story isn't obvious on the web (5.3). -->
