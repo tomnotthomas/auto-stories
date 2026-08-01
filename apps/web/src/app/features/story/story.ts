@@ -8,6 +8,7 @@ import { StoryService, FramePlacement } from '../../story/story.service';
 import { GenerationService } from '../../story/generation.service';
 import { StoryExporter } from '../../story/story-exporter.service';
 import { DEFAULT_STYLE } from '../../story/caption-style';
+import { paletteFor } from '../../story/caption-palette';
 import {
   fontFamily,
   fontWeightCss,
@@ -87,6 +88,7 @@ export class Story {
   /** Frames in narrative order, each resolved to its picked photo. */
   protected readonly frames = computed<ViewFrame[]>(() => {
     const photos = this.story.photos();
+    const palette = paletteFor();
     return this.story.frames().map((frame) => {
       const style = frame.style ?? DEFAULT_STYLE;
       return {
@@ -100,7 +102,7 @@ export class Story {
         textAlign: textAlignCss(style.align),
         textTransform: textTransformCss(style.case),
         sizeMult: sizeScale(style.size),
-        color: frame.light ? '#ffffff' : '#141414',
+        color: frame.light ? palette.textLight : palette.textDark,
         scrimClass: frame.legibility ? (frame.light ? 'bg-black/40' : 'bg-white/60') : '',
       };
     });
