@@ -10,6 +10,8 @@ export class StorySparksHarness extends ComponentHarness {
   private readonly copyButton = this.locatorForOptional(
     MatButtonHarness.with({ text: /Copy|Copied/ }),
   );
+  private readonly doneButton = this.locatorForOptional('[data-spark-done]');
+  private readonly dismissButton = this.locatorForOptional('[data-spark-dismiss]');
 
   /** How many spark dots are rendered (music is excluded upstream). */
   async dotCount(): Promise<number> {
@@ -42,5 +44,15 @@ export class StorySparksHarness extends ComponentHarness {
   async isCopied(): Promise<boolean> {
     const button = await this.copyButton();
     return button ? /Copied/.test(await button.getText()) : false;
+  }
+
+  /** Check the open bloom's suggestion off (added in Instagram), or un-check it. */
+  async clickDone(): Promise<void> {
+    await (await this.doneButton())?.click();
+  }
+
+  /** Dismiss the open bloom's suggestion. */
+  async clickDismiss(): Promise<void> {
+    await (await this.dismissButton())?.click();
   }
 }
