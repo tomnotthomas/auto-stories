@@ -28,6 +28,12 @@ describe('buildPrompt', () => {
     expect(prompt.toLowerCase()).toContain('frame');
   });
 
+  it('invites optional, accurate Instagram add-on suggestions', () => {
+    const prompt = buildPrompt(story).toLowerCase();
+    expect(prompt).toContain('suggestions');
+    expect(prompt).toMatch(/location|gif|poll|music/);
+  });
+
   it('keeps distinct moments and only drops weak or duplicate photos', () => {
     const prompt = buildPrompt(story).toLowerCase();
     expect(prompt).toContain('distinct');

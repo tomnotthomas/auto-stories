@@ -51,7 +51,34 @@ export const STORY_RESPONSE_SCHEMA: Schema = {
               'letterbox',
             ],
           },
+          suggestions: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                type: {
+                  type: Type.STRING,
+                  enum: ['location', 'mention', 'gif', 'poll', 'music'],
+                },
+                query: { type: Type.STRING },
+                position: {
+                  type: Type.STRING,
+                  enum: [
+                    'top-left',
+                    'top-center',
+                    'top-right',
+                    'bottom-left',
+                    'bottom-center',
+                    'bottom-right',
+                  ],
+                },
+                confidence: { type: Type.NUMBER },
+              },
+              required: ['type', 'query', 'confidence'],
+            },
+          },
         },
+        // `suggestions` is intentionally optional — most frames have none.
         required: ['photoId', 'order', 'caption', 'style'],
       },
     },

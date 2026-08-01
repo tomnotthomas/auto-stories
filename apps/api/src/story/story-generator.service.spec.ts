@@ -58,9 +58,27 @@ describe('StoryGeneratorService', () => {
 
     expect(result).toEqual({
       frames: [
-        { photoId: 'p2', order: 1, caption: 'hook', style: DEFAULT_STYLE },
-        { photoId: 'p1', order: 2, caption: 'build', style: DEFAULT_STYLE },
-        { photoId: 'p3', order: 3, caption: 'payoff', style: DEFAULT_STYLE },
+        {
+          photoId: 'p2',
+          order: 1,
+          caption: 'hook',
+          style: DEFAULT_STYLE,
+          suggestions: [],
+        },
+        {
+          photoId: 'p1',
+          order: 2,
+          caption: 'build',
+          style: DEFAULT_STYLE,
+          suggestions: [],
+        },
+        {
+          photoId: 'p3',
+          order: 3,
+          caption: 'payoff',
+          style: DEFAULT_STYLE,
+          suggestions: [],
+        },
       ],
       partial: false,
     });

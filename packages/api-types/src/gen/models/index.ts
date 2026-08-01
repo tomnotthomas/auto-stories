@@ -12,4 +12,5 @@ export type { JobState, JobStateStatusEnum } from "./JobState.js";
 export type { Photo } from "./Photo.js";
 export type { StreamJobEvents200, StreamJobEvents404, StreamJobEventsPathParams, StreamJobEventsQuery, StreamJobEventsQueryResponse } from "./StreamJobEvents.js";
 export type { Style, StyleAlignEnum, StyleCaseEnum, StyleFontEnum, StyleLetterboxEnum, StylePositionEnum, StyleSizeEnum, StyleWeightEnum } from "./Style.js";
+export type { Suggestion, SuggestionPositionEnum, SuggestionTypeEnum } from "./Suggestion.js";
 export type { Tone, ToneEnum } from "./Tone.js";
