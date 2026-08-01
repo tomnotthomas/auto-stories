@@ -56,7 +56,7 @@
 
     @if (partial() && !bannerDismissed() && !refining()) {
       <div
-        class="absolute inset-x-3.5 top-[104px] z-30 flex items-center gap-2.5 rounded-2xl border border-white/10 bg-surface-container-high p-3 shadow-lg"
+        class="drop-in absolute inset-x-3.5 top-[104px] z-30 flex items-center gap-2.5 rounded-2xl border border-white/10 bg-surface-container-high p-3 shadow-lg"
       >
         <mat-icon class="text-primary">auto_fix_high</mat-icon>
         <span class="mat-label-large flex-1 text-on-surface"
@@ -137,7 +137,7 @@
          photo) with the frame-level actions; the caption is edited on the photo. -->
     @if (refining()) {
       <div
-        class="absolute inset-x-0 bottom-0 z-20 flex flex-col gap-3 rounded-t-3xl bg-surface-container-low px-4 pb-6 pt-3 text-on-surface"
+        class="sheet-enter absolute inset-x-0 bottom-0 z-20 flex flex-col gap-3 rounded-t-3xl bg-surface-container-low px-4 pb-6 pt-3 text-on-surface"
       >
         <div class="flex items-center">
           <span class="mat-title-medium flex-1"
@@ -168,7 +168,7 @@
       <div class="absolute inset-x-4 bottom-6 z-20 flex flex-col gap-2">
         @if (posted()) {
           <p
-            class="mat-body-medium rounded-2xl bg-surface-container-high px-4 py-3 text-center text-on-surface"
+            class="drop-in mat-body-medium rounded-2xl bg-surface-container-high px-4 py-3 text-center text-on-surface"
           >
             Saved to your photos. Open Instagram → Story → <b>Select Multiple</b> → pick these
             {{ frameCount() }}.
@@ -193,7 +193,7 @@
 
     <!-- Reorder & remove — a clean, dedicated surface for managing the frames. -->
     @if (managing()) {
-      <div class="absolute inset-0 z-40 flex flex-col bg-surface text-on-surface">
+      <div class="sheet-enter absolute inset-0 z-40 flex flex-col bg-surface text-on-surface">
         <div class="flex flex-none items-center gap-1 px-1.5 pt-11">
           <button matIconButton aria-label="Back to refine" (click)="closeManage()">
             <mat-icon>arrow_back</mat-icon>
@@ -228,7 +228,7 @@
     <!-- Whole-story rebuild in progress -->
     @if (storyBusy()) {
       <div
-        class="absolute inset-0 z-40 flex flex-col items-center justify-center gap-3 bg-black/70 text-white"
+        class="overlay-fade absolute inset-0 z-40 flex flex-col items-center justify-center gap-3 bg-black/70 text-white"
       >
         <mat-spinner diameter="40" />
         <span class="mat-label-large">Rebuilding your story…</span>
