@@ -12,6 +12,12 @@ export class StorySparksHarness extends ComponentHarness {
   );
   private readonly doneButton = this.locatorForOptional('[data-spark-done]');
   private readonly dismissButton = this.locatorForOptional('[data-spark-dismiss]');
+  private readonly musicChips = this.locatorForAll('[data-spark-music]');
+  private readonly musicQueryEl = this.locatorForOptional('[data-spark-music-query]');
+  private readonly musicCopy = this.locatorForOptional(
+    MatButtonHarness.with({ ancestor: '[data-spark-music]', text: /Copy|Copied/ }),
+  );
+  private readonly musicDismiss = this.locatorForOptional('[data-spark-music-dismiss]');
 
   /** How many spark dots are rendered (music is excluded upstream). */
   async dotCount(): Promise<number> {
@@ -54,5 +60,26 @@ export class StorySparksHarness extends ComponentHarness {
   /** Dismiss the open bloom's suggestion. */
   async clickDismiss(): Promise<void> {
     await (await this.dismissButton())?.click();
+  }
+
+  /** How many docked music chips are shown. */
+  async musicCount(): Promise<number> {
+    return (await this.musicChips()).length;
+  }
+
+  /** The search term shown in the (first) music chip, or null. */
+  async musicQuery(): Promise<string | null> {
+    const el = await this.musicQueryEl();
+    return el ? (await el.text()).trim() : null;
+  }
+
+  /** Copy the music chip's search term. */
+  async clickMusicCopy(): Promise<void> {
+    await (await this.musicCopy())?.click();
+  }
+
+  /** Dismiss the music chip. */
+  async clickMusicDismiss(): Promise<void> {
+    await (await this.musicDismiss())?.click();
   }
 }
