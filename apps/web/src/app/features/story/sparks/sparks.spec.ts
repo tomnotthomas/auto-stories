@@ -132,4 +132,37 @@ describe('StorySparks', () => {
     expect(story.sparks().get(sparkKey('p1', 0))?.done).toBe(true);
     expect(await harness.dotCount()).toBe(1);
   });
+
+  describe('music', () => {
+    it('docks a music suggestion as a chip (no dot)', async () => {
+      const harness = await render([{ type: 'music', query: 'indie folk', confidence: 0.6 }]);
+
+      expect(await harness.dotCount()).toBe(0);
+      expect(await harness.musicCount()).toBe(1);
+      expect(await harness.musicQuery()).toBe('indie folk');
+    });
+
+    it('copies the music search term', async () => {
+      const harness = await render([{ type: 'music', query: 'indie folk', confidence: 0.6 }]);
+
+      await harness.clickMusicCopy();
+
+      expect(copied).toEqual(['indie folk']);
+    });
+
+    it('dismisses the music chip, recording it at the right index', async () => {
+      const harness = await render(
+        [
+          suggestion({ type: 'location', query: 'Tartine' }),
+          { type: 'music', query: 'indie folk', confidence: 0.6 },
+        ],
+        'p1',
+      );
+
+      await harness.clickMusicDismiss();
+
+      expect(await harness.musicCount()).toBe(0);
+      expect(story.sparks().get(sparkKey('p1', 1))?.dismissed).toBe(true);
+    });
+  });
 });

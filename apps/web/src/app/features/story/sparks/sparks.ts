@@ -34,6 +34,12 @@ interface SparkView {
   readonly done: boolean;
 }
 
+/** A story-level music suggestion — no anchor, shown as a docked chip. */
+interface MusicView {
+  readonly index: number;
+  readonly query: string;
+}
+
 /**
  * The in-app "sparks" layer over the current story frame (approach 7.17 re-expanded):
  * for each add-on the AI suggested, a small dot sits at the spot it proposes. Tapping
@@ -101,6 +107,19 @@ export class StorySparks {
     return out;
   });
 
+  /** Story-level music suggestions (no anchor) for the docked chip. */
+  protected readonly music = computed<MusicView[]>(() => {
+    const states = this.story.sparks();
+    const id = this.photoId();
+    const out: MusicView[] = [];
+    this.suggestions().forEach((suggestion, index) => {
+      if (suggestion.type !== 'music') return;
+      if (states.get(`${id}#${index}`)?.dismissed) return;
+      out.push({ index, query: suggestion.query });
+    });
+    return out;
+  });
+
   /** Horizontal offset (px) to render on the dot currently being flicked. */
   protected flickDx(index: number): number {
     const flick = this.flick();
@@ -161,9 +180,9 @@ export class StorySparks {
   }
 
   /** Copy the term to the clipboard so it survives the switch to Instagram. */
-  protected copy(spark: SparkView): void {
-    this.clipboard.copy(spark.query);
-    this.copiedIndex.set(spark.index);
+  protected copy(item: { readonly index: number; readonly query: string }): void {
+    this.clipboard.copy(item.query);
+    this.copiedIndex.set(item.index);
   }
 
   /** Check a suggestion off (or un-check it) after adding it in Instagram. */
@@ -171,9 +190,9 @@ export class StorySparks {
     this.story.toggleSparkDone(this.photoId(), spark.index);
   }
 
-  /** Remove a suggestion from the overlay (its dot won't return this story). */
-  protected dismiss(spark: SparkView): void {
-    if (this.openIndex() === spark.index) this.openIndex.set(null);
-    this.story.dismissSpark(this.photoId(), spark.index);
+  /** Remove a suggestion from the overlay (its dot/chip won't return this story). */
+  protected dismiss(item: { readonly index: number }): void {
+    if (this.openIndex() === item.index) this.openIndex.set(null);
+    this.story.dismissSpark(this.photoId(), item.index);
   }
 }
