@@ -27,7 +27,10 @@ export async function renderFrame(file: File, frame: EditableFrame): Promise<Blo
   await loadCaptionFonts();
   const bitmap = await createImageBitmap(file);
   try {
+    // The cohesion match applies to the photo only; reset before the caption.
+    ctx.filter = frame.imageFilter || 'none';
     drawCover(ctx, bitmap);
+    ctx.filter = 'none';
   } finally {
     bitmap.close();
   }

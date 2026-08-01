@@ -2,6 +2,7 @@ import { Injectable, computed, signal } from '@angular/core';
 import type { ErrorCode, Frame, Tone } from '@auto-stories/api-types';
 
 import { DEFAULT_STYLE, pickReadable, sampleLuminance, zoneToPlacement } from './caption-style';
+import { cohesionFilter, frameLuminance } from './caption-cohesion';
 
 /**
  * The screen the flow is currently on. Phase 1 is one linear, in-memory flow
@@ -58,6 +59,9 @@ export interface EditableFrame extends Frame {
   readonly legibility: boolean;
   /** Computed on-device: true → light (white) caption text, false → dark. */
   readonly light: boolean;
+  /** Computed on-device: a CSS/canvas `filter` that matches this photo's
+   * exposure to the rest of the story (cohesion); `'none'` until computed. */
+  readonly imageFilter: string;
 }
 
 /** Sort by narrative order, then renumber 1..n so `order` stays contiguous
@@ -174,6 +178,7 @@ export class StoryService {
           placement: zoneToPlacement((frame.style ?? DEFAULT_STYLE).position),
           legibility: true,
           light: true,
+          imageFilter: 'none',
         })),
       ),
     );
@@ -190,23 +195,28 @@ export class StoryService {
    */
   private async computeReadable(): Promise<void> {
     const files = new Map(this._photos().map((photo) => [photo.id, photo.file]));
-    const readable = new Map<string, { light: boolean; scrim: boolean }>();
+    const readable = new Map<string, { light: boolean; scrim: boolean; filter: string }>();
     for (const frame of this._frames()) {
       const file = files.get(frame.photoId);
       if (!file) continue;
       try {
         const bitmap = await createImageBitmap(file);
-        readable.set(frame.photoId, pickReadable(sampleLuminance(bitmap, frame.placement)));
+        // One decode does double duty: legibility under the caption + the
+        // exposure match that pulls the whole set together (cohesion).
+        readable.set(frame.photoId, {
+          ...pickReadable(sampleLuminance(bitmap, frame.placement)),
+          filter: cohesionFilter(frameLuminance(bitmap)),
+        });
         bitmap.close();
       } catch {
-        // Keep the safe defaults (white text + scrim) if a photo can't decode.
+        // Keep the safe defaults (white text + scrim, no filter) on decode fail.
       }
     }
     if (readable.size === 0) return;
     this._frames.update((frames) =>
       frames.map((frame) => {
         const r = readable.get(frame.photoId);
-        return r ? { ...frame, light: r.light, legibility: r.scrim } : frame;
+        return r ? { ...frame, light: r.light, legibility: r.scrim, imageFilter: r.filter } : frame;
       }),
     );
   }
@@ -227,6 +237,7 @@ export class StoryService {
           placement: zoneToPlacement((frame.style ?? DEFAULT_STYLE).position),
           legibility: true,
           light: true,
+          imageFilter: 'none',
         },
       ];
     });
