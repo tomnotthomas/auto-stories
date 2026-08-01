@@ -1,4 +1,5 @@
 import { DEFAULT_STYLE } from './caption-style';
+import { paletteFor } from './caption-palette';
 import {
   fontFamily,
   fontWeightCss,
@@ -78,7 +79,8 @@ function drawCaption(ctx: OffscreenCanvasRenderingContext2D, frame: EditableFram
   // x anchor by alignment: left edge, centre, or right edge of the text block.
   const anchorX =
     style.align === 'left' ? cx - widest / 2 : style.align === 'right' ? cx + widest / 2 : cx;
-  ctx.fillStyle = frame.light ? '#ffffff' : '#141414';
+  const palette = paletteFor();
+  ctx.fillStyle = frame.light ? palette.textLight : palette.textDark;
   lines.forEach((line, i) => {
     const y = cy - blockH / 2 + lineH / 2 + i * lineH;
     ctx.fillText(line, anchorX, y);
