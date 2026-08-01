@@ -644,6 +644,18 @@ Phase 1 leaves the finished frames in the app; this chapter is how they reach an
 - **Decision:** (b). Build the static look and guided stickers now; **park the motion/reveal layer** as a separate later plan.
 - **Why:** The exported PNG can't carry motion, so the motion layer only improves in-app *feel*, not the shared artifact — a different problem from "the frame looks generic." A share-worthy frame is the prerequisite (no point premiering a boring story), so the static look ships first. The reveal/streaming idea is kept (it's a strong later bet), just sequenced after.
 
+### 7.16 Caption display face: a self-hosted modern grotesque (Bricolage Grotesque, OFL)
+- **Problem:** Captions rendered in a generic system font (`system-ui` / Roboto), the biggest driver of "the frame looks generic." The four style-slot fonts were unbundled generic-family fallbacks.
+- **Options:** warm display **serif** (e.g. Fraunces); modern **grotesque** (e.g. Bricolage / Space Grotesk); bold **impact** (e.g. Anton / Archivo Black).
+- **Decision:** modern grotesque — **Bricolage Grotesque**, self-hosted (OFL, bundled woff2), used as the default caption face. Swappable (one file + a family name).
+- **Why:** the user picked the grotesque personality; Bricolage has genuine display character (avoids the "generic clean sans" trap) and reads current. OFL is free to self-host and embed. The frames are canvas, so a bundled face doesn't touch the Tailwind/Material rule. Serif/impact remain available for a later tone mapping.
+
+### 7.17 Guided stickers scoped down to one high-confidence tag; name-not-handle, never auto-assert
+- **Problem:** The guided-sticker idea (7.14) grew into a cue subsystem (draggable/dismissible markers, per-type motion, a per-frame hand-off checklist, EXIF-GPS geocoding) — a lot of surface for a secondary feature, and it risked turning "takes mental load off" into homework. Auto-tagging a place also needs the exact Instagram handle, which we can't reliably resolve.
+- **Options:** (a) build the full cue subsystem; (b) ship a minimal v1 — one high-confidence suggestion, editable, skippable; (c) auto-assert an `@handle` the model guesses.
+- **Decision:** (b), and **never (c)**. v1 = **one high-confidence suggestion on the hero frame**, editable and skippable. For places/accounts, hand the user the **name** and let Instagram's search resolve the tag — **never auto-assert an `@handle`**. Confidence sets the tone; always one-tap editable. **Sequence it after** the art-direction frames (7.13). Drag/motion cues and multi-suggestion are later enhancements.
+- **Why:** a share-worthy frame is the prerequisite (no point premiering a boring story), so the static look ships first. A confidently-wrong tag erodes trust more than no tag, and the magic is *rare* (it only fires with a strong signal like GPS or a named place), so the elaborate version is high-effort for a narrow hit rate. "Name, not handle" sidesteps the resolution problem and the risk — Instagram does the exact match. (Emil-lens review + user calls, 2026-08-01.)
+
 # Chapter 8 — Lessons learned
 
 Working notes about *how* I worked on this, kept so I don't repeat the mistakes.
