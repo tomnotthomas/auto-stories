@@ -2,6 +2,9 @@
 
 @import 'tailwindcss';
 
+/* Motion utilities (enter transitions + press feedback) for the story surfaces. */
+@import './styles/motion.css';
+
 /* ── Theme bridge ────────────────────────────────────────────────────────────
  * Expose the Material M3 system tokens (compiled from material-theme.scss — the
  * single colour source, verified identical to design/mockups/tokens.css) as
