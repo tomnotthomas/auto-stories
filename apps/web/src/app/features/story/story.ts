@@ -22,6 +22,8 @@ import { RefineFilmstrip } from '../refine/filmstrip/filmstrip';
 interface ViewFrame {
   readonly photoId: string;
   readonly previewUrl: string | null;
+  /** CSS `filter` that matches this photo's exposure to the story (cohesion). */
+  readonly imageFilter: string;
   readonly caption: string;
   readonly placement: FramePlacement;
   readonly legibility: boolean;
@@ -92,6 +94,7 @@ export class Story {
       return {
         photoId: frame.photoId,
         previewUrl: photos.find((p) => p.id === frame.photoId)?.previewUrl ?? null,
+        imageFilter: frame.imageFilter,
         caption: frame.caption,
         placement: frame.placement,
         legibility: frame.legibility,
