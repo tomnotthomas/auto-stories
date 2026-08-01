@@ -1,11 +1,14 @@
 import type { Style } from '@auto-stories/api-types';
 
+/** The self-hosted display face for captions (bundled woff2, @font-face in
+ * styles.css). Loaded before the canvas draws via {@link loadCaptionFonts}. */
+export const DISPLAY_FONT = 'Bricolage Grotesque';
+
 /**
- * Maps the AI's caption `style` to concrete CSS/canvas values. The four font
- * choices map to generic families for now (real self-hosted fonts are a later
- * polish) so the model's choice is still visible: neutral sans / serif / mono /
- * rounded sans. The `caveat` slot is the casual/handwriting choice — rendered as
- * a modern rounded sans (`ui-rounded`), never a dated script/cursive face.
+ * Maps the AI's caption `style` to a concrete font stack. The story caption is a
+ * headline, so the default leads with the self-hosted display face
+ * ({@link DISPLAY_FONT}); serif / mono / rounded remain distinct for the model's
+ * other choices, each with a system fallback.
  */
 export function fontFamily(font: Style['font']): string {
   switch (font) {
@@ -17,8 +20,23 @@ export function fontFamily(font: Style['font']): string {
       return 'ui-rounded, "SF Pro Rounded", "Segoe UI Variable", system-ui, sans-serif';
     case 'inter':
     default:
-      return 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+      return `"${DISPLAY_FONT}", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif`;
   }
+}
+
+/**
+ * Ensure the display face is loaded before a caption is drawn to canvas — a
+ * canvas 2D context paints with whatever is loaded *now* and never waits, so the
+ * export would fall back to a system font otherwise. Both caption weights are
+ * requested. No-op where the Font Loading API is unavailable (e.g. tests).
+ */
+export async function loadCaptionFonts(): Promise<void> {
+  const fonts = (globalThis as { fonts?: FontFaceSet }).fonts;
+  if (!fonts) return;
+  await Promise.all([
+    fonts.load(`400 64px "${DISPLAY_FONT}"`),
+    fonts.load(`700 64px "${DISPLAY_FONT}"`),
+  ]).catch(() => undefined);
 }
 
 export function fontWeightCss(weight: Style['weight']): number {
