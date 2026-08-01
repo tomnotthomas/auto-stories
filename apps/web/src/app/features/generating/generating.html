@@ -4,7 +4,7 @@
     <img
       [src]="photo.previewUrl"
       alt=""
-      class="absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ease-in-out"
+      class="absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ease-out"
       [class.opacity-100]="i === activePhoto()"
       [class.opacity-0]="i !== activePhoto()"
     />
@@ -16,7 +16,10 @@
     <mat-progress-bar mode="indeterminate" aria-label="Building your story" />
     <ul class="flex flex-col gap-4">
       @for (step of steps; track step; let i = $index) {
-        <li class="flex items-center gap-3" [class.opacity-50]="i > activeStep()">
+        <li
+          class="flex items-center gap-3 transition-opacity duration-200 ease-out"
+          [class.opacity-50]="i > activeStep()"
+        >
           <mat-icon class="text-primary">{{
             i < activeStep() ? 'check_circle' : 'radio_button_unchecked'
           }}</mat-icon>
