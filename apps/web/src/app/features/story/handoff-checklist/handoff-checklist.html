@@ -1,0 +1,43 @@
+@if (total()) {
+  <div
+    class="drop-in flex max-h-[40vh] flex-col rounded-2xl bg-surface-container-high text-on-surface shadow-lg"
+  >
+    <div class="flex items-center gap-2 px-4 pt-3 pb-2">
+      <mat-icon class="text-primary">auto_fix_high</mat-icon>
+      <span class="mat-title-medium flex-1">Add-ons to place</span>
+      <span class="mat-label-large text-on-surface-variant">{{ doneCount() }}/{{ total() }}</span>
+    </div>
+    <ul class="flex flex-col gap-1 overflow-y-auto px-2 pb-2">
+      @for (item of items(); track item.key) {
+        <li
+          data-handoff-item
+          class="flex items-center gap-2 rounded-xl px-2 py-1.5"
+          [class.opacity-55]="item.done"
+        >
+          <mat-icon class="flex-none text-primary">{{ item.icon }}</mat-icon>
+          <div class="min-w-0 flex-1">
+            <p class="mat-label-medium text-on-surface-variant">
+              {{ item.label }} · frame {{ item.frameNo }}
+            </p>
+            <p data-handoff-query class="mat-label-large truncate" [class.line-through]="item.done">
+              {{ item.query }}
+            </p>
+          </div>
+          <button matButton class="flex-none" (click)="copy(item)">
+            {{ copiedKey() === item.key ? 'Copied' : 'Copy' }}
+          </button>
+          <button
+            matIconButton
+            data-handoff-done
+            class="flex-none"
+            [attr.aria-label]="item.done ? 'Mark not added' : 'Mark added'"
+            [attr.aria-pressed]="item.done"
+            (click)="toggleDone(item)"
+          >
+            <mat-icon>{{ item.done ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>
+          </button>
+        </li>
+      }
+    </ul>
+  </div>
+}
