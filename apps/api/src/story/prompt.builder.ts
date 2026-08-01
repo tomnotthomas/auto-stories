@@ -38,10 +38,11 @@ export function buildPrompt(
     '- Order by the story line and what is actually visible in each photo, NOT by the capture timestamp (treat any timestamp as a soft hint only).',
     '- Write one caption per chosen photo, each making one clear point. Ground it in the specifics the user gave (names, occasion, place) and in what the photo shows, so it feels true rather than generic.',
     '- For each caption, choose a style that fits the mood, picking one value from each set: font (inter, playfair, space-mono, caveat); weight (regular, bold); case (normal, upper); align (left, center, right); size (s, m, l); position (top-left, top-center, top-right, bottom-left, bottom-center, bottom-right — keep the caption off faces and the main subject in the middle); letterbox (solid, blur — how to fill the frame when the photo is not 9:16). Text colour and any backdrop are handled automatically, so do not choose those.',
+    '- Optionally add `suggestions`: 0 to 2 Instagram add-ons per frame, and only when they genuinely fit the moment — most frames should have none. Each is { type (location, mention, gif, poll, music), query, position (same six zones as above; omit it for music, which is story-level), confidence (0..1) }. The `query` is the exact text the user will search for in Instagram, so it must be accurate and searchable: for a place or account use its real NAME, not an @handle, and only when you are confident of it from the story line or what the photo clearly shows; for a gif a short search term; for music a song or a genre/mood; for a poll a short question. When unsure, lower the confidence or leave the suggestion out — never invent a place, handle, or song you cannot stand behind.',
     toneLine,
     includeLine,
     '',
-    'Return only the chosen photos, each as a frame with its photoId, its 1-based order, its caption, and its style.',
+    'Return only the chosen photos, each as a frame with its photoId, its 1-based order, its caption, its style, and any suggestions.',
   ]
     .filter((line) => line !== '')
     .join('\n');

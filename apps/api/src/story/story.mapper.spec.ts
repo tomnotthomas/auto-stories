@@ -10,8 +10,20 @@ describe('shapeFrames', () => {
       { photoId: 'a', order: 2, caption: 'first' },
     ];
     expect(shapeFrames(raw, ids)).toEqual([
-      { photoId: 'a', order: 1, caption: 'first', style: DEFAULT_STYLE },
-      { photoId: 'c', order: 2, caption: 'last', style: DEFAULT_STYLE },
+      {
+        photoId: 'a',
+        order: 1,
+        caption: 'first',
+        style: DEFAULT_STYLE,
+        suggestions: [],
+      },
+      {
+        photoId: 'c',
+        order: 2,
+        caption: 'last',
+        style: DEFAULT_STYLE,
+        suggestions: [],
+      },
     ]);
   });
 
@@ -37,7 +49,40 @@ describe('shapeFrames', () => {
       { photoId: 'a', order: 1, caption: 'earlier' },
     ];
     expect(shapeFrames(raw, ids)).toEqual([
-      { photoId: 'a', order: 1, caption: 'earlier', style: DEFAULT_STYLE },
+      {
+        photoId: 'a',
+        order: 1,
+        caption: 'earlier',
+        style: DEFAULT_STYLE,
+        suggestions: [],
+      },
+    ]);
+  });
+
+  it('threads and normalizes per-frame suggestions', () => {
+    const raw = [
+      {
+        photoId: 'a',
+        order: 1,
+        caption: 'brunch',
+        suggestions: [
+          {
+            type: 'location',
+            query: 'Tartine',
+            position: 'bottom-left',
+            confidence: 0.9,
+          },
+          { type: 'sticker', query: 'invalid type', confidence: 0.5 },
+        ],
+      },
+    ];
+    expect(shapeFrames(raw, ids)[0].suggestions).toEqual([
+      {
+        type: 'location',
+        query: 'Tartine',
+        position: 'bottom-left',
+        confidence: 0.9,
+      },
     ]);
   });
 

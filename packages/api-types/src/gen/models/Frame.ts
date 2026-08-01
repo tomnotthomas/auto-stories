@@ -4,6 +4,7 @@
 */
 
 import type { Style } from "./Style.js";
+import type { Suggestion } from "./Suggestion.js";
 
 /**
  * @description One chosen photo in narrative order, with its caption and style.
@@ -30,4 +31,9 @@ export type Frame = {
      * @type object | undefined
     */
     style?: Style;
+    /**
+     * @description Optional Instagram add-ons for this frame (0-2). Metadata only — the app shows them as in-app \"sparks\"; nothing is baked into the exported image.
+     * @type array | undefined
+    */
+    suggestions?: Suggestion[];
 };

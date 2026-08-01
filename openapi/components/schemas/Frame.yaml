@@ -21,3 +21,10 @@ properties:
       - The moment she saw the cake — pure disbelief.
   style:
     $ref: ./Style.yaml
+  suggestions:
+    type: array
+    description: >-
+      Optional Instagram add-ons for this frame (0-2). Metadata only — the app
+      shows them as in-app "sparks"; nothing is baked into the exported image.
+    items:
+      $ref: ./Suggestion.yaml

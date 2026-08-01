@@ -7,6 +7,8 @@ import type {
   StyleSizeEnum,
   StylePositionEnum,
   StyleLetterboxEnum,
+  Suggestion,
+  SuggestionTypeEnum,
 } from '@auto-stories/api-types';
 
 const FONTS: readonly StyleFontEnum[] = [
@@ -73,4 +75,55 @@ export function normalizeStyle(raw: unknown): Style {
     position: pick(POSITIONS, r['position'], DEFAULT_STYLE.position),
     letterbox: pick(LETTERBOXES, r['letterbox'], DEFAULT_STYLE.letterbox),
   };
+}
+
+const SUGGESTION_TYPES: readonly SuggestionTypeEnum[] = [
+  'location',
+  'mention',
+  'gif',
+  'poll',
+  'music',
+];
+/** Kept restrained: the AI proposes at most a couple of add-ons per frame. */
+export const MAX_SUGGESTIONS_PER_FRAME = 2;
+/** Confidence when the model omits/mangles it — neutral, so the UI can still show it. */
+const DEFAULT_CONFIDENCE = 0.5;
+
+/**
+ * Turn the model's raw `suggestions` into a valid, capped {@link Suggestion}
+ * list. Same defensive posture as {@link normalizeStyle}: drop items with an
+ * invalid `type` or empty `query`, clamp `confidence` to [0,1], validate the
+ * anchor `position` for placed types (music is story-level, so it carries none),
+ * and cap the count. Missing/junk input → `[]`. Pure and unit-tested.
+ */
+export function normalizeSuggestions(raw: unknown): Suggestion[] {
+  if (!Array.isArray(raw)) return [];
+  const out: Suggestion[] = [];
+  for (const entry of raw) {
+    if (out.length >= MAX_SUGGESTIONS_PER_FRAME) break;
+    if (typeof entry !== 'object' || entry === null) continue;
+    const r = entry as Record<string, unknown>;
+    const type =
+      typeof r['type'] === 'string' &&
+      (SUGGESTION_TYPES as readonly string[]).includes(r['type'])
+        ? (r['type'] as SuggestionTypeEnum)
+        : null;
+    const query = typeof r['query'] === 'string' ? r['query'].trim() : '';
+    if (!type || query === '') continue;
+    const confidence =
+      typeof r['confidence'] === 'number' && Number.isFinite(r['confidence'])
+        ? Math.min(1, Math.max(0, r['confidence']))
+        : DEFAULT_CONFIDENCE;
+    const suggestion: Suggestion = { type, query, confidence };
+    // Placed types get an anchor zone; music is story-level (no position).
+    if (type !== 'music') {
+      suggestion.position = pick(
+        POSITIONS,
+        r['position'],
+        DEFAULT_STYLE.position,
+      );
+    }
+    out.push(suggestion);
+  }
+  return out;
 }
