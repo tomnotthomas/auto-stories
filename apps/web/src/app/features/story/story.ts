@@ -19,6 +19,8 @@ import {
 } from '../../story/caption-render';
 import { CaptionEditor } from '../refine/caption-editor/caption-editor';
 import { RefineFilmstrip } from '../refine/filmstrip/filmstrip';
+import { StorySparks } from './sparks/sparks';
+import type { Suggestion } from '@auto-stories/api-types';
 
 /** A frame resolved for display: the picked photo plus its editable state. */
 interface ViewFrame {
@@ -40,6 +42,8 @@ interface ViewFrame {
   readonly color: string;
   /** Tailwind scrim class (dark on light text, light on dark text), or ''. */
   readonly scrimClass: string;
+  /** Optional Instagram add-ons the AI suggested for this frame (in-app sparks). */
+  readonly suggestions: readonly Suggestion[];
 }
 
 /**
@@ -57,6 +61,7 @@ interface ViewFrame {
     MatProgressSpinnerModule,
     CaptionEditor,
     RefineFilmstrip,
+    StorySparks,
   ],
   templateUrl: './story.html',
 })
@@ -111,6 +116,7 @@ export class Story {
         fitMult: fitMultiplier(frame.caption),
         color: frame.light ? palette.textLight : palette.textDark,
         scrimClass: frame.legibility ? (frame.light ? 'bg-black/40' : 'bg-white/60') : '',
+        suggestions: frame.suggestions ?? [],
       };
     });
   });

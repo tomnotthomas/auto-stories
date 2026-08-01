@@ -133,6 +133,31 @@
   }
 }
 
+/* Spark pulse — the ring behind a suggestion dot breathes outward to draw the
+ * eye to an optional Instagram add-on the AI proposed (sparks overlay). It sits
+ * on a ring element behind the icon so the icon itself stays still. Reduced
+ * motion stills it to a faint static ring (gentle, not zero). */
+@keyframes spark-pulse {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.5;
+  }
+  70%,
+  100% {
+    transform: scale(1.9);
+    opacity: 0;
+  }
+}
+@utility spark-pulse {
+  animation: spark-pulse 2s var(--ease-out-strong) infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .spark-pulse {
+    animation: none;
+    opacity: 0.25;
+  }
+}
+
 /* Story/creation screens are always dark & immersive (approach 5.4), like
  * Instagram's story composer — independent of the app's light/dark setting.
  * Scoping `color-scheme: dark` here makes every --mat-sys-* token inside resolve
