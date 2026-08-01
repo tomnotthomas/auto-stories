@@ -2,21 +2,12 @@ import { Component, computed, inject, input, signal } from '@angular/core';
 import { Clipboard } from '@angular/cdk/clipboard';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import type { Suggestion, SuggestionTypeEnum } from '@auto-stories/api-types';
+import type { Suggestion } from '@auto-stories/api-types';
 
 import { DEFAULT_STYLE, zoneToPlacement } from '../../../story/caption-style';
 import { StoryService } from '../../../story/story.service';
 import { swipeDismissed } from '../../../story/gesture';
-
-/** How each add-on type reads in the bloom: its Material icon and the human verb
- * ("Location", "Mention", …). The `query` is what the user copies into Instagram. */
-const META: Record<SuggestionTypeEnum, { readonly icon: string; readonly label: string }> = {
-  location: { icon: 'location_on', label: 'Location' },
-  mention: { icon: 'alternate_email', label: 'Mention' },
-  gif: { icon: 'gif_box', label: 'GIF' },
-  poll: { icon: 'poll', label: 'Poll' },
-  music: { icon: 'music_note', label: 'Music' },
-};
+import { SUGGESTION_META } from '../../../story/suggestion-meta';
 
 /** Below this many px of travel a pointer gesture is a tap, not a drag. */
 const TAP_SLOP = 6;
@@ -92,7 +83,7 @@ export class StorySparks {
       if (suggestion.type === 'music') return; // story-level; docked pill, not a dot
       const state = states.get(`${id}#${index}`);
       if (state?.dismissed) return;
-      const meta = META[suggestion.type];
+      const meta = SUGGESTION_META[suggestion.type];
       const base = zoneToPlacement(suggestion.position ?? DEFAULT_STYLE.position);
       out.push({
         index,
