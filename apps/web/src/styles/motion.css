@@ -1,0 +1,62 @@
+/* ── Motion ──────────────────────────────────────────────────────────────────
+ * Enter transitions + press feedback for the immersive story surfaces. Strong
+ * custom easing, transform/opacity only, sub-300ms, reduced-motion respected.
+ * These are applied as utility classes on the bespoke story markup — never on a
+ * Material component, and never as per-component CSS. Kept out of styles.css so
+ * the motion system reads as one unit; imported there right after Tailwind. */
+
+@theme {
+  /* Stronger than the stock CSS curves, which lack punch (Emil Kowalski). */
+  --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* Bottom sheets + full-screen slide-overs: rise from the bottom edge. */
+@utility sheet-enter {
+  transition:
+    transform 260ms var(--ease-drawer),
+    opacity 200ms ease;
+  @starting-style {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+}
+
+/* Scrims / dimming overlays: fade the backdrop in rather than blink it on. */
+@utility overlay-fade {
+  transition: opacity 200ms ease;
+  @starting-style {
+    opacity: 0;
+  }
+}
+
+/* Small anchored surfaces (banner, confirmation): drop in from just above. */
+@utility drop-in {
+  transition:
+    transform 220ms var(--ease-out-strong),
+    opacity 220ms var(--ease-out-strong);
+  @starting-style {
+    transform: translateY(-8px);
+    opacity: 0;
+  }
+}
+
+/* Press feedback for bespoke pressables (Material buttons already have it). */
+@utility press {
+  transition: transform 150ms var(--ease-out-strong);
+  &:active {
+    transform: scale(0.98);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet-enter,
+  .overlay-fade,
+  .drop-in,
+  .press {
+    transition: none;
+  }
+  .press:active {
+    transform: none;
+  }
+}
