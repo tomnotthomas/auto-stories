@@ -1,5 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
+import { By } from '@angular/platform-browser';
+import { CdkTextareaAutosize } from '@angular/cdk/text-field';
 
 import { CaptionEditor, draggedPosition, pinchedScale } from './caption-editor';
 import { CaptionEditorHarness } from './caption-editor.harness';
@@ -58,6 +60,23 @@ describe('CaptionEditor', () => {
     instance.placementChange.subscribe((value) => (placement = value));
     await harness.setSize(1.5);
     expect(placement).toEqual({ scale: 1.5 });
+  });
+
+  it('re-fits the textarea when the size changes so a large caption is not clipped', async () => {
+    await render();
+    const autosize = fixture.debugElement
+      .query(By.directive(CdkTextareaAutosize))
+      .injector.get(CdkTextareaAutosize);
+    const resize = vi.spyOn(autosize, 'resizeToFitContent');
+    resize.mockClear();
+
+    fixture.componentRef.setInput('placement', { xPct: 50, yPct: 46, scale: 1.8 });
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    // A forced re-fit (true) is required: the directive's own ngDoCheck calls the
+    // unforced version, which caches on text content and ignores a font-size change.
+    expect(resize).toHaveBeenCalledWith(true);
   });
 
   it('emits a legibility toggle', async () => {

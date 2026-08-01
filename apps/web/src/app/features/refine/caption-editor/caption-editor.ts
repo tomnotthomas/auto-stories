@@ -1,9 +1,18 @@
-import { Component, OnInit, computed, input, output, signal } from '@angular/core';
+import {
+  Component,
+  OnInit,
+  afterRenderEffect,
+  computed,
+  input,
+  output,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSliderModule } from '@angular/material/slider';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { TextFieldModule } from '@angular/cdk/text-field';
+import { CdkTextareaAutosize, TextFieldModule } from '@angular/cdk/text-field';
 
 import { FramePlacement } from '../../../story/story.service';
 
@@ -117,6 +126,21 @@ export class CaptionEditor implements OnInit {
 
   /** Rendered caption size, in px, from the placement scale. */
   protected readonly fontSize = computed(() => Math.round(BASE_FONT_PX * this.placement().scale));
+
+  /** The autosizing textarea, so a size change can force it to re-measure. */
+  private readonly autosize = viewChild(CdkTextareaAutosize);
+
+  constructor() {
+    // cdkTextareaAutosize re-fits on input, but its ngDoCheck caches on text
+    // content and skips a font-size change — so bumping the size slider leaves a
+    // long caption clipped inside the box. Force a re-fit whenever the rendered
+    // size changes (force=true bypasses that cache). It runs *after* render so the
+    // new font-size is committed before the textarea measures its content height.
+    afterRenderEffect(() => {
+      this.fontSize();
+      this.autosize()?.resizeToFitContent(true);
+    });
+  }
 
   ngOnInit(): void {
     this.draft.set(this.caption());
