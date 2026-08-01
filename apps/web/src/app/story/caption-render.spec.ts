@@ -17,6 +17,13 @@ describe('caption-render style mapping', () => {
     expect(fontFamily('caveat')).not.toContain('cursive');
   });
 
+  it('leads the default caption font with the bundled display face', () => {
+    // The story caption is a headline; it uses the self-hosted display face
+    // (Bricolage Grotesque), with the system stack as fallback.
+    expect(fontFamily('inter')).toContain('Bricolage Grotesque');
+    expect(fontFamily('inter').startsWith('"Bricolage Grotesque"')).toBe(true);
+  });
+
   it('maps weight, case, and align to CSS values', () => {
     expect(fontWeightCss('bold')).toBe(700);
     expect(fontWeightCss('regular')).toBe(400);

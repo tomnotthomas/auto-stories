@@ -1,5 +1,11 @@
 import { DEFAULT_STYLE } from './caption-style';
-import { fontFamily, fontWeightCss, sizeScale, textTransformCss } from './caption-render';
+import {
+  fontFamily,
+  fontWeightCss,
+  loadCaptionFonts,
+  sizeScale,
+  textTransformCss,
+} from './caption-render';
 import type { EditableFrame } from './story.service';
 
 /** Instagram Story canvas size. */
@@ -17,6 +23,7 @@ export async function renderFrame(file: File, frame: EditableFrame): Promise<Blo
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('2D canvas context unavailable');
 
+  await loadCaptionFonts();
   const bitmap = await createImageBitmap(file);
   try {
     drawCover(ctx, bitmap);

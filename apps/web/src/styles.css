@@ -2,6 +2,16 @@
 
 @import 'tailwindcss';
 
+/* Self-hosted display face for story captions (OFL, bundled). One variable
+ * woff2 covers 400–800; used by the canvas frame-renderer and the DOM preview. */
+@font-face {
+  font-family: 'Bricolage Grotesque';
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url('/fonts/bricolage-grotesque.woff2') format('woff2');
+}
+
 /* Motion utilities (enter transitions + press feedback) for the story surfaces. */
 @import './styles/motion.css';
 
@@ -94,6 +104,7 @@
  * deliberately outside the M3 type scale (approach 5.5). Defined once so every
  * caption (example, payoff, refine) shares one size rather than repeating px. */
 @utility story-caption {
+  font-family: 'Bricolage Grotesque', system-ui, sans-serif;
   font-weight: 700;
   font-size: 1.8125rem; /* 29px */
   line-height: 1.13;
