@@ -14,6 +14,7 @@ import type {
 } from '@auto-stories/api-types';
 import { ApiException, ApiErrors } from '../common/api-exception';
 import { buildPrompt } from './prompt.builder';
+import { LayoutAgentService } from './layout-agent.service';
 import { shapeFrames } from './story.mapper';
 import { STORY_RESPONSE_SCHEMA } from './story.schema';
 import {
@@ -35,9 +36,12 @@ export class StoryGeneratorService {
   private readonly logger = new Logger(StoryGeneratorService.name);
   private readonly model: string;
   private readonly timeoutMs: number;
+  /** Off by default — the layout agent (7.21) needs live tuning before it ships. */
+  private readonly layoutEnabled: boolean;
 
   constructor(
     @Inject(GENAI) private readonly genai: GoogleGenAI,
+    private readonly layoutAgent: LayoutAgentService,
     config: ConfigService,
   ) {
     this.model = config.get<string>('MODEL', DEFAULT_MODEL);
@@ -45,6 +49,7 @@ export class StoryGeneratorService {
       'GENERATION_TIMEOUT_MS',
       DEFAULT_TIMEOUT_MS,
     );
+    this.layoutEnabled = config.get<string>('LAYOUT_AGENT_ENABLED') === 'true';
   }
 
   async generate(request: GenerateRequest): Promise<GenerateResponse> {
@@ -80,8 +85,17 @@ export class StoryGeneratorService {
         throw ApiErrors.emptyResult();
       }
 
+      // Second pass: art-direct each frame's typography (decision 7.21). Gated
+      // off by default; best-effort, so it never fails the story.
+      const finalFrames = this.layoutEnabled
+        ? await this.layoutAgent.composeLayouts(frames, photos, {
+            story: request.story,
+            tone: request.tone,
+          })
+        : frames;
+
       return {
-        frames,
+        frames: finalFrames,
         // Curating a subset of the batch is the whole job (the user dumps 30,
         // we keep the best 5–7), not a failure — so only a safety-dropped photo
         // makes a story "partial" (4.3, 2.4/2.5).
