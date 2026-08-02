@@ -36,6 +36,27 @@ export class StoryHarness extends ComponentHarness {
     await (await this.locatorFor(MatButtonHarness.with({ text: /Add a text/ }))()).click();
   }
 
+  /** Hand off to Instagram (renders + posts). */
+  async clickPost(): Promise<void> {
+    await (await this.locatorFor(MatButtonHarness.with({ text: /Post to Instagram/ }))()).click();
+  }
+
+  /** Whether the hand-off tray is showing. */
+  async hasTray(): Promise<boolean> {
+    return (await this.locatorForOptional('app-handoff-companion')()) !== null;
+  }
+
+  /** The add-on terms listed in the hand-off tray, in order. */
+  async trayTerms(): Promise<string[]> {
+    const els = await this.locatorForAll('[data-tray-term]')();
+    return Promise.all(els.map(async (el) => (await el.text()).trim()));
+  }
+
+  /** Collapse the hand-off tray ("All set"). */
+  async clickAllSet(): Promise<void> {
+    await (await this.locatorFor(MatButtonHarness.with({ text: /All set/ }))()).click();
+  }
+
   /** photoIds of the frame background layers currently mounted — the current
    * frame plus its preloaded neighbours. */
   async mountedFrameIds(): Promise<string[]> {

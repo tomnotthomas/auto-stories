@@ -4,7 +4,7 @@ import { MatIconModule } from '@angular/material/icon';
 
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
-import { StoryService, FramePlacement, sparkKey } from '../../story/story.service';
+import { StoryService, FramePlacement } from '../../story/story.service';
 import { GenerationService } from '../../story/generation.service';
 import { StoryExporter } from '../../story/story-exporter.service';
 import { DEFAULT_STYLE } from '../../story/caption-style';
@@ -115,23 +115,15 @@ export class Story {
   protected readonly storyBusy = signal(false);
   /** True while rendering + handing off the frames. */
   protected readonly exporting = signal(false);
-  /** True once the frames have been shared/downloaded (shows the next-step copy). */
+  /** True once the frames have been shared/downloaded (drives the hand-off tray). */
   protected readonly posted = signal(false);
-  /** The guided "Add your extras" companion is open (after posting). */
-  protected readonly companionOpen = signal(false);
+  /** The hand-off tray is expanded (true the moment we post; "All set" collapses
+   * it, revealing the action bar again). */
+  protected readonly trayOpen = signal(false);
 
-  /** How many add-on ideas are still on offer (non-dismissed) across the story —
-   * gates the "Add extras" entry so it only shows when there's something to add. */
-  protected readonly suggestionCount = computed(() => {
-    const states = this.story.sparks();
-    let count = 0;
-    for (const frame of this.story.frames()) {
-      (frame.suggestions ?? []).forEach((_, i) => {
-        if (!states.get(sparkKey(frame.photoId, i))?.dismissed) count += 1;
-      });
-    }
-    return count;
-  });
+  /** The post-share hand-off state: the story shrinks away and the tray presents
+   * the add-ons. Also true when there are none — the tray still confirms the save. */
+  protected readonly handoff = computed(() => this.posted() && this.trayOpen());
 
   /** Frames in narrative order, each resolved to its picked photo. */
   protected readonly frames = computed<ViewFrame[]>(() => {
@@ -377,6 +369,9 @@ export class Story {
     try {
       await this.exporter.post();
       this.posted.set(true);
+      // The moment we've handed off, the tray rises with the add-ons — it IS the
+      // post-share screen, so the user leaves knowing there's more here.
+      this.trayOpen.set(true);
     } catch {
       // A cancelled share or a failed render leaves the user on the payoff; they
       // can tap again. Nothing destructive happened.
@@ -385,13 +380,8 @@ export class Story {
     }
   }
 
-  /** Open the guided "Add your extras" companion (kept behind a tap so exporting
-   * stays one action and is never gated by embellishing). */
-  protected openCompanion(): void {
-    this.companionOpen.set(true);
-  }
-
-  protected closeCompanion(): void {
-    this.companionOpen.set(false);
+  /** Collapse the hand-off tray ("All set") — reveals the action bar again. */
+  protected closeTray(): void {
+    this.trayOpen.set(false);
   }
 }

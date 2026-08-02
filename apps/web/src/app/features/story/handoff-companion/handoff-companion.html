@@ -1,90 +1,75 @@
-<!-- A full-screen sheet that walks the AI's ideas one at a time. -->
-<div class="sheet-enter absolute inset-0 z-40 flex flex-col bg-surface text-on-surface">
-  <div class="flex flex-none items-center gap-1 px-1.5 pt-11">
-    <h2 class="mat-title-medium flex-1 pl-2.5">Add your extras</h2>
-    <button matButton data-companion-done (click)="close()">Done</button>
+<!-- The hand-off tray: the post-share screen, risen from the bottom. -->
+<div
+  class="sheet-enter absolute inset-x-0 bottom-0 z-40 flex max-h-[72%] flex-col rounded-t-3xl bg-surface pb-6 text-on-surface shadow-2xl"
+>
+  <div class="flex flex-none items-start gap-2 px-5 pb-2 pt-4">
+    <div class="min-w-0 flex-1">
+      <h2 class="mat-title-medium flex items-center gap-1.5">
+        <mat-icon class="text-primary">check_circle</mat-icon>
+        Saved to your photos
+      </h2>
+      <p class="mat-label-medium mt-0.5 text-on-surface-variant">
+        Open Instagram → Story → <b class="text-on-surface">Select Multiple</b> → pick these
+        {{ frameCount().length }}.
+      </p>
+    </div>
+    <button matButton data-tray-close (click)="close()">All set</button>
   </div>
 
-  @if (current(); as item) {
-    <div class="flex flex-1 flex-col gap-4 overflow-y-auto px-5 pb-6 pt-1" data-companion-card>
-      <!-- The photo, with the idea shown on the spot it belongs -->
-      <div class="drop-in relative mx-auto w-full max-w-[300px] overflow-hidden rounded-3xl bg-black">
-        <div class="aspect-4/5 w-full">
-          @if (item.previewUrl) {
-            <img [src]="item.previewUrl" alt="" class="h-full w-full object-cover" />
-          }
-          <div
-            class="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/60"
-          ></div>
-        </div>
-
-        @if (item.positioned) {
-          <!-- a soft glow says "here", the pin sits in it -->
-          <span
-            aria-hidden="true"
-            class="absolute h-16 w-16 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/25 blur-lg"
-            [style.left.%]="item.xPct"
-            [style.top.%]="item.yPct"
-          ></span>
-          <div
-            class="absolute -translate-x-1/2 -translate-y-1/2"
-            [style.left.%]="item.xPct"
-            [style.top.%]="item.yPct"
-          >
-            <span
-              class="relative flex items-center gap-1 rounded-full bg-primary py-1 pl-2 pr-2.5 text-on-primary shadow-lg"
-            >
-              <mat-icon class="h-4 w-4 flex-none text-[16px] leading-none">{{ item.icon }}</mat-icon>
-              <span class="mat-label-large whitespace-nowrap">{{ item.query }}</span>
-              <span
-                aria-hidden="true"
-                class="absolute -bottom-1 left-3 h-2 w-2 rotate-45 rounded-[1px] bg-primary"
-              ></span>
-            </span>
-          </div>
-        }
-      </div>
-
-      <!-- The suggestion, in words -->
-      <div>
-        <p class="mat-body-medium text-on-surface-variant">
-          @if (item.positioned) {
-            A <b class="text-on-surface">{{ item.label }}</b> would sit nicely there. In Instagram,
-            drop a {{ item.label }} sticker on that spot and search:
-          } @else {
-            A <b class="text-on-surface">soundtrack</b> would fit this story. In Instagram's music,
-            search:
-          }
-        </p>
-        <div
-          class="mt-2.5 flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-surface-container-high py-2 pl-4 pr-2"
+  @if (items().length) {
+    <p class="mat-label-medium flex-none px-5 pb-1.5 pt-1 text-on-surface-variant">
+      Then add these — the pin shows where each goes:
+    </p>
+    <ul class="flex flex-col gap-2 overflow-y-auto px-4 pb-1">
+      @for (item of items(); track item.key) {
+        <li
+          data-tray-item
+          class="handoff-stagger flex items-center gap-2.5 rounded-2xl bg-surface-container-high p-2 pr-1"
         >
-          <span data-companion-term class="story-caption min-w-0 flex-1 truncate !text-2xl">{{
-            item.query
-          }}</span>
+          <!-- photo thumb with the pin on its spot — the "where" at a glance -->
+          <div class="relative h-16 w-[52px] flex-none overflow-hidden rounded-xl bg-black">
+            @if (item.previewUrl) {
+              <img [src]="item.previewUrl" alt="" class="h-full w-full object-cover" />
+            }
+            <div class="absolute inset-0 bg-black/25"></div>
+            @if (item.positioned) {
+              <span
+                class="absolute flex h-5 w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-primary text-on-primary shadow"
+                [style.left.%]="item.xPct"
+                [style.top.%]="item.yPct"
+              >
+                <mat-icon class="h-3.5 w-3.5 text-[14px] leading-none">{{ item.icon }}</mat-icon>
+              </span>
+            } @else {
+              <mat-icon
+                class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-primary"
+                >music_note</mat-icon
+              >
+            }
+          </div>
+
+          <div class="min-w-0 flex-1">
+            <p class="mat-label-medium text-on-surface-variant">
+              {{ item.label }} · frame {{ item.frameNo }}
+            </p>
+            <p data-tray-term class="story-caption truncate !text-xl">{{ item.query }}</p>
+          </div>
+
           <button matButton="filled" class="flex-none" (click)="copy(item)">
             <mat-icon>{{ copiedKey() === item.key ? 'check' : 'content_copy' }}</mat-icon>
             {{ copiedKey() === item.key ? 'Copied' : 'Copy' }}
           </button>
-        </div>
-      </div>
-
-      <div class="mt-auto flex flex-col gap-2">
-        <button matButton="tonal" class="w-full" data-companion-next (click)="next()">
-          Added it → next
-        </button>
-        <button matButton class="w-full" data-companion-dismiss (click)="notThisOne(item)">
-          Not this one
-        </button>
-        <p class="mat-label-medium mt-1 text-center text-on-surface-variant">
-          Only frames with an idea appear · no checklist
-        </p>
-      </div>
-    </div>
-  } @else {
-    <div class="flex flex-1 flex-col items-center justify-center gap-2 px-8 text-center">
-      <mat-icon class="text-primary">check_circle</mat-icon>
-      <p class="mat-body-medium text-on-surface-variant">That's everything — your story's posted.</p>
-    </div>
+          <button
+            matIconButton
+            data-tray-dismiss
+            class="flex-none"
+            aria-label="Remove this add-on"
+            (click)="dismiss(item)"
+          >
+            <mat-icon>close</mat-icon>
+          </button>
+        </li>
+      }
+    </ul>
   }
 </div>

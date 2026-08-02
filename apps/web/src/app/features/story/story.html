@@ -4,11 +4,14 @@
   (pointerup)="onSwipeEnd($event)"
 >
   @if (current(); as frame) {
-    <!-- Frame backgrounds: the current photo plus its neighbours, kept mounted so
+    <!-- The story "stage" — everything the viewer sees. In the hand-off state it
+         scales up and away (it went to Instagram), clearing room for the tray. -->
+    <div class="story-stage absolute inset-0" [class.handoff-away]="handoff()">
+      <!-- Frame backgrounds: the current photo plus its neighbours, kept mounted so
          they are already decoded when paged to. Only the current one is opaque;
          the swap is instant (no transition) so it lands in the same paint as the
          progress bar. -->
-    @for (layer of frameWindow(); track layer.frame.photoId) {
+      @for (layer of frameWindow(); track layer.frame.photoId) {
       <div
         [attr.data-frame]="layer.frame.photoId"
         class="absolute inset-0"
@@ -189,9 +192,12 @@
         Tap or swipe the photo to move through the story
       </p>
     }
+    </div>
+    <!-- /story-stage -->
 
     <!-- Bottom action bar. In refine it's a solid sheet (own surface, clear of the
-         photo) with the frame-level actions; the caption is edited on the photo. -->
+         photo) with the frame-level actions; the caption is edited on the photo.
+         Hidden in the hand-off state — the tray is the post-share screen. -->
     @if (refining()) {
       <div
         class="sheet-enter absolute inset-x-0 bottom-0 z-20 flex flex-col gap-3 rounded-t-3xl bg-surface-container-low px-4 pb-6 pt-3 text-on-surface"
@@ -230,22 +236,8 @@
           </button>
         </div>
       </div>
-    } @else {
+    } @else if (!handoff()) {
       <div class="absolute inset-x-4 bottom-6 z-20 flex flex-col gap-2">
-        @if (posted()) {
-          <p
-            class="drop-in mat-body-medium rounded-2xl bg-surface-container-high px-4 py-3 text-center text-on-surface"
-          >
-            Saved to your photos. Open Instagram → Story → <b>Select Multiple</b> → pick these
-            {{ frameCount() }}.
-          </p>
-          @if (suggestionCount() > 0) {
-            <button matButton="tonal" class="w-full" (click)="openCompanion()">
-              <mat-icon>auto_fix_high</mat-icon>
-              Add your extras · {{ suggestionCount() }}
-            </button>
-          }
-        }
         <button
           matButton="filled"
           class="w-full"
@@ -261,6 +253,11 @@
         </button>
         <button matButton class="w-full text-white" (click)="startOver()">Start over</button>
       </div>
+    }
+
+    <!-- Hand-off tray: the post-share screen, risen with the add-ons. -->
+    @if (handoff()) {
+      <app-handoff-companion (done)="closeTray()" />
     }
 
     <!-- Reorder & remove — a clean, dedicated surface for managing the frames. -->
@@ -324,11 +321,6 @@
         (remove)="removeCurrentText()"
         (done)="closeEditor()"
       />
-    }
-
-    <!-- Guided hand-off companion (opened from "Add your extras" after posting) -->
-    @if (companionOpen()) {
-      <app-handoff-companion (done)="closeCompanion()" />
     }
   }
 </section>
