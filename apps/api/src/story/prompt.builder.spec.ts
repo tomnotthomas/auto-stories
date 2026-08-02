@@ -34,6 +34,18 @@ describe('buildPrompt', () => {
     expect(prompt).toMatch(/location|gif|poll|music/);
   });
 
+  it('tells the model to keep captions short so the photo can breathe', () => {
+    const prompt = buildPrompt(story).toLowerCase();
+    expect(prompt).toMatch(/short/);
+    expect(prompt).toContain('breathe');
+    // The story must not be sacrificed for brevity — it lives across frames.
+    expect(prompt).toContain('sequence');
+  });
+
+  it('tells the model not to overload a photo with competing elements', () => {
+    expect(buildPrompt(story).toLowerCase()).toMatch(/overload|competes/);
+  });
+
   it('keeps distinct moments and only drops weak or duplicate photos', () => {
     const prompt = buildPrompt(story).toLowerCase();
     expect(prompt).toContain('distinct');
