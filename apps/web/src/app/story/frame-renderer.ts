@@ -1,4 +1,6 @@
-import { DEFAULT_STYLE } from './caption-style';
+import type { Style } from '@auto-stories/api-types';
+
+import { DEFAULT_STYLE, zoneToPlacement } from './caption-style';
 import { paletteFor } from './caption-palette';
 import {
   fitMultiplier,
@@ -14,11 +16,30 @@ import type { EditableFrame } from './story.service';
 export const FRAME_W = 1080;
 export const FRAME_H = 1920;
 
+/** Everything needed to draw one caption/text block onto the canvas. */
+interface TextDraw {
+  readonly text: string;
+  readonly font: Style['font'];
+  readonly weight: Style['weight'];
+  readonly case: Style['case'];
+  readonly align: Style['align'];
+  readonly size: Style['size'];
+  /** Centre, in % of the frame. */
+  readonly xPct: number;
+  readonly yPct: number;
+  /** Extra size multiplier from the user's drag (1 for AI-placed extra blocks). */
+  readonly scale: number;
+  /** true → white text, false → dark. */
+  readonly light: boolean;
+  /** true → draw a scrim behind the text. */
+  readonly legibility: boolean;
+}
+
 /**
  * Composite one finished card into a 1080×1920 PNG the user can post: the photo
- * cover-fit to fill, then the caption drawn with its AI style (font/weight/case/
- * size at the placed position) and the device-computed colour + scrim. Returns a
- * PNG blob.
+ * cover-fit to fill, then the caption and any extra placed text blocks drawn with
+ * their AI style at their spots, with the device-computed colour + scrim. Returns
+ * a PNG blob.
  */
 export async function renderFrame(file: File, frame: EditableFrame): Promise<Blob> {
   const canvas = new OffscreenCanvas(FRAME_W, FRAME_H);
@@ -28,14 +49,48 @@ export async function renderFrame(file: File, frame: EditableFrame): Promise<Blo
   await loadCaptionFonts();
   const bitmap = await createImageBitmap(file);
   try {
-    // The cohesion match applies to the photo only; reset before the caption.
+    // The cohesion match applies to the photo only; reset before the text.
     ctx.filter = frame.imageFilter || 'none';
     drawCover(ctx, bitmap);
     ctx.filter = 'none';
   } finally {
     bitmap.close();
   }
-  drawCaption(ctx, frame);
+
+  const style = frame.style ?? DEFAULT_STYLE;
+  drawText(ctx, {
+    text: frame.caption,
+    font: style.font,
+    weight: style.weight,
+    case: style.case,
+    align: style.align,
+    size: style.size,
+    xPct: frame.placement.xPct,
+    yPct: frame.placement.yPct,
+    scale: frame.placement.scale,
+    light: frame.light,
+    legibility: frame.legibility,
+  });
+
+  // Extra editorial blocks the model placed — read-only, kept legible (white +
+  // scrim) at their own zone and size.
+  for (const block of frame.texts ?? []) {
+    const place = zoneToPlacement(block.position);
+    drawText(ctx, {
+      text: block.text,
+      font: block.font,
+      weight: block.weight,
+      case: block.case,
+      align: block.align,
+      size: block.size,
+      xPct: place.xPct,
+      yPct: place.yPct,
+      scale: 1,
+      light: true,
+      legibility: true,
+    });
+  }
+
   return canvas.convertToBlob({ type: 'image/png' });
 }
 
@@ -47,30 +102,27 @@ function drawCover(ctx: OffscreenCanvasRenderingContext2D, bitmap: ImageBitmap):
   ctx.drawImage(bitmap, (FRAME_W - w) / 2, (FRAME_H - h) / 2, w, h);
 }
 
-function drawCaption(ctx: OffscreenCanvasRenderingContext2D, frame: EditableFrame): void {
-  const style = frame.style ?? DEFAULT_STYLE;
-  const fontPx = Math.round(
-    64 * frame.placement.scale * sizeScale(style.size) * fitMultiplier(frame.caption),
-  );
-  ctx.font = `${fontWeightCss(style.weight)} ${fontPx}px ${fontFamily(style.font)}`;
-  ctx.textAlign = style.align;
+/** Draw one text block (wrapped, optionally scrimmed) at its placed centre. */
+function drawText(ctx: OffscreenCanvasRenderingContext2D, o: TextDraw): void {
+  const fontPx = Math.round(64 * o.scale * sizeScale(o.size) * fitMultiplier(o.text));
+  ctx.font = `${fontWeightCss(o.weight)} ${fontPx}px ${fontFamily(o.font)}`;
+  ctx.textAlign = o.align;
   ctx.textBaseline = 'middle';
 
-  const text =
-    textTransformCss(style.case) === 'uppercase' ? frame.caption.toUpperCase() : frame.caption;
+  const text = textTransformCss(o.case) === 'uppercase' ? o.text.toUpperCase() : o.text;
   const maxWidth = FRAME_W * 0.82;
   const lines = wrap(ctx, text, maxWidth);
   const lineH = fontPx * 1.22;
   const blockH = lines.length * lineH;
 
-  const cx = (FRAME_W * frame.placement.xPct) / 100;
-  const cy = (FRAME_H * frame.placement.yPct) / 100;
+  const cx = (FRAME_W * o.xPct) / 100;
+  const cy = (FRAME_H * o.yPct) / 100;
   const widest = Math.max(...lines.map((l) => ctx.measureText(l).width));
 
-  if (frame.legibility) {
+  if (o.legibility) {
     const padX = fontPx * 0.6;
     const padY = fontPx * 0.4;
-    ctx.fillStyle = frame.light ? 'rgba(0,0,0,0.42)' : 'rgba(255,255,255,0.62)';
+    ctx.fillStyle = o.light ? 'rgba(0,0,0,0.42)' : 'rgba(255,255,255,0.62)';
     roundRect(
       ctx,
       cx - widest / 2 - padX,
@@ -83,10 +135,9 @@ function drawCaption(ctx: OffscreenCanvasRenderingContext2D, frame: EditableFram
   }
 
   // x anchor by alignment: left edge, centre, or right edge of the text block.
-  const anchorX =
-    style.align === 'left' ? cx - widest / 2 : style.align === 'right' ? cx + widest / 2 : cx;
+  const anchorX = o.align === 'left' ? cx - widest / 2 : o.align === 'right' ? cx + widest / 2 : cx;
   const palette = paletteFor();
-  ctx.fillStyle = frame.light ? palette.textLight : palette.textDark;
+  ctx.fillStyle = o.light ? palette.textLight : palette.textDark;
   lines.forEach((line, i) => {
     const y = cy - blockH / 2 + lineH / 2 + i * lineH;
     ctx.fillText(line, anchorX, y);

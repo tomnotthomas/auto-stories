@@ -78,56 +78,40 @@ export function normalizeStyle(raw: unknown): Style {
   };
 }
 
-/** A frame carries at most this many placed text blocks (breathe — usually 0–1). */
+/** A frame carries at most this many EXTRA text blocks besides the caption. */
 export const MAX_TEXT_BLOCKS = 2;
 
 /**
- * Turn the model's raw `texts` into 0–2 clean {@link TextBlock}s — each with a
- * non-empty text and a valid style, capped and junk-dropped like the rest. When
- * the model gives no usable blocks, fall back to a single block mirroring the
- * frame's `caption` + `style`, so the client always has an editorial layer to
- * render and edit. An empty caption with no texts yields `[]` (a caption-less,
- * breathing frame). Pure and unit-tested.
+ * Turn the model's raw `texts` into 0–2 clean {@link TextBlock}s — the EXTRA
+ * placed lines a frame carries *besides* its `caption` (an editorial layout: a
+ * small line and a bigger line). Each needs a non-empty text and a valid style;
+ * junk and empty-text blocks are dropped, the count capped, and `[]` returned
+ * when the model gives none (the common case — the caption alone). Per-field
+ * defaults come from the frame's `style`. Pure and unit-tested.
  */
 export function normalizeTexts(
   raw: unknown,
-  fallbackText: string,
   fallbackStyle: Style,
 ): TextBlock[] {
+  if (!Array.isArray(raw)) return [];
   const out: TextBlock[] = [];
-  if (Array.isArray(raw)) {
-    for (const entry of raw) {
-      if (out.length >= MAX_TEXT_BLOCKS) break;
-      if (typeof entry !== 'object' || entry === null) continue;
-      const r = entry as Record<string, unknown>;
-      const text = typeof r['text'] === 'string' ? r['text'].trim() : '';
-      if (text === '') continue;
-      out.push({
-        text,
-        font: pick(FONTS, r['font'], fallbackStyle.font),
-        weight: pick(WEIGHTS, r['weight'], fallbackStyle.weight),
-        case: pick(CASES, r['case'], fallbackStyle.case),
-        align: pick(ALIGNS, r['align'], fallbackStyle.align),
-        size: pick(SIZES, r['size'], fallbackStyle.size),
-        position: pick(POSITIONS, r['position'], fallbackStyle.position),
-      });
-    }
-  }
-  if (out.length > 0) return out;
-
-  const text = fallbackText.trim();
-  if (text === '') return [];
-  return [
-    {
+  for (const entry of raw) {
+    if (out.length >= MAX_TEXT_BLOCKS) break;
+    if (typeof entry !== 'object' || entry === null) continue;
+    const r = entry as Record<string, unknown>;
+    const text = typeof r['text'] === 'string' ? r['text'].trim() : '';
+    if (text === '') continue;
+    out.push({
       text,
-      font: fallbackStyle.font,
-      weight: fallbackStyle.weight,
-      case: fallbackStyle.case,
-      align: fallbackStyle.align,
-      size: fallbackStyle.size,
-      position: fallbackStyle.position,
-    },
-  ];
+      font: pick(FONTS, r['font'], fallbackStyle.font),
+      weight: pick(WEIGHTS, r['weight'], fallbackStyle.weight),
+      case: pick(CASES, r['case'], fallbackStyle.case),
+      align: pick(ALIGNS, r['align'], fallbackStyle.align),
+      size: pick(SIZES, r['size'], fallbackStyle.size),
+      position: pick(POSITIONS, r['position'], fallbackStyle.position),
+    });
+  }
+  return out;
 }
 
 const SUGGESTION_TYPES: readonly SuggestionTypeEnum[] = [

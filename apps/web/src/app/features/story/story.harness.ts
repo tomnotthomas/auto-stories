@@ -25,6 +25,12 @@ export class StoryHarness extends ComponentHarness {
     return (await this.caption()).text();
   }
 
+  /** The AI's extra placed text blocks shown on the current frame, in order. */
+  async extraTexts(): Promise<string[]> {
+    const els = await this.locatorForAll('[data-extra-text]')();
+    return Promise.all(els.map(async (el) => (await el.text()).trim()));
+  }
+
   /** photoIds of the frame background layers currently mounted — the current
    * frame plus its preloaded neighbours. */
   async mountedFrameIds(): Promise<string[]> {

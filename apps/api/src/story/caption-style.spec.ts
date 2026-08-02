@@ -146,22 +146,11 @@ describe('normalizeStyle', () => {
 });
 
 describe('normalizeTexts', () => {
-  it('falls back to a single caption block when the model gives no texts', () => {
-    expect(normalizeTexts(undefined, 'Yummy.', DEFAULT_STYLE)).toEqual([
-      {
-        text: 'Yummy.',
-        font: DEFAULT_STYLE.font,
-        weight: DEFAULT_STYLE.weight,
-        case: DEFAULT_STYLE.case,
-        align: DEFAULT_STYLE.align,
-        size: DEFAULT_STYLE.size,
-        position: DEFAULT_STYLE.position,
-      },
-    ]);
-  });
-
-  it('returns [] for a caption-less frame with no texts (a breathing frame)', () => {
-    expect(normalizeTexts(undefined, '   ', DEFAULT_STYLE)).toEqual([]);
+  it('returns [] when the model gives no texts (the caption alone)', () => {
+    expect(normalizeTexts(undefined, DEFAULT_STYLE)).toEqual([]);
+    expect(normalizeTexts(null, DEFAULT_STYLE)).toEqual([]);
+    expect(normalizeTexts('nope', DEFAULT_STYLE)).toEqual([]);
+    expect(normalizeTexts([], DEFAULT_STYLE)).toEqual([]);
   });
 
   it("keeps the model's blocks, per-field defaulted, trimming the text", () => {
@@ -174,7 +163,6 @@ describe('normalizeTexts', () => {
           position: 'top-right',
         },
       ],
-      'ignored fallback',
       DEFAULT_STYLE,
     );
     expect(blocks).toEqual([
@@ -198,7 +186,6 @@ describe('normalizeTexts', () => {
         { text: 'two' },
         { text: 'three' }, // beyond the cap
       ],
-      'fallback',
       DEFAULT_STYLE,
     );
     expect(blocks.map((b) => b.text)).toEqual(['one', 'two']);
@@ -208,7 +195,6 @@ describe('normalizeTexts', () => {
   it('invalid style values on a block fall back to the frame style', () => {
     const [block] = normalizeTexts(
       [{ text: 'x', font: 'comic-sans', size: 'xxl' }],
-      'f',
       DEFAULT_STYLE,
     );
     expect(block.font).toBe(DEFAULT_STYLE.font);

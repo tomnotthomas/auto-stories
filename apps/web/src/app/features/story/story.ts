@@ -7,7 +7,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { StoryService, FramePlacement, sparkKey } from '../../story/story.service';
 import { GenerationService } from '../../story/generation.service';
 import { StoryExporter } from '../../story/story-exporter.service';
-import { DEFAULT_STYLE } from '../../story/caption-style';
+import { DEFAULT_STYLE, zoneToPlacement } from '../../story/caption-style';
 import { paletteFor } from '../../story/caption-palette';
 import {
   fitMultiplier,
@@ -45,6 +45,21 @@ interface ViewFrame {
   readonly scrimClass: string;
   /** Optional Instagram add-ons the AI suggested for this frame (in-app sparks). */
   readonly suggestions: readonly Suggestion[];
+  /** Extra placed text blocks the AI added besides the caption (read-only). */
+  readonly extraTexts: readonly ViewTextBlock[];
+}
+
+/** One extra placed text block, resolved to CSS for read-only display. */
+interface ViewTextBlock {
+  readonly text: string;
+  readonly xPct: number;
+  readonly yPct: number;
+  readonly fontFamily: string;
+  readonly fontWeight: number;
+  readonly textAlign: 'left' | 'center' | 'right';
+  readonly textTransform: 'none' | 'uppercase';
+  readonly sizeMult: number;
+  readonly fitMult: number;
 }
 
 /**
@@ -134,6 +149,20 @@ export class Story {
         color: frame.light ? palette.textLight : palette.textDark,
         scrimClass: frame.legibility ? (frame.light ? 'bg-black/40' : 'bg-white/60') : '',
         suggestions: frame.suggestions ?? [],
+        extraTexts: (frame.texts ?? []).map((b) => {
+          const place = zoneToPlacement(b.position);
+          return {
+            text: b.text,
+            xPct: place.xPct,
+            yPct: place.yPct,
+            fontFamily: fontFamily(b.font),
+            fontWeight: fontWeightCss(b.weight),
+            textAlign: textAlignCss(b.align),
+            textTransform: textTransformCss(b.case),
+            sizeMult: sizeScale(b.size),
+            fitMult: fitMultiplier(b.text),
+          };
+        }),
       };
     });
   });
