@@ -1,7 +1,13 @@
 import { Injectable, computed, signal } from '@angular/core';
-import type { ErrorCode, Frame, Tone } from '@auto-stories/api-types';
+import type { ErrorCode, Frame, TextBlock, Tone } from '@auto-stories/api-types';
 
-import { DEFAULT_STYLE, pickReadable, sampleLuminance, zoneToPlacement } from './caption-style';
+import {
+  DEFAULT_STYLE,
+  pickReadable,
+  sampleLuminance,
+  zoneToPlacement,
+  type Readable,
+} from './caption-style';
 import { cohesionFilter, frameLuminance } from './caption-cohesion';
 
 /**
@@ -52,8 +58,24 @@ export interface FramePlacement {
  * refine bar / edit sheet never cover it — unscaled (1.5). */
 export const DEFAULT_PLACEMENT: FramePlacement = { xPct: 50, yPct: 46, scale: 1 };
 
+/** One extra placed text block besides the caption, with its editable refine
+ * state (its own spot, background, and computed colour). The style fields mirror
+ * the contract {@link TextBlock}; `position` is replaced by a free `placement`. */
+export interface EditableTextBlock {
+  readonly text: string;
+  readonly font: TextBlock['font'];
+  readonly weight: TextBlock['weight'];
+  readonly case: TextBlock['case'];
+  readonly align: TextBlock['align'];
+  readonly size: TextBlock['size'];
+  readonly placement: FramePlacement;
+  readonly legibility: boolean;
+  readonly light: boolean;
+}
+
 /** A generated frame plus the state the user refines in place: the caption text,
- * where it sits, and whether it keeps its legibility background (5.3, 5.9). */
+ * where it sits, and whether it keeps its legibility background (5.3, 5.9), plus
+ * any extra placed text blocks the AI added and the user can edit. */
 export interface EditableFrame extends Frame {
   readonly placement: FramePlacement;
   readonly legibility: boolean;
@@ -62,6 +84,25 @@ export interface EditableFrame extends Frame {
   /** Computed on-device: a CSS/canvas `filter` that matches this photo's
    * exposure to the rest of the story (cohesion); `'none'` until computed. */
   readonly imageFilter: string;
+  /** Extra placed text blocks (0–2) besides the caption, each editable. */
+  readonly extraTexts: readonly EditableTextBlock[];
+}
+
+/** Build the editable extra-text state for a contract frame's `texts` — each
+ * block starts at its AI zone with a safe (white + scrim) look, refined by
+ * computeReadable(). */
+function toEditableTexts(frame: Frame): EditableTextBlock[] {
+  return (frame.texts ?? []).map((b) => ({
+    text: b.text,
+    font: b.font,
+    weight: b.weight,
+    case: b.case,
+    align: b.align,
+    size: b.size,
+    placement: zoneToPlacement(b.position),
+    legibility: true,
+    light: true,
+  }));
 }
 
 /** The user's in-app edits to one suggested "spark": where they dragged its dot
@@ -201,6 +242,7 @@ export class StoryService {
           legibility: true,
           light: true,
           imageFilter: 'none',
+          extraTexts: toEditableTexts(frame),
         })),
       ),
     );
@@ -218,17 +260,21 @@ export class StoryService {
    */
   private async computeReadable(): Promise<void> {
     const files = new Map(this._photos().map((photo) => [photo.id, photo.file]));
-    const readable = new Map<string, { light: boolean; scrim: boolean; filter: string }>();
+    const readable = new Map<
+      string,
+      { light: boolean; scrim: boolean; filter: string; extras: Readable[] }
+    >();
     for (const frame of this._frames()) {
       const file = files.get(frame.photoId);
       if (!file) continue;
       try {
         const bitmap = await createImageBitmap(file);
-        // One decode does double duty: legibility under the caption + the
+        // One decode does double duty: legibility under each text block + the
         // exposure match that pulls the whole set together (cohesion).
         readable.set(frame.photoId, {
           ...pickReadable(sampleLuminance(bitmap, frame.placement)),
           filter: cohesionFilter(frameLuminance(bitmap)),
+          extras: frame.extraTexts.map((b) => pickReadable(sampleLuminance(bitmap, b.placement))),
         });
         bitmap.close();
       } catch {
@@ -239,7 +285,16 @@ export class StoryService {
     this._frames.update((frames) =>
       frames.map((frame) => {
         const r = readable.get(frame.photoId);
-        return r ? { ...frame, light: r.light, legibility: r.scrim, imageFilter: r.filter } : frame;
+        if (!r) return frame;
+        return {
+          ...frame,
+          light: r.light,
+          legibility: r.scrim,
+          imageFilter: r.filter,
+          extraTexts: frame.extraTexts.map((b, i) =>
+            r.extras[i] ? { ...b, light: r.extras[i].light, legibility: r.extras[i].scrim } : b,
+          ),
+        };
       }),
     );
   }
@@ -261,6 +316,7 @@ export class StoryService {
           legibility: true,
           light: true,
           imageFilter: 'none',
+          extraTexts: toEditableTexts(frame),
         },
       ];
     });
@@ -290,6 +346,72 @@ export class StoryService {
     this._frames.update((frames) =>
       frames.map((frame) =>
         frame.photoId === photoId ? { ...frame, legibility: !frame.legibility } : frame,
+      ),
+    );
+  }
+
+  /** Map one frame's extra blocks, applying `fn` to the block at `index`. */
+  private mapExtra(
+    photoId: string,
+    index: number,
+    fn: (block: EditableTextBlock) => EditableTextBlock,
+  ): void {
+    this._frames.update((frames) =>
+      frames.map((frame) =>
+        frame.photoId === photoId
+          ? { ...frame, extraTexts: frame.extraTexts.map((b, i) => (i === index ? fn(b) : b)) }
+          : frame,
+      ),
+    );
+  }
+
+  /** Refine: rewrite an extra text block's words. */
+  setExtraText(photoId: string, index: number, text: string): void {
+    this.mapExtra(photoId, index, (b) => ({ ...b, text }));
+  }
+
+  /** Refine: move/resize an extra text block (partial, like setPlacement). */
+  setExtraPlacement(photoId: string, index: number, placement: Partial<FramePlacement>): void {
+    this.mapExtra(photoId, index, (b) => ({ ...b, placement: { ...b.placement, ...placement } }));
+  }
+
+  /** Refine: toggle an extra text block's background. */
+  toggleExtraLegibility(photoId: string, index: number): void {
+    this.mapExtra(photoId, index, (b) => ({ ...b, legibility: !b.legibility }));
+  }
+
+  /** Refine: add a new, empty extra text block (capped at 2). Returns its index,
+   * or -1 if the frame is at the cap or missing — the caller opens the editor. */
+  addExtraText(photoId: string): number {
+    let newIndex = -1;
+    this._frames.update((frames) =>
+      frames.map((frame) => {
+        if (frame.photoId !== photoId || frame.extraTexts.length >= 2) return frame;
+        newIndex = frame.extraTexts.length;
+        const block: EditableTextBlock = {
+          text: '',
+          font: DEFAULT_STYLE.font,
+          weight: DEFAULT_STYLE.weight,
+          case: DEFAULT_STYLE.case,
+          align: DEFAULT_STYLE.align,
+          size: DEFAULT_STYLE.size,
+          placement: DEFAULT_PLACEMENT,
+          legibility: true,
+          light: true,
+        };
+        return { ...frame, extraTexts: [...frame.extraTexts, block] };
+      }),
+    );
+    return newIndex;
+  }
+
+  /** Refine: remove an extra text block (deleted, or left empty on close). */
+  removeExtraText(photoId: string, index: number): void {
+    this._frames.update((frames) =>
+      frames.map((frame) =>
+        frame.photoId === photoId
+          ? { ...frame, extraTexts: frame.extraTexts.filter((_, i) => i !== index) }
+          : frame,
       ),
     );
   }

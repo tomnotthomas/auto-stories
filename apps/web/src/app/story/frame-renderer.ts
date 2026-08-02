@@ -1,6 +1,6 @@
 import type { Style } from '@auto-stories/api-types';
 
-import { DEFAULT_STYLE, zoneToPlacement } from './caption-style';
+import { DEFAULT_STYLE } from './caption-style';
 import { paletteFor } from './caption-palette';
 import {
   fitMultiplier,
@@ -72,10 +72,10 @@ export async function renderFrame(file: File, frame: EditableFrame): Promise<Blo
     legibility: frame.legibility,
   });
 
-  // Extra editorial blocks the model placed — read-only, kept legible (white +
-  // scrim) at their own zone and size.
-  for (const block of frame.texts ?? []) {
-    const place = zoneToPlacement(block.position);
+  // Extra editorial blocks besides the caption, each at its own placed spot with
+  // its own size, background, and device-computed colour.
+  for (const block of frame.extraTexts) {
+    if (block.text.trim() === '') continue;
     drawText(ctx, {
       text: block.text,
       font: block.font,
@@ -83,11 +83,11 @@ export async function renderFrame(file: File, frame: EditableFrame): Promise<Blo
       case: block.case,
       align: block.align,
       size: block.size,
-      xPct: place.xPct,
-      yPct: place.yPct,
-      scale: 1,
-      light: true,
-      legibility: true,
+      xPct: block.placement.xPct,
+      yPct: block.placement.yPct,
+      scale: block.placement.scale,
+      light: block.light,
+      legibility: block.legibility,
     });
   }
 

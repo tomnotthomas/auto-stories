@@ -127,27 +127,50 @@
       </div>
     }
 
-    <!-- Extra placed text blocks the AI added besides the caption — the editorial
-         layer (a small line + a bigger line). Read-only for now (kept white + a
-         scrim so they're always legible); editing them is a later step. -->
+    <!-- Extra placed text blocks besides the caption — the editorial layer (a
+         small line + a bigger line). In refine each is tappable to edit/move/
+         resize; in view it's read-only. -->
     @if (!editingFrame()) {
-      @for (t of frame.extraTexts; track $index) {
+      @for (t of frame.extraTexts; track t.index) {
         <div
           class="absolute z-20 w-[78%] max-w-[320px] -translate-x-1/2 -translate-y-1/2"
-          [style.left.%]="t.xPct"
-          [style.top.%]="t.yPct"
+          [style.left.%]="t.placement.xPct"
+          [style.top.%]="t.placement.yPct"
         >
-          <p
-            data-extra-text
-            class="story-caption rounded-2xl bg-black/40 px-4 py-3 leading-tight text-white"
-            [style.fontFamily]="t.fontFamily"
-            [style.fontWeight]="t.fontWeight"
-            [style.textAlign]="t.textAlign"
-            [style.textTransform]="t.textTransform"
-            [style.fontSize.px]="24 * t.sizeMult * t.fitMult"
-          >
-            {{ t.text }}
-          </p>
+          @if (refining()) {
+            <button
+              type="button"
+              (click)="editExtra(frame.photoId, t.index)"
+              class="press story-caption relative block w-full rounded-2xl border-[1.5px] border-dashed border-white/60 px-4 py-3 leading-tight"
+              [class]="t.scrimClass"
+              [style.fontFamily]="t.fontFamily"
+              [style.fontWeight]="t.fontWeight"
+              [style.textAlign]="t.textAlign"
+              [style.textTransform]="t.textTransform"
+              [style.color]="t.color"
+              [style.fontSize.px]="t.placement.scale * 24 * t.sizeMult * t.fitMult"
+            >
+              {{ t.text }}
+              <mat-icon
+                class="absolute -right-2.5 -top-2.5 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-[16px] text-on-primary shadow-lg"
+                >edit</mat-icon
+              >
+            </button>
+          } @else {
+            <p
+              data-extra-text
+              class="story-caption leading-tight"
+              [class]="t.scrimClass ? 'rounded-2xl px-4 py-3 ' + t.scrimClass : ''"
+              [style.fontFamily]="t.fontFamily"
+              [style.fontWeight]="t.fontWeight"
+              [style.textAlign]="t.textAlign"
+              [style.textTransform]="t.textTransform"
+              [style.color]="t.color"
+              [style.fontSize.px]="t.placement.scale * 24 * t.sizeMult * t.fitMult"
+            >
+              {{ t.text }}
+            </p>
+          }
         </div>
       }
     }
@@ -182,6 +205,15 @@
             Done
           </button>
         </div>
+        <button
+          matButton="tonal"
+          class="w-full"
+          [disabled]="!canAddText()"
+          (click)="addText()"
+        >
+          <mat-icon>add</mat-icon>
+          {{ canAddText() ? 'Add a text block' : 'Up to 2 text blocks per photo' }}
+        </button>
         <div class="flex gap-3">
           <button matButton="tonal" class="flex-1" (click)="openManage()">
             <mat-icon>photo_library</mat-icon>
@@ -275,17 +307,21 @@
       </div>
     }
 
-    <!-- Caption editor overlay -->
-    @if (editingFrame(); as editing) {
+    <!-- Text editor overlay — the caption, or an extra text block. Extras have no
+         Regenerate and gain a Remove action instead. -->
+    @if (editingBlock(); as block) {
       <app-caption-editor
-        [caption]="editing.caption"
-        [placement]="editing.placement"
-        [legibility]="editing.legibility"
+        [caption]="block.text"
+        [placement]="block.placement"
+        [legibility]="block.legibility"
         [busy]="regenBusy()"
+        [demo]="!editingIsCaption()"
+        [removable]="!editingIsCaption()"
         (captionChange)="onCaption($event)"
         (placementChange)="onPlacement($event)"
         (legibilityToggle)="onLegibility()"
         (regenerate)="regenerateCaption()"
+        (remove)="removeCurrentText()"
         (done)="closeEditor()"
       />
     }

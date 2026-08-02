@@ -91,11 +91,14 @@ export class CaptionEditor implements OnInit {
   readonly busy = input(false);
   /** First-open example: hide Regenerate (no real photos to regenerate from). */
   readonly demo = input(false);
+  /** Editing an extra text block (not the caption): offer Remove. */
+  readonly removable = input(false);
 
   readonly captionChange = output<string>();
   readonly placementChange = output<Partial<FramePlacement>>();
   readonly legibilityToggle = output<void>();
   readonly regenerate = output<void>();
+  readonly remove = output<void>();
   readonly done = output<void>();
 
   /** Local copy of the caption while editing, so typing never fights the parent. */

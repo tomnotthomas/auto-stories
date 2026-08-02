@@ -7,7 +7,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { StoryService, FramePlacement, sparkKey } from '../../story/story.service';
 import { GenerationService } from '../../story/generation.service';
 import { StoryExporter } from '../../story/story-exporter.service';
-import { DEFAULT_STYLE, zoneToPlacement } from '../../story/caption-style';
+import { DEFAULT_STYLE } from '../../story/caption-style';
 import { paletteFor } from '../../story/caption-palette';
 import {
   fitMultiplier,
@@ -49,17 +49,21 @@ interface ViewFrame {
   readonly extraTexts: readonly ViewTextBlock[];
 }
 
-/** One extra placed text block, resolved to CSS for read-only display. */
+/** One extra placed text block, resolved to CSS + its editable state. */
 interface ViewTextBlock {
+  /** Index within the frame's extra blocks — the editor targets it. */
+  readonly index: number;
   readonly text: string;
-  readonly xPct: number;
-  readonly yPct: number;
+  readonly placement: FramePlacement;
+  readonly legibility: boolean;
   readonly fontFamily: string;
   readonly fontWeight: number;
   readonly textAlign: 'left' | 'center' | 'right';
   readonly textTransform: 'none' | 'uppercase';
   readonly sizeMult: number;
   readonly fitMult: number;
+  readonly color: string;
+  readonly scrimClass: string;
 }
 
 /**
@@ -94,9 +98,11 @@ export class Story {
   protected readonly coachSeen = this.story.coachSeen;
   protected readonly bannerDismissed = signal(false);
 
-  /** View vs refine mode, and which caption (if any) is open in the editor. */
+  /** View vs refine mode. */
   protected readonly refining = signal(false);
-  protected readonly editingPhotoId = signal<string | null>(null);
+  /** The text open in the editor: a frame's caption (index −1) or one of its
+   * extra text blocks (index ≥ 0), or null when the editor is closed. */
+  protected readonly editing = signal<{ photoId: string; index: number } | null>(null);
   /** The "Reorder & remove" management screen is open. */
   protected readonly managing = signal(false);
   /** True while a per-caption regenerate is in flight. */
@@ -149,20 +155,20 @@ export class Story {
         color: frame.light ? palette.textLight : palette.textDark,
         scrimClass: frame.legibility ? (frame.light ? 'bg-black/40' : 'bg-white/60') : '',
         suggestions: frame.suggestions ?? [],
-        extraTexts: (frame.texts ?? []).map((b) => {
-          const place = zoneToPlacement(b.position);
-          return {
-            text: b.text,
-            xPct: place.xPct,
-            yPct: place.yPct,
-            fontFamily: fontFamily(b.font),
-            fontWeight: fontWeightCss(b.weight),
-            textAlign: textAlignCss(b.align),
-            textTransform: textTransformCss(b.case),
-            sizeMult: sizeScale(b.size),
-            fitMult: fitMultiplier(b.text),
-          };
-        }),
+        extraTexts: frame.extraTexts.map((b, i) => ({
+          index: i,
+          text: b.text,
+          placement: b.placement,
+          legibility: b.legibility,
+          fontFamily: fontFamily(b.font),
+          fontWeight: fontWeightCss(b.weight),
+          textAlign: textAlignCss(b.align),
+          textTransform: textTransformCss(b.case),
+          sizeMult: sizeScale(b.size),
+          fitMult: fitMultiplier(b.text),
+          color: b.light ? palette.textLight : palette.textDark,
+          scrimClass: b.legibility ? (b.light ? 'bg-black/40' : 'bg-white/60') : '',
+        })),
       };
     });
   });
@@ -185,13 +191,31 @@ export class Story {
     for (let j = from; j <= to; j++) window.push({ index: j, frame: frames[j] });
     return window;
   });
-  /** The frame whose caption is open in the editor, or null. */
+  /** The frame whose text is open in the editor, or null. */
   protected readonly editingFrame = computed(
-    () => this.frames().find((f) => f.photoId === this.editingPhotoId()) ?? null,
+    () => this.frames().find((f) => f.photoId === this.editing()?.photoId) ?? null,
   );
+  /** True when the editor is on the caption (vs an extra block) — extras don't
+   * regenerate, and get a Remove action instead. */
+  protected readonly editingIsCaption = computed(() => (this.editing()?.index ?? -1) < 0);
+  /** The specific text (caption or extra block) the editor is bound to, or null. */
+  protected readonly editingBlock = computed(() => {
+    const target = this.editing();
+    const frame = this.editingFrame();
+    if (!target || !frame) return null;
+    if (target.index < 0) {
+      return { text: frame.caption, placement: frame.placement, legibility: frame.legibility };
+    }
+    const block = frame.extraTexts[target.index];
+    return block
+      ? { text: block.text, placement: block.placement, legibility: block.legibility }
+      : null;
+  });
 
   /** More than one frame, so paging is meaningful. */
   protected readonly multiFrame = computed(() => this.frameCount() > 1);
+  /** Room for another extra text block on the current frame (capped at 2). */
+  protected readonly canAddText = computed(() => (this.current()?.extraTexts.length ?? 0) < 2);
 
   protected next(): void {
     this.navHintSeen.set(true);
@@ -206,7 +230,7 @@ export class Story {
   /** Swipe left/right to page (Stories are consumed with a swipe on the web).
    * Off while a caption editor or the manage screen is open. */
   protected onSwipeStart(event: PointerEvent): void {
-    this.swipeStartX = this.editingPhotoId() || this.managing() ? null : event.clientX;
+    this.swipeStartX = this.editing() || this.managing() ? null : event.clientX;
   }
 
   protected onSwipeEnd(event: PointerEvent): void {
@@ -227,44 +251,80 @@ export class Story {
   }
 
   protected exitRefine(): void {
-    this.editingPhotoId.set(null);
+    this.editing.set(null);
     this.refining.set(false);
   }
 
-  /** Open the caption editor for a frame; the first tap retires the coach mark. */
+  /** Open the editor on a frame's caption; the first tap retires the coach mark. */
   protected editCaption(photoId: string): void {
     this.story.markCoachSeen();
-    this.editingPhotoId.set(photoId);
+    this.editing.set({ photoId, index: -1 });
+  }
+
+  /** Open the editor on one of a frame's extra text blocks. */
+  protected editExtra(photoId: string, index: number): void {
+    this.story.markCoachSeen();
+    this.editing.set({ photoId, index });
   }
 
   protected closeEditor(): void {
-    this.editingPhotoId.set(null);
+    const target = this.editing();
+    // An extra block left empty was never really added — drop it on close.
+    if (target && target.index >= 0) {
+      const block = this.editingFrame()?.extraTexts[target.index];
+      if (block && block.text.trim() === '') {
+        this.story.removeExtraText(target.photoId, target.index);
+      }
+    }
+    this.editing.set(null);
   }
 
-  protected onCaption(caption: string): void {
-    const id = this.editingPhotoId();
-    if (id) this.story.setCaption(id, caption);
+  protected onCaption(text: string): void {
+    const t = this.editing();
+    if (!t) return;
+    if (t.index < 0) this.story.setCaption(t.photoId, text);
+    else this.story.setExtraText(t.photoId, t.index, text);
   }
 
   protected onPlacement(placement: Partial<FramePlacement>): void {
-    const id = this.editingPhotoId();
-    if (id) this.story.setPlacement(id, placement);
+    const t = this.editing();
+    if (!t) return;
+    if (t.index < 0) this.story.setPlacement(t.photoId, placement);
+    else this.story.setExtraPlacement(t.photoId, t.index, placement);
   }
 
   protected onLegibility(): void {
-    const id = this.editingPhotoId();
-    if (id) this.story.toggleLegibility(id);
+    const t = this.editing();
+    if (!t) return;
+    if (t.index < 0) this.story.toggleLegibility(t.photoId);
+    else this.story.toggleExtraLegibility(t.photoId, t.index);
   }
 
   protected async regenerateCaption(): Promise<void> {
-    const id = this.editingPhotoId();
-    if (!id || this.regenBusy()) return;
+    const t = this.editing();
+    if (!t || t.index >= 0 || this.regenBusy()) return;
     this.regenBusy.set(true);
     try {
-      await this.generation.regenerateCaption(id);
+      await this.generation.regenerateCaption(t.photoId);
     } finally {
       this.regenBusy.set(false);
     }
+  }
+
+  /** Refine: add a new extra text block to the current frame and open its editor. */
+  protected addText(): void {
+    const photoId = this.current()?.photoId;
+    if (!photoId) return;
+    const index = this.story.addExtraText(photoId);
+    if (index >= 0) this.editExtra(photoId, index);
+  }
+
+  /** Refine: delete the extra text block currently open in the editor. */
+  protected removeCurrentText(): void {
+    const t = this.editing();
+    if (!t || t.index < 0) return;
+    this.story.removeExtraText(t.photoId, t.index);
+    this.editing.set(null);
   }
 
   /** Open / close the "Reorder & remove" management screen. */

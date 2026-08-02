@@ -31,6 +31,11 @@ export class StoryHarness extends ComponentHarness {
     return Promise.all(els.map(async (el) => (await el.text()).trim()));
   }
 
+  /** Refine: add a new extra text block to the current frame (opens its editor). */
+  async clickAddText(): Promise<void> {
+    await (await this.locatorFor(MatButtonHarness.with({ text: /Add a text/ }))()).click();
+  }
+
   /** photoIds of the frame background layers currently mounted — the current
    * frame plus its preloaded neighbours. */
   async mountedFrameIds(): Promise<string[]> {
