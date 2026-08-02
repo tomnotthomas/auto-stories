@@ -1,6 +1,7 @@
 import type { Frame } from '@auto-stories/api-types';
 
 import {
+  normalizeLayout,
   normalizeStyle,
   normalizeSuggestions,
   normalizeTexts,
@@ -42,12 +43,15 @@ export function shapeFrames(raw: unknown, validIds: Set<string>): Frame[] {
 /** Narrow one raw entry to a Frame, or null if it is malformed. */
 function toFrame(entry: unknown): Frame | null {
   if (typeof entry !== 'object' || entry === null) return null;
-  const { photoId, order, caption, style, texts, suggestions } =
+  const { photoId, order, caption, style, texts, suggestions, layout } =
     entry as Record<string, unknown>;
   if (typeof photoId !== 'string') return null;
   if (typeof order !== 'number' || !Number.isFinite(order)) return null;
   if (typeof caption !== 'string') return null;
   const normalizedStyle = normalizeStyle(style);
+  // The layout agent (decision 7.21) runs as a separate pass, so `layout` is
+  // usually absent here; when a frame does carry one, validate and thread it.
+  const normalizedLayout = normalizeLayout(layout);
   return {
     photoId,
     order,
@@ -56,5 +60,6 @@ function toFrame(entry: unknown): Frame | null {
     // Editorial layer: 0–2 EXTRA placed lines besides the caption (usually none).
     texts: normalizeTexts(texts, normalizedStyle),
     suggestions: normalizeSuggestions(suggestions),
+    ...(normalizedLayout ? { layout: normalizedLayout } : {}),
   };
 }

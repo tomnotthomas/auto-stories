@@ -145,6 +145,41 @@ describe('shapeFrames', () => {
     ]);
   });
 
+  it('threads a frame layout when present, and omits it otherwise', () => {
+    const raw = [
+      {
+        photoId: 'a',
+        order: 1,
+        caption: 'sunset',
+        layout: {
+          elements: [
+            {
+              role: 'title',
+              text: 'Golden hour',
+              font: 'playfair',
+              weight: 'bold',
+              case: 'normal',
+              align: 'left',
+              size: 4,
+              tracking: 'wide',
+              leading: 'tight',
+              x: 8,
+              y: 12,
+              anchor: 'top-left',
+            },
+          ],
+        },
+      },
+      { photoId: 'b', order: 2, caption: 'no layout here' },
+    ];
+    const frames = shapeFrames(raw, ids);
+    expect(frames[0].layout?.elements[0]).toMatchObject({
+      text: 'Golden hour',
+      anchor: 'top-left',
+    });
+    expect(frames[1].layout).toBeUndefined();
+  });
+
   it('ignores malformed entries (missing/mistyped fields)', () => {
     const raw = [
       { photoId: 'a', caption: 'no order' },

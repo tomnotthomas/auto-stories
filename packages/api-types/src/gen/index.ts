@@ -9,6 +9,8 @@ export type { GetJob200, GetJob404, GetJobPathParams, GetJobQuery, GetJobQueryRe
 export type { HealthCheck200, HealthCheck503, HealthCheckQuery, HealthCheckQueryResponse } from "./models/HealthCheck.js";
 export type { HealthResponse, HealthResponseStatusEnum } from "./models/HealthResponse.js";
 export type { JobState, JobStateStatusEnum } from "./models/JobState.js";
+export type { Layout } from "./models/Layout.js";
+export type { LayoutElement, LayoutElementAlignEnum, LayoutElementAnchorEnum, LayoutElementCaseEnum, LayoutElementFontEnum, LayoutElementLeadingEnum, LayoutElementRoleEnum, LayoutElementTrackingEnum, LayoutElementWeightEnum } from "./models/LayoutElement.js";
 export type { Photo } from "./models/Photo.js";
 export type { StreamJobEvents200, StreamJobEvents404, StreamJobEventsPathParams, StreamJobEventsQuery, StreamJobEventsQueryResponse } from "./models/StreamJobEvents.js";
 export type { Style, StyleAlignEnum, StyleCaseEnum, StyleFontEnum, StyleLetterboxEnum, StylePositionEnum, StyleSizeEnum, StyleWeightEnum } from "./models/Style.js";
