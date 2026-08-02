@@ -10,6 +10,12 @@ import type {
   Suggestion,
   SuggestionTypeEnum,
   TextBlock,
+  Layout,
+  LayoutElement,
+  LayoutElementRoleEnum,
+  LayoutElementTrackingEnum,
+  LayoutElementLeadingEnum,
+  LayoutElementAnchorEnum,
 } from '@auto-stories/api-types';
 
 const FONTS: readonly StyleFontEnum[] = [
@@ -112,6 +118,86 @@ export function normalizeTexts(
     });
   }
   return out;
+}
+
+const ROLES: readonly LayoutElementRoleEnum[] = ['label', 'title', 'deck'];
+const TRACKINGS: readonly LayoutElementTrackingEnum[] = [
+  'tight',
+  'normal',
+  'wide',
+];
+const LEADINGS: readonly LayoutElementLeadingEnum[] = [
+  'tight',
+  'normal',
+  'loose',
+];
+const ANCHORS: readonly LayoutElementAnchorEnum[] = [
+  'top-left',
+  'top',
+  'top-right',
+  'left',
+  'center',
+  'right',
+  'bottom-left',
+  'bottom',
+  'bottom-right',
+];
+
+/** A frame's layout carries at most this many placed elements. */
+export const MAX_LAYOUT_ELEMENTS = 6;
+/** The client size ramp has this many steps, so `size` is an index in [0, 6]. */
+export const SIZE_STEPS = 7;
+
+/** Keep a finite number clamped to [min, max]; otherwise use `fallback`. */
+function clampNum(
+  value: unknown,
+  min: number,
+  max: number,
+  fallback: number,
+): number {
+  return typeof value === 'number' && Number.isFinite(value)
+    ? Math.min(max, Math.max(min, value))
+    : fallback;
+}
+
+/**
+ * Turn the layout agent's raw `layout` into a valid {@link Layout}, or `undefined`
+ * when it is absent or unusable (the client then renders caption + style + texts).
+ * Same defensive posture as {@link normalizeStyle}: drop elements with empty text,
+ * default each field, clamp `size` to a ramp index and `x`/`y` to [0, 100], and cap
+ * the element count. Pure and unit-tested. (Colour/scrim stay a client concern, 7.10.)
+ */
+export function normalizeLayout(raw: unknown): Layout | undefined {
+  const r = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<
+    string,
+    unknown
+  >;
+  if (!Array.isArray(r['elements'])) return undefined;
+  const out: LayoutElement[] = [];
+  for (const entry of r['elements']) {
+    if (out.length >= MAX_LAYOUT_ELEMENTS) break;
+    if (typeof entry !== 'object' || entry === null) continue;
+    const e = entry as Record<string, unknown>;
+    const text = typeof e['text'] === 'string' ? e['text'].trim() : '';
+    if (text === '') continue;
+    const element: LayoutElement = {
+      role: pick(ROLES, e['role'], 'title'),
+      text,
+      font: pick(FONTS, e['font'], 'inter'),
+      weight: pick(WEIGHTS, e['weight'], 'regular'),
+      case: pick(CASES, e['case'], 'normal'),
+      align: pick(ALIGNS, e['align'], 'left'),
+      size: Math.round(clampNum(e['size'], 0, SIZE_STEPS - 1, 3)),
+      tracking: pick(TRACKINGS, e['tracking'], 'normal'),
+      leading: pick(LEADINGS, e['leading'], 'normal'),
+      x: clampNum(e['x'], 0, 100, 50),
+      y: clampNum(e['y'], 0, 100, 50),
+      anchor: pick(ANCHORS, e['anchor'], 'center'),
+    };
+    if (typeof e['stack'] === 'boolean') element.stack = e['stack'];
+    out.push(element);
+  }
+  return out.length ? { elements: out } : undefined;
 }
 
 const SUGGESTION_TYPES: readonly SuggestionTypeEnum[] = [

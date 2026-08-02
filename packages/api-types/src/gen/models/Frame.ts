@@ -3,6 +3,7 @@
 * Do not edit manually.
 */
 
+import type { Layout } from "./Layout.js";
 import type { Style } from "./Style.js";
 import type { Suggestion } from "./Suggestion.js";
 import type { TextBlock } from "./TextBlock.js";
@@ -42,4 +43,9 @@ export type Frame = {
      * @type array | undefined
     */
     suggestions?: Suggestion[];
+    /**
+     * @description The art-directed typography for one frame: a small set of placed elements the layout agent composed (decision 7.21). Present only once the agent has run — the client falls back to caption + style + texts when it is absent. A single shared renderer draws these identically in the DOM preview and the canvas export.
+     * @type object | undefined
+    */
+    layout?: Layout;
 };

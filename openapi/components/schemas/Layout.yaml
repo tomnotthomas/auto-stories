@@ -1,0 +1,15 @@
+type: object
+description: >-
+  The art-directed typography for one frame: a small set of placed elements the
+  layout agent composed (decision 7.21). Present only once the agent has run — the
+  client falls back to caption + style + texts when it is absent. A single shared
+  renderer draws these identically in the DOM preview and the canvas export.
+required: [elements]
+additionalProperties: false
+properties:
+  elements:
+    type: array
+    minItems: 1
+    maxItems: 6
+    items:
+      $ref: ./LayoutElement.yaml

@@ -37,3 +37,5 @@ properties:
       shows them as in-app "sparks"; nothing is baked into the exported image.
     items:
       $ref: ./Suggestion.yaml
+  layout:
+    $ref: ./Layout.yaml
