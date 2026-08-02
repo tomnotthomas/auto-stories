@@ -176,13 +176,18 @@
     } @else {
       <div class="absolute inset-x-4 bottom-6 z-20 flex flex-col gap-2">
         @if (posted()) {
-          <app-handoff-checklist />
           <p
             class="drop-in mat-body-medium rounded-2xl bg-surface-container-high px-4 py-3 text-center text-on-surface"
           >
             Saved to your photos. Open Instagram → Story → <b>Select Multiple</b> → pick these
             {{ frameCount() }}.
           </p>
+          @if (suggestionCount() > 0) {
+            <button matButton="tonal" class="w-full" (click)="openCompanion()">
+              <mat-icon>auto_fix_high</mat-icon>
+              Add your extras · {{ suggestionCount() }}
+            </button>
+          }
         }
         <button
           matButton="filled"
@@ -258,6 +263,11 @@
         (regenerate)="regenerateCaption()"
         (done)="closeEditor()"
       />
+    }
+
+    <!-- Guided hand-off companion (opened from "Add your extras" after posting) -->
+    @if (companionOpen()) {
+      <app-handoff-companion (done)="closeCompanion()" />
     }
   }
 </section>

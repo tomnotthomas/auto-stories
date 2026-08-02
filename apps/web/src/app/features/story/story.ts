@@ -4,7 +4,7 @@ import { MatIconModule } from '@angular/material/icon';
 
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
-import { StoryService, FramePlacement } from '../../story/story.service';
+import { StoryService, FramePlacement, sparkKey } from '../../story/story.service';
 import { GenerationService } from '../../story/generation.service';
 import { StoryExporter } from '../../story/story-exporter.service';
 import { DEFAULT_STYLE } from '../../story/caption-style';
@@ -20,7 +20,7 @@ import {
 import { CaptionEditor } from '../refine/caption-editor/caption-editor';
 import { RefineFilmstrip } from '../refine/filmstrip/filmstrip';
 import { StorySparks } from './sparks/sparks';
-import { HandoffChecklist } from './handoff-checklist/handoff-checklist';
+import { HandoffCompanion } from './handoff-companion/handoff-companion';
 import type { Suggestion } from '@auto-stories/api-types';
 
 /** A frame resolved for display: the picked photo plus its editable state. */
@@ -63,7 +63,7 @@ interface ViewFrame {
     CaptionEditor,
     RefineFilmstrip,
     StorySparks,
-    HandoffChecklist,
+    HandoffCompanion,
   ],
   templateUrl: './story.html',
 })
@@ -96,6 +96,21 @@ export class Story {
   protected readonly exporting = signal(false);
   /** True once the frames have been shared/downloaded (shows the next-step copy). */
   protected readonly posted = signal(false);
+  /** The guided "Add your extras" companion is open (after posting). */
+  protected readonly companionOpen = signal(false);
+
+  /** How many add-on ideas are still on offer (non-dismissed) across the story —
+   * gates the "Add extras" entry so it only shows when there's something to add. */
+  protected readonly suggestionCount = computed(() => {
+    const states = this.story.sparks();
+    let count = 0;
+    for (const frame of this.story.frames()) {
+      (frame.suggestions ?? []).forEach((_, i) => {
+        if (!states.get(sparkKey(frame.photoId, i))?.dismissed) count += 1;
+      });
+    }
+    return count;
+  });
 
   /** Frames in narrative order, each resolved to its picked photo. */
   protected readonly frames = computed<ViewFrame[]>(() => {
@@ -279,5 +294,15 @@ export class Story {
     } finally {
       this.exporting.set(false);
     }
+  }
+
+  /** Open the guided "Add your extras" companion (kept behind a tap so exporting
+   * stays one action and is never gated by embellishing). */
+  protected openCompanion(): void {
+    this.companionOpen.set(true);
+  }
+
+  protected closeCompanion(): void {
+    this.companionOpen.set(false);
   }
 }
