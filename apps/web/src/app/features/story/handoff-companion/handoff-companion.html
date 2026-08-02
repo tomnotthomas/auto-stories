@@ -1,75 +1,44 @@
-<!-- The hand-off tray: the post-share screen, risen from the bottom. -->
+<!-- The hand-off card: grows in place where the action button was, shown before
+     we hand off so the add-ons are seen while still on our screen. -->
 <div
-  class="sheet-enter absolute inset-x-0 bottom-0 z-40 flex max-h-[72%] flex-col rounded-t-3xl bg-surface pb-6 text-on-surface shadow-2xl"
+  class="handoff-card absolute inset-x-4 bottom-6 z-40 flex flex-col gap-3 rounded-3xl bg-surface p-4 text-on-surface shadow-2xl"
 >
-  <div class="flex flex-none items-start gap-2 px-5 pb-2 pt-4">
-    <div class="min-w-0 flex-1">
-      <h2 class="mat-title-medium flex items-center gap-1.5">
-        <mat-icon class="text-primary">check_circle</mat-icon>
-        Saved to your photos
-      </h2>
-      <p class="mat-label-medium mt-0.5 text-on-surface-variant">
-        Open Instagram → Story → <b class="text-on-surface">Select Multiple</b> → pick these
-        {{ frameCount().length }}.
-      </p>
-    </div>
-    <button matButton data-tray-close (click)="close()">All set</button>
+  <div class="flex items-center gap-2">
+    <mat-icon class="text-primary">ios_share</mat-icon>
+    <h2 class="mat-title-medium flex-1">Add in Instagram</h2>
+    <button matIconButton data-tray-close aria-label="Not now" (click)="close()">
+      <mat-icon>close</mat-icon>
+    </button>
   </div>
 
-  @if (items().length) {
-    <p class="mat-label-medium flex-none px-5 pb-1.5 pt-1 text-on-surface-variant">
-      Then add these — the pin shows where each goes:
-    </p>
-    <ul class="flex flex-col gap-2 overflow-y-auto px-4 pb-1">
-      @for (item of items(); track item.key) {
-        <li
-          data-tray-item
-          class="handoff-stagger flex items-center gap-2.5 rounded-2xl bg-surface-container-high p-2 pr-1"
-        >
-          <!-- photo thumb with the pin on its spot — the "where" at a glance -->
-          <div class="relative h-16 w-[52px] flex-none overflow-hidden rounded-xl bg-black">
-            @if (item.previewUrl) {
-              <img [src]="item.previewUrl" alt="" class="h-full w-full object-cover" />
-            }
-            <div class="absolute inset-0 bg-black/25"></div>
-            @if (item.positioned) {
-              <span
-                class="absolute flex h-5 w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-primary text-on-primary shadow"
-                [style.left.%]="item.xPct"
-                [style.top.%]="item.yPct"
-              >
-                <mat-icon class="h-3.5 w-3.5 text-[14px] leading-none">{{ item.icon }}</mat-icon>
-              </span>
-            } @else {
-              <mat-icon
-                class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-primary"
-                >music_note</mat-icon
-              >
-            }
-          </div>
+  @if (hero(); as h) {
+    <!-- The one to lead with — big, the exact term fully readable, copy inline. -->
+    <div data-tray-item class="flex items-center gap-3 rounded-2xl bg-surface-container-high p-3">
+      <mat-icon class="flex-none text-primary">{{ h.icon }}</mat-icon>
+      <div class="min-w-0 flex-1">
+        <p class="mat-label-medium text-on-surface-variant">{{ h.label }}</p>
+        <p data-tray-term class="mat-title-medium font-medium leading-snug">{{ h.query }}</p>
+      </div>
+      <button matButton="filled" class="flex-none" (click)="copy(h)">
+        <mat-icon>{{ copiedKey() === h.key ? 'check' : 'content_copy' }}</mat-icon>
+        {{ copiedKey() === h.key ? 'Copied' : 'Copy' }}
+      </button>
+    </div>
 
-          <div class="min-w-0 flex-1">
-            <p class="mat-label-medium text-on-surface-variant">
-              {{ item.label }} · frame {{ item.frameNo }}
-            </p>
-            <p data-tray-term class="story-caption truncate !text-xl">{{ item.query }}</p>
-          </div>
-
-          <button matButton="filled" class="flex-none" (click)="copy(item)">
-            <mat-icon>{{ copiedKey() === item.key ? 'check' : 'content_copy' }}</mat-icon>
-            {{ copiedKey() === item.key ? 'Copied' : 'Copy' }}
-          </button>
-          <button
-            matIconButton
-            data-tray-dismiss
-            class="flex-none"
-            aria-label="Remove this add-on"
-            (click)="dismiss(item)"
-          >
-            <mat-icon>close</mat-icon>
-          </button>
-        </li>
-      }
-    </ul>
+    <!-- Anything else, quieter — same readable term, lighter copy. -->
+    @for (item of rest(); track item.key) {
+      <div data-tray-item class="flex items-center gap-3 pl-1">
+        <mat-icon class="flex-none text-on-surface-variant">{{ item.icon }}</mat-icon>
+        <p data-tray-term class="mat-body-medium min-w-0 flex-1 leading-snug">{{ item.query }}</p>
+        <button matButton class="flex-none" (click)="copy(item)">
+          {{ copiedKey() === item.key ? 'Copied' : 'Copy' }}
+        </button>
+      </div>
+    }
   }
+
+  <button matButton="filled" class="w-full" [disabled]="busy()" (click)="saveAndOpen()">
+    <mat-icon>ios_share</mat-icon>
+    {{ busy() ? 'Preparing…' : 'Save & open Instagram' }}
+  </button>
 </div>

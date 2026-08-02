@@ -179,6 +179,19 @@ export class StoryService {
   readonly canGenerate = computed(
     () => this._photos().length >= MIN_PHOTOS && this._storyLine().trim().length > 0,
   );
+  /** How many AI add-ons across the story the user hasn't dismissed — drives the
+   * hand-off: with any, posting reveals the add-on card before handing off; with
+   * none, posting hands off directly. */
+  readonly keptSuggestionCount = computed(() => {
+    const states = this._sparks();
+    let n = 0;
+    for (const frame of this._frames()) {
+      (frame.suggestions ?? []).forEach((_, i) => {
+        if (!states.get(sparkKey(frame.photoId, i))?.dismissed) n++;
+      });
+    }
+    return n;
+  });
 
   /** Leave the first-open example and begin creating a story. */
   startCreating(): void {

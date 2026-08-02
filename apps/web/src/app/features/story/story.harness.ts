@@ -46,15 +46,20 @@ export class StoryHarness extends ComponentHarness {
     return (await this.locatorForOptional('app-handoff-companion')()) !== null;
   }
 
-  /** The add-on terms listed in the hand-off tray, in order. */
+  /** The add-on terms listed in the hand-off card, in order. */
   async trayTerms(): Promise<string[]> {
     const els = await this.locatorForAll('[data-tray-term]')();
     return Promise.all(els.map(async (el) => (await el.text()).trim()));
   }
 
-  /** Collapse the hand-off tray ("All set"). */
+  /** Confirm the hand-off from the card ("Save & open Instagram"). */
+  async clickSaveAndOpen(): Promise<void> {
+    await (await this.locatorFor(MatButtonHarness.with({ text: /Save & open|Preparing/ }))()).click();
+  }
+
+  /** Dismiss the hand-off card ("Not now"). */
   async clickAllSet(): Promise<void> {
-    await (await this.locatorFor(MatButtonHarness.with({ text: /All set/ }))()).click();
+    await (await this.locatorFor('[data-tray-close]')()).click();
   }
 
   /** photoIds of the frame background layers currently mounted — the current
