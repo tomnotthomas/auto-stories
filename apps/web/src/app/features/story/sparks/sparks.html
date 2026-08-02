@@ -11,7 +11,9 @@
           class="drop-in flex max-w-[280px] items-center gap-2 rounded-full border border-white/10 bg-surface-container-high py-1 pl-3 pr-1 text-on-surface shadow-lg"
         >
           <mat-icon class="flex-none text-primary">music_note</mat-icon>
-          <span data-spark-music-query class="mat-label-large truncate">{{ track.query }}</span>
+          <span data-spark-music-query class="mat-label-large min-w-0 flex-1 truncate">
+            {{ track.query }}
+          </span>
           <button matButton class="flex-none" (click)="copy(track)">
             {{ copiedIndex() === track.index ? 'Copied' : 'Copy' }}
           </button>
@@ -60,42 +62,48 @@
         </mat-icon>
       </button>
 
-      <!-- The bloom: the ghost of the element, scaling out from its dot. Shows what
-           to add and the exact term, with Copy (for the hand-off), Done, and Dismiss. -->
+      <!-- The bloom: the ghost of the element, scaling out from its dot. The
+           recommendation (icon + what + the exact term) sits on its own row so it
+           always has the full width; the actions (Copy for the hand-off, Done,
+           Dismiss) sit on a second row and can't crowd the term. -->
       @if (openIndex() === spark.index) {
         <div
-          class="drop-in absolute bottom-full left-1/2 mb-2 flex max-w-[260px] -translate-x-1/2 items-center gap-1.5 rounded-2xl border border-white/10 bg-surface-container-high p-2 pl-3 text-on-surface shadow-xl"
+          class="drop-in absolute bottom-full left-1/2 mb-2 flex w-60 max-w-[80vw] -translate-x-1/2 flex-col gap-2 rounded-2xl border border-white/10 bg-surface-container-high p-3 text-on-surface shadow-xl"
         >
-          <mat-icon class="flex-none text-primary">{{ spark.icon }}</mat-icon>
-          <div class="min-w-0 flex-1">
-            <p class="mat-label-medium text-on-surface-variant">{{ spark.label }}</p>
-            <p data-spark-query class="mat-label-large truncate text-on-surface">
-              {{ spark.query }}
-            </p>
+          <div class="flex items-start gap-2">
+            <mat-icon class="flex-none text-primary">{{ spark.icon }}</mat-icon>
+            <div class="min-w-0 flex-1">
+              <p class="mat-label-medium text-on-surface-variant">{{ spark.label }}</p>
+              <p data-spark-query class="mat-label-large break-words text-on-surface">
+                {{ spark.query }}
+              </p>
+            </div>
           </div>
-          <button matButton="filled" class="flex-none" (click)="copy(spark)">
-            <mat-icon>{{ copiedIndex() === spark.index ? 'check' : 'content_copy' }}</mat-icon>
-            {{ copiedIndex() === spark.index ? 'Copied' : 'Copy' }}
-          </button>
-          <button
-            matIconButton
-            data-spark-done
-            class="flex-none"
-            [attr.aria-label]="spark.done ? 'Mark not added' : 'Mark added in Instagram'"
-            [attr.aria-pressed]="spark.done"
-            (click)="toggleDone(spark)"
-          >
-            <mat-icon>{{ spark.done ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>
-          </button>
-          <button
-            matIconButton
-            data-spark-dismiss
-            class="flex-none"
-            aria-label="Dismiss suggestion"
-            (click)="dismiss(spark)"
-          >
-            <mat-icon>close</mat-icon>
-          </button>
+          <div class="flex items-center gap-1">
+            <button matButton="filled" class="flex-1" (click)="copy(spark)">
+              <mat-icon>{{ copiedIndex() === spark.index ? 'check' : 'content_copy' }}</mat-icon>
+              {{ copiedIndex() === spark.index ? 'Copied' : 'Copy' }}
+            </button>
+            <button
+              matIconButton
+              data-spark-done
+              class="flex-none"
+              [attr.aria-label]="spark.done ? 'Mark not added' : 'Mark added in Instagram'"
+              [attr.aria-pressed]="spark.done"
+              (click)="toggleDone(spark)"
+            >
+              <mat-icon>{{ spark.done ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>
+            </button>
+            <button
+              matIconButton
+              data-spark-dismiss
+              class="flex-none"
+              aria-label="Dismiss suggestion"
+              (click)="dismiss(spark)"
+            >
+              <mat-icon>close</mat-icon>
+            </button>
+          </div>
         </div>
       }
     </div>
