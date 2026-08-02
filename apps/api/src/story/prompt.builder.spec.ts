@@ -46,6 +46,12 @@ describe('buildPrompt', () => {
     expect(buildPrompt(story).toLowerCase()).toMatch(/overload|competes/);
   });
 
+  it('offers up to two placed text blocks as an editorial option', () => {
+    const prompt = buildPrompt(story);
+    expect(prompt).toContain('texts');
+    expect(prompt.toLowerCase()).toMatch(/up to 2|two/);
+  });
+
   it('keeps distinct moments and only drops weak or duplicate photos', () => {
     const prompt = buildPrompt(story).toLowerCase();
     expect(prompt).toContain('distinct');

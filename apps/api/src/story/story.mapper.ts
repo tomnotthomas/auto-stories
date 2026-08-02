@@ -1,6 +1,10 @@
 import type { Frame } from '@auto-stories/api-types';
 
-import { normalizeStyle, normalizeSuggestions } from './caption-style';
+import {
+  normalizeStyle,
+  normalizeSuggestions,
+  normalizeTexts,
+} from './caption-style';
 
 /**
  * Turns the model's raw `frames` output into clean, ordered frames the
@@ -38,18 +42,21 @@ export function shapeFrames(raw: unknown, validIds: Set<string>): Frame[] {
 /** Narrow one raw entry to a Frame, or null if it is malformed. */
 function toFrame(entry: unknown): Frame | null {
   if (typeof entry !== 'object' || entry === null) return null;
-  const { photoId, order, caption, style, suggestions } = entry as Record<
-    string,
-    unknown
-  >;
+  const { photoId, order, caption, style, texts, suggestions } =
+    entry as Record<string, unknown>;
   if (typeof photoId !== 'string') return null;
   if (typeof order !== 'number' || !Number.isFinite(order)) return null;
   if (typeof caption !== 'string') return null;
+  const normalizedStyle = normalizeStyle(style);
   return {
     photoId,
     order,
     caption,
-    style: normalizeStyle(style),
+    style: normalizedStyle,
+    // Editorial layer: the model's placed blocks, or a single block mirroring the
+    // caption when it omits them. Client renders/edits `texts`; `caption` stays
+    // for the migration window.
+    texts: normalizeTexts(texts, caption, normalizedStyle),
     suggestions: normalizeSuggestions(suggestions),
   };
 }

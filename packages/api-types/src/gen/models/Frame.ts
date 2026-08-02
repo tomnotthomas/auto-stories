@@ -5,6 +5,7 @@
 
 import type { Style } from "./Style.js";
 import type { Suggestion } from "./Suggestion.js";
+import type { TextBlock } from "./TextBlock.js";
 
 /**
  * @description One chosen photo in narrative order, with its caption and style.
@@ -31,6 +32,11 @@ export type Frame = {
      * @type object | undefined
     */
     style?: Style;
+    /**
+     * @description Placed caption blocks (0–2). The editorial layer: a frame may carry a small line and a bigger line, each with its own text, style, and spot. When the model omits this, the client falls back to the single `caption` + `style`.
+     * @type array | undefined
+    */
+    texts?: TextBlock[];
     /**
      * @description Optional Instagram add-ons for this frame (0-2). Metadata only — the app shows them as in-app \"sparks\"; nothing is baked into the exported image.
      * @type array | undefined

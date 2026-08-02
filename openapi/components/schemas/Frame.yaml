@@ -21,6 +21,15 @@ properties:
       - The moment she saw the cake — pure disbelief.
   style:
     $ref: ./Style.yaml
+  texts:
+    type: array
+    maxItems: 2
+    description: >-
+      Placed caption blocks (0–2). The editorial layer: a frame may carry a small
+      line and a bigger line, each with its own text, style, and spot. When the
+      model omits this, the client falls back to the single `caption` + `style`.
+    items:
+      $ref: ./TextBlock.yaml
   suggestions:
     type: array
     description: >-
