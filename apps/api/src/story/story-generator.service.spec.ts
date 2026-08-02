@@ -7,20 +7,6 @@ import { StoryGeneratorService } from './story-generator.service';
 import { GENAI } from './story.constants';
 import { DEFAULT_STYLE } from './caption-style';
 
-/** The single text block the mapper synthesizes from a caption (default style,
- * no letterbox) when the model returns no `texts`. */
-function textFallback(text: string) {
-  return {
-    text,
-    font: DEFAULT_STYLE.font,
-    weight: DEFAULT_STYLE.weight,
-    case: DEFAULT_STYLE.case,
-    align: DEFAULT_STYLE.align,
-    size: DEFAULT_STYLE.size,
-    position: DEFAULT_STYLE.position,
-  };
-}
-
 // The service logs unexpected causes on purpose; keep them out of test output.
 beforeAll(() => {
   jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
@@ -77,7 +63,7 @@ describe('StoryGeneratorService', () => {
           order: 1,
           caption: 'hook',
           style: DEFAULT_STYLE,
-          texts: [textFallback('hook')],
+          texts: [],
           suggestions: [],
         },
         {
@@ -85,7 +71,7 @@ describe('StoryGeneratorService', () => {
           order: 2,
           caption: 'build',
           style: DEFAULT_STYLE,
-          texts: [textFallback('build')],
+          texts: [],
           suggestions: [],
         },
         {
@@ -93,7 +79,7 @@ describe('StoryGeneratorService', () => {
           order: 3,
           caption: 'payoff',
           style: DEFAULT_STYLE,
-          texts: [textFallback('payoff')],
+          texts: [],
           suggestions: [],
         },
       ],

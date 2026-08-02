@@ -3,20 +3,6 @@ import { DEFAULT_STYLE } from './caption-style';
 
 const ids = new Set(['a', 'b', 'c']);
 
-/** The single text block the mapper synthesizes from a caption when the model
- * gives no `texts` — the caption mirrored with the default (letterbox-less) style. */
-function textFallback(text: string) {
-  return {
-    text,
-    font: DEFAULT_STYLE.font,
-    weight: DEFAULT_STYLE.weight,
-    case: DEFAULT_STYLE.case,
-    align: DEFAULT_STYLE.align,
-    size: DEFAULT_STYLE.size,
-    position: DEFAULT_STYLE.position,
-  };
-}
-
 describe('shapeFrames', () => {
   it('keeps valid frames, sorts by order, and renumbers 1..n', () => {
     const raw = [
@@ -29,7 +15,7 @@ describe('shapeFrames', () => {
         order: 1,
         caption: 'first',
         style: DEFAULT_STYLE,
-        texts: [textFallback('first')],
+        texts: [],
         suggestions: [],
       },
       {
@@ -37,7 +23,7 @@ describe('shapeFrames', () => {
         order: 2,
         caption: 'last',
         style: DEFAULT_STYLE,
-        texts: [textFallback('last')],
+        texts: [],
         suggestions: [],
       },
     ]);
@@ -70,7 +56,7 @@ describe('shapeFrames', () => {
         order: 1,
         caption: 'earlier',
         style: DEFAULT_STYLE,
-        texts: [textFallback('earlier')],
+        texts: [],
         suggestions: [],
       },
     ]);
@@ -127,11 +113,9 @@ describe('shapeFrames', () => {
     ]);
   });
 
-  it('falls back to a single caption block when the model gives no texts', () => {
+  it('has no extra texts when the model gives none', () => {
     const raw = [{ photoId: 'a', order: 1, caption: 'golden hour' }];
-    expect(shapeFrames(raw, ids)[0].texts).toEqual([
-      textFallback('golden hour'),
-    ]);
+    expect(shapeFrames(raw, ids)[0].texts).toEqual([]);
   });
 
   it('threads and normalizes per-frame suggestions', () => {

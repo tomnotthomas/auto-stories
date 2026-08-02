@@ -27,6 +27,32 @@ describe('Story', () => {
     expect(await harness.getCaption()).toBe('Everyone made it to the lake');
   });
 
+  it("renders the AI's extra placed text blocks besides the caption", async () => {
+    await TestBed.configureTestingModule({ imports: [Story] }).compileComponents();
+    story = TestBed.inject(StoryService);
+    const style = frames[0].style;
+    story.completeStory(
+      [
+        {
+          photoId: 'a',
+          order: 1,
+          caption: 'we ate everything',
+          style,
+          texts: [
+            { text: 'we ate', font: 'playfair', weight: 'bold', case: 'normal', align: 'right', size: 'l', position: 'top-right' },
+            { text: 'brunch · Tartine', font: 'inter', weight: 'regular', case: 'normal', align: 'left', size: 's', position: 'bottom-left' },
+          ],
+        },
+      ],
+      false,
+    );
+    const fixture = TestBed.createComponent(Story);
+    const harness = await TestbedHarnessEnvironment.harnessForFixture(fixture, StoryHarness);
+
+    expect(await harness.getCaption()).toBe('we ate everything');
+    expect(await harness.extraTexts()).toEqual(['we ate', 'brunch · Tartine']);
+  });
+
   it('advances to the next frame on tap', async () => {
     const harness = await render();
     await harness.tapNext();

@@ -127,6 +127,31 @@
       </div>
     }
 
+    <!-- Extra placed text blocks the AI added besides the caption — the editorial
+         layer (a small line + a bigger line). Read-only for now (kept white + a
+         scrim so they're always legible); editing them is a later step. -->
+    @if (!editingFrame()) {
+      @for (t of frame.extraTexts; track $index) {
+        <div
+          class="absolute z-20 w-[78%] max-w-[320px] -translate-x-1/2 -translate-y-1/2"
+          [style.left.%]="t.xPct"
+          [style.top.%]="t.yPct"
+        >
+          <p
+            data-extra-text
+            class="story-caption rounded-2xl bg-black/40 px-4 py-3 leading-tight text-white"
+            [style.fontFamily]="t.fontFamily"
+            [style.fontWeight]="t.fontWeight"
+            [style.textAlign]="t.textAlign"
+            [style.textTransform]="t.textTransform"
+            [style.fontSize.px]="24 * t.sizeMult * t.fitMult"
+          >
+            {{ t.text }}
+          </p>
+        </div>
+      }
+    }
+
     <!-- Sparks: the AI's optional Instagram add-ons for this frame, shown as
          tappable dots the user copies into Instagram during the hand-off. View
          mode only — refine has its own gestures, and nothing is baked into the

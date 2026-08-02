@@ -53,10 +53,8 @@ function toFrame(entry: unknown): Frame | null {
     order,
     caption,
     style: normalizedStyle,
-    // Editorial layer: the model's placed blocks, or a single block mirroring the
-    // caption when it omits them. Client renders/edits `texts`; `caption` stays
-    // for the migration window.
-    texts: normalizeTexts(texts, caption, normalizedStyle),
+    // Editorial layer: 0–2 EXTRA placed lines besides the caption (usually none).
+    texts: normalizeTexts(texts, normalizedStyle),
     suggestions: normalizeSuggestions(suggestions),
   };
 }
