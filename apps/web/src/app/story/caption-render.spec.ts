@@ -12,10 +12,15 @@ describe('caption-render style mapping', () => {
     expect(fontFamily('inter')).toContain('sans-serif');
     expect(fontFamily('playfair')).toContain('serif');
     expect(fontFamily('space-mono')).toContain('monospace');
-    // The casual/handwriting slot renders as a modern rounded sans, never a
-    // dated script/cursive face.
-    expect(fontFamily('caveat')).toContain('sans-serif');
-    expect(fontFamily('caveat')).not.toContain('cursive');
+    // The handwriting slot renders a real hand (Caveat) for a personal voice —
+    // reverses the earlier "rounded sans, no script" call (decision 7.21).
+    expect(fontFamily('caveat')).toContain('cursive');
+  });
+
+  it('leads the serif and handwriting slots with the bundled faces', () => {
+    // playfair → self-hosted Fraunces; caveat → self-hosted Caveat.
+    expect(fontFamily('playfair').startsWith('"Fraunces"')).toBe(true);
+    expect(fontFamily('caveat').startsWith('"Caveat"')).toBe(true);
   });
 
   it('leads the default caption font with the bundled display face', () => {

@@ -13,11 +13,16 @@ export const DISPLAY_FONT = 'Bricolage Grotesque';
 export function fontFamily(font: Style['font']): string {
   switch (font) {
     case 'playfair':
-      return 'Georgia, "Times New Roman", serif';
+      // The serif slot renders the self-hosted Fraunces (soft, editorial), with
+      // system serifs as fallback.
+      return '"Fraunces", Georgia, "Times New Roman", serif';
     case 'space-mono':
       return 'ui-monospace, "SF Mono", Menlo, monospace';
     case 'caveat':
-      return 'ui-rounded, "SF Pro Rounded", "Segoe UI Variable", system-ui, sans-serif';
+      // The handwriting slot renders the self-hosted Caveat (real hand), which
+      // gives a frame a personal, first-person voice. (Reverses the earlier
+      // "rounded sans, no script" call, decision 7.21.)
+      return '"Caveat", "Bradley Hand", "Segoe Script", cursive';
     case 'inter':
     default:
       return `"${DISPLAY_FONT}", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif`;
@@ -36,6 +41,10 @@ export async function loadCaptionFonts(): Promise<void> {
   await Promise.all([
     fonts.load(`400 64px "${DISPLAY_FONT}"`),
     fonts.load(`700 64px "${DISPLAY_FONT}"`),
+    fonts.load('400 64px "Fraunces"'),
+    fonts.load('700 64px "Fraunces"'),
+    fonts.load('400 64px "Caveat"'),
+    fonts.load('700 64px "Caveat"'),
   ]).catch(() => undefined);
 }
 
