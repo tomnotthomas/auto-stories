@@ -289,6 +289,34 @@ describe('StoryService', () => {
       service.completeStory([{ photoId: 'p9', order: 1, caption: 'fresh', style: STYLE }], false);
       expect(service.sparks().size).toBe(0);
     });
+
+    it('counts kept (non-dismissed) suggestions across frames for the hand-off', () => {
+      service.completeStory(
+        [
+          {
+            photoId: 'p1',
+            order: 1,
+            caption: 'a',
+            style: STYLE,
+            suggestions: [
+              { type: 'location', query: 'Tartine', confidence: 0.9 },
+              { type: 'music', query: 'indie folk', confidence: 0.6 },
+            ],
+          },
+          { photoId: 'p2', order: 2, caption: 'b', style: STYLE },
+        ],
+        false,
+      );
+      expect(service.keptSuggestionCount()).toBe(2);
+
+      service.dismissSpark('p1', 1);
+      expect(service.keptSuggestionCount()).toBe(1);
+    });
+
+    it('reports no kept suggestions when the story has none', () => {
+      seed();
+      expect(service.keptSuggestionCount()).toBe(0);
+    });
   });
 
   describe('extra text blocks', () => {

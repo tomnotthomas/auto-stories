@@ -4,9 +4,9 @@
   (pointerup)="onSwipeEnd($event)"
 >
   @if (current(); as frame) {
-    <!-- The story "stage" — everything the viewer sees. In the hand-off state it
-         scales up and away (it went to Instagram), clearing room for the tray. -->
-    <div class="story-stage absolute inset-0" [class.handoff-away]="handoff()">
+    <!-- The story "stage" — everything the viewer sees. It stays in place during
+         the hand-off (nothing has left yet); the card sits over the action bar. -->
+    <div class="absolute inset-0">
       <!-- Frame backgrounds: the current photo plus its neighbours, kept mounted so
          they are already decoded when paged to. Only the current one is opaque;
          the swap is instant (no transition) so it lands in the same paint as the
@@ -236,7 +236,7 @@
           </button>
         </div>
       </div>
-    } @else if (!handoff()) {
+    } @else if (!handingOff()) {
       <div class="absolute inset-x-4 bottom-6 z-20 flex flex-col gap-2">
         <button
           matButton="filled"
@@ -255,9 +255,14 @@
       </div>
     }
 
-    <!-- Hand-off tray: the post-share screen, risen with the add-ons. -->
-    @if (handoff()) {
-      <app-handoff-companion (done)="closeTray()" />
+    <!-- Hand-off card: shown before we leave, presenting the add-ons; its own
+         button renders + hands off to Instagram. -->
+    @if (handingOff()) {
+      <app-handoff-companion
+        [busy]="exporting()"
+        (save)="confirmHandoff()"
+        (done)="closeTray()"
+      />
     }
 
     <!-- Reorder & remove — a clean, dedicated surface for managing the frames. -->

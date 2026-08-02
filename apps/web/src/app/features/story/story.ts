@@ -115,15 +115,12 @@ export class Story {
   protected readonly storyBusy = signal(false);
   /** True while rendering + handing off the frames. */
   protected readonly exporting = signal(false);
-  /** True once the frames have been shared/downloaded (drives the hand-off tray). */
-  protected readonly posted = signal(false);
-  /** The hand-off tray is expanded (true the moment we post; "All set" collapses
-   * it, revealing the action bar again). */
-  protected readonly trayOpen = signal(false);
-
-  /** The post-share hand-off state: the story shrinks away and the tray presents
-   * the add-ons. Also true when there are none — the tray still confirms the save. */
-  protected readonly handoff = computed(() => this.posted() && this.trayOpen());
+  /** The hand-off card is showing — reached by tapping Post when the story has
+   * add-ons. The card presents them and its own button does the actual hand-off,
+   * so the add-ons are seen before we ever leave for Instagram. */
+  protected readonly handingOff = signal(false);
+  /** Whether the story has any add-ons to surface at the hand-off. */
+  protected readonly hasAddOns = computed(() => this.story.keptSuggestionCount() > 0);
 
   /** Frames in narrative order, each resolved to its picked photo. */
   protected readonly frames = computed<ViewFrame[]>(() => {
@@ -361,27 +358,40 @@ export class Story {
     this.story.reset();
   }
 
-  /** Render the frames to images and hand them off (Web Share on mobile, else a
-   * download), then show the "open Instagram → Select Multiple" next step. */
+  /** Post to Instagram. With add-ons, reveal the hand-off card first (in place,
+   * before we leave) so they're seen — its button does the actual hand-off. With
+   * none, there's nothing to surface, so hand off directly (one tap). */
   protected async postToInstagram(): Promise<void> {
+    if (this.exporting()) return;
+    if (this.hasAddOns()) {
+      this.handingOff.set(true);
+      return;
+    }
+    await this.handOff();
+  }
+
+  /** The hand-off card's "Save & open Instagram" — actually render + hand off.
+   * The card stays up so returning from Instagram lands back on the add-ons. */
+  protected async confirmHandoff(): Promise<void> {
+    await this.handOff();
+  }
+
+  /** Render the frames to images and hand them off (Web Share on mobile, else a
+   * download). A cancelled share or failed render leaves the user in place. */
+  private async handOff(): Promise<void> {
     if (this.exporting()) return;
     this.exporting.set(true);
     try {
       await this.exporter.post();
-      this.posted.set(true);
-      // The moment we've handed off, the tray rises with the add-ons — it IS the
-      // post-share screen, so the user leaves knowing there's more here.
-      this.trayOpen.set(true);
     } catch {
-      // A cancelled share or a failed render leaves the user on the payoff; they
-      // can tap again. Nothing destructive happened.
+      // Nothing destructive happened; the user can tap again.
     } finally {
       this.exporting.set(false);
     }
   }
 
-  /** Collapse the hand-off tray ("All set") — reveals the action bar again. */
+  /** Dismiss the hand-off card ("Not now") — reveals the action bar again. */
   protected closeTray(): void {
-    this.trayOpen.set(false);
+    this.handingOff.set(false);
   }
 }

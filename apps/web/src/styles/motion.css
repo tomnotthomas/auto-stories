@@ -67,53 +67,28 @@
   }
 }
 
-/* Hand-off: when the story is posted, the story "stage" scales up and away (it
- * went to Instagram) as the tray takes over — the spatial cue that there's more
- * here. transform/opacity only; origin at the top so it lifts, not shrinks in place. */
-@utility story-stage {
+/* Hand-off card: grows in place from the action button it replaces (origin at
+ * the bottom, where the thumb just was) — the state change happens at the locus
+ * of attention, not a screen edge. Never from scale(0); transform/opacity only. */
+@utility handoff-card {
   transition:
-    transform 300ms var(--ease-drawer),
-    opacity 260ms ease;
-  transform-origin: top center;
-}
-@utility handoff-away {
-  transform: scale(0.72) translateY(-3%);
-  opacity: 0.45;
-}
-
-/* Tray cards rise + stagger in so the eye registers "several things waiting". */
-@keyframes handoff-stagger-in {
-  from {
+    transform 240ms var(--ease-out-strong),
+    opacity 200ms ease;
+  transform-origin: bottom center;
+  @starting-style {
+    transform: scale(0.96) translateY(8px);
     opacity: 0;
-    transform: translateY(10px);
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-@utility handoff-stagger {
-  animation: handoff-stagger-in 320ms var(--ease-out-strong) both;
-}
-.handoff-stagger:nth-child(2) {
-  animation-delay: 55ms;
-}
-.handoff-stagger:nth-child(3) {
-  animation-delay: 110ms;
-}
-.handoff-stagger:nth-child(n + 4) {
-  animation-delay: 140ms;
 }
 
 @media (prefers-reduced-motion: reduce) {
   /* Keep the fade; drop the movement (vestibular-safe). */
-  .story-stage {
+  .handoff-card {
     transition-property: opacity;
   }
-  .handoff-away {
-    transform: none;
-  }
-  .handoff-stagger {
-    animation: none;
+  @starting-style {
+    .handoff-card {
+      transform: none;
+    }
   }
 }

@@ -165,12 +165,22 @@ describe('Story', () => {
 
   describe('hand-off', () => {
     const STYLE = frames[0].style;
+    let post: ReturnType<typeof vi.fn>;
 
-    /** Render with a stubbed exporter (jsdom has no canvas) and post. */
+    const withLocation: Frame = {
+      photoId: 'a',
+      order: 1,
+      caption: 'By the lake',
+      style: STYLE,
+      suggestions: [{ type: 'location', query: 'Bixby Bridge', confidence: 0.9 }],
+    };
+
+    /** Render with a stubbed exporter (jsdom has no canvas) and tap Post. */
     async function postWith(frameList: Frame[]): Promise<StoryHarness> {
+      post = vi.fn(() => Promise.resolve('shared'));
       TestBed.configureTestingModule({
         imports: [Story],
-        providers: [{ provide: StoryExporter, useValue: { post: () => Promise.resolve('shared') } }],
+        providers: [{ provide: StoryExporter, useValue: { post } }],
       });
       await TestBed.compileComponents();
       story = TestBed.inject(StoryService);
@@ -182,38 +192,35 @@ describe('Story', () => {
       return harness;
     }
 
-    it('rises the tray with the add-ons the moment the story is posted', async () => {
-      const harness = await postWith([
-        {
-          photoId: 'a',
-          order: 1,
-          caption: 'By the lake',
-          style: STYLE,
-          suggestions: [{ type: 'location', query: 'Bixby Bridge', confidence: 0.9 }],
-        },
-      ]);
+    it('reveals the add-on card on Post, before handing off', async () => {
+      const harness = await postWith([withLocation]);
 
       expect(await harness.hasTray()).toBe(true);
       expect(await harness.trayTerms()).toEqual(['Bixby Bridge']);
+      // The card is shown *before* the export — nothing has been handed off yet.
+      expect(post).not.toHaveBeenCalled();
     });
 
-    it('still enters the hand-off state when there are no add-ons', async () => {
+    it('hands off directly, with no card, when there are no add-ons', async () => {
       const harness = await postWith([{ photoId: 'a', order: 1, caption: 'x', style: STYLE }]);
 
-      expect(await harness.hasTray()).toBe(true);
-      expect(await harness.trayTerms()).toEqual([]);
+      expect(await harness.hasTray()).toBe(false);
+      expect(post).toHaveBeenCalledTimes(1);
     });
 
-    it('collapses the tray on "All set"', async () => {
-      const harness = await postWith([
-        {
-          photoId: 'a',
-          order: 1,
-          caption: 'By the lake',
-          style: STYLE,
-          suggestions: [{ type: 'location', query: 'Bixby Bridge', confidence: 0.9 }],
-        },
-      ]);
+    it('renders + hands off when the card\'s "Save & open Instagram" is tapped', async () => {
+      const harness = await postWith([withLocation]);
+      expect(post).not.toHaveBeenCalled();
+
+      await harness.clickSaveAndOpen();
+
+      expect(post).toHaveBeenCalledTimes(1);
+      // The card stays up so returning from Instagram lands back on the add-ons.
+      expect(await harness.hasTray()).toBe(true);
+    });
+
+    it('dismisses the card on "Not now"', async () => {
+      const harness = await postWith([withLocation]);
 
       await harness.clickAllSet();
 
