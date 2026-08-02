@@ -34,12 +34,15 @@ describe('buildPrompt', () => {
     expect(prompt).toMatch(/location|gif|poll|music/);
   });
 
-  it('tells the model to keep captions short so the photo can breathe', () => {
+  it('tells the model to vary caption length per photo, not a uniform terseness', () => {
     const prompt = buildPrompt(story).toLowerCase();
-    expect(prompt).toMatch(/short/);
+    // A self-explanatory photo still breathes…
     expect(prompt).toContain('breathe');
-    // The story must not be sacrificed for brevity — it lives across frames.
-    expect(prompt).toContain('sequence');
+    expect(prompt).toContain('vary');
+    // …but a frame that needs context earns a fuller line.
+    expect(prompt).toMatch(/fuller line|short sentence/);
+    // The captions across the story should have rhythm, not the same few words.
+    expect(prompt).toMatch(/rhythm|never a uniform/);
   });
 
   it('tells the model not to overload a photo with competing elements', () => {
