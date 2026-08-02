@@ -109,6 +109,15 @@ describe('Story', () => {
       expect(await harness.getEditor()).not.toBeNull();
     });
 
+    it('adds an extra text block and opens its editor', async () => {
+      const harness = await render();
+      await harness.clickRefine();
+      await harness.clickAddText();
+
+      expect(story.frames()[0].extraTexts).toHaveLength(1);
+      expect(await harness.getEditor()).not.toBeNull();
+    });
+
     it('marks the coach mark seen once the user starts editing', async () => {
       const harness = await render();
       await harness.clickRefine();

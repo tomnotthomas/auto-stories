@@ -290,4 +290,73 @@ describe('StoryService', () => {
       expect(service.sparks().size).toBe(0);
     });
   });
+
+  describe('extra text blocks', () => {
+    const seed = () =>
+      service.completeStory(
+        [
+          {
+            photoId: 'p1',
+            order: 1,
+            caption: 'cap',
+            style: STYLE,
+            texts: [
+              {
+                text: 'we ate',
+                font: 'playfair',
+                weight: 'bold',
+                case: 'normal',
+                align: 'right',
+                size: 'l',
+                position: 'top-right',
+              },
+            ],
+          },
+        ],
+        false,
+      );
+
+    it('builds editable extra-text state from the frame texts', () => {
+      seed();
+      const [frame] = service.frames();
+      expect(frame.extraTexts).toHaveLength(1);
+      expect(frame.extraTexts[0]).toMatchObject({
+        text: 'we ate',
+        font: 'playfair',
+        size: 'l',
+        legibility: true,
+      });
+      expect(frame.extraTexts[0].placement).toEqual(zoneToPlacement('top-right'));
+    });
+
+    it('edits an extra block text and placement', () => {
+      seed();
+      service.setExtraText('p1', 0, 'we ate everything');
+      service.setExtraPlacement('p1', 0, { xPct: 30 });
+      const block = service.frames()[0].extraTexts[0];
+      expect(block.text).toBe('we ate everything');
+      expect(block.placement.xPct).toBe(30);
+    });
+
+    it('toggles an extra block background', () => {
+      seed();
+      expect(service.frames()[0].extraTexts[0].legibility).toBe(true);
+      service.toggleExtraLegibility('p1', 0);
+      expect(service.frames()[0].extraTexts[0].legibility).toBe(false);
+    });
+
+    it('adds an extra block (returning its index), capped at 2', () => {
+      seed();
+      expect(service.addExtraText('p1')).toBe(1);
+      expect(service.frames()[0].extraTexts).toHaveLength(2);
+      expect(service.addExtraText('p1')).toBe(-1);
+      expect(service.frames()[0].extraTexts).toHaveLength(2);
+    });
+
+    it('removes an extra block', () => {
+      seed();
+      service.removeExtraText('p1', 0);
+      expect(service.frames()[0].extraTexts).toHaveLength(0);
+    });
+  });
 });

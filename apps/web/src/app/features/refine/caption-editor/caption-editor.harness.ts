@@ -13,6 +13,7 @@ export class CaptionEditorHarness extends ComponentHarness {
     MatButtonHarness.with({ text: /Regenerate/ }),
   );
   private readonly doneButton = this.locatorFor(MatButtonHarness.with({ text: /Done/ }));
+  private readonly removeButton = this.locatorForOptional(MatButtonHarness.with({ text: /Remove/ }));
 
   /** The caption text currently in the editable field. */
   async getCaption(): Promise<string> {
@@ -57,5 +58,15 @@ export class CaptionEditorHarness extends ComponentHarness {
   /** Finish editing. */
   async clickDone(): Promise<void> {
     await (await this.doneButton()).click();
+  }
+
+  /** Whether the Remove action is offered (only for extra text blocks). */
+  async hasRemove(): Promise<boolean> {
+    return (await this.removeButton()) !== null;
+  }
+
+  /** Delete the text block being edited. */
+  async clickRemove(): Promise<void> {
+    await (await this.removeButton())?.click();
   }
 }

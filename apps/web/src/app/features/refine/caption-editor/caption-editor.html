@@ -83,6 +83,12 @@
         <mat-icon>contrast</mat-icon>
         Legibility
       </button>
+      @if (removable()) {
+        <button matButton="outlined" class="flex-1" (click)="remove.emit()">
+          <mat-icon>delete</mat-icon>
+          Remove
+        </button>
+      }
     </div>
   </div>
 </div>

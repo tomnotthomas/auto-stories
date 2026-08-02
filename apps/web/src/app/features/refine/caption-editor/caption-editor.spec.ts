@@ -11,6 +11,7 @@ interface Overrides {
   legibility?: boolean;
   busy?: boolean;
   demo?: boolean;
+  removable?: boolean;
 }
 
 describe('CaptionEditor', () => {
@@ -31,6 +32,7 @@ describe('CaptionEditor', () => {
     ref.setInput('legibility', overrides.legibility ?? true);
     ref.setInput('busy', overrides.busy ?? false);
     ref.setInput('demo', overrides.demo ?? false);
+    ref.setInput('removable', overrides.removable ?? false);
     fixture.detectChanges();
 
     const harness = await TestbedHarnessEnvironment.harnessForFixture(fixture, CaptionEditorHarness);
@@ -92,6 +94,24 @@ describe('CaptionEditor', () => {
     instance.done.subscribe(() => (done = true));
     await harness.clickDone();
     expect(done).toBe(true);
+  });
+
+  it('hides Remove for the caption (not removable)', async () => {
+    const { harness } = await render();
+    expect(await harness.hasRemove()).toBe(false);
+  });
+
+  it('offers Remove for a removable (extra) text block', async () => {
+    const { harness } = await render({ removable: true });
+    expect(await harness.hasRemove()).toBe(true);
+  });
+
+  it('emits remove when the block is deleted', async () => {
+    const { harness, instance } = await render({ removable: true });
+    let removed = false;
+    instance.remove.subscribe(() => (removed = true));
+    await harness.clickRemove();
+    expect(removed).toBe(true);
   });
 });
 
