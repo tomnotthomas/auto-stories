@@ -3,6 +3,20 @@ import { DEFAULT_STYLE } from './caption-style';
 
 const ids = new Set(['a', 'b', 'c']);
 
+/** The single text block the mapper synthesizes from a caption when the model
+ * gives no `texts` — the caption mirrored with the default (letterbox-less) style. */
+function textFallback(text: string) {
+  return {
+    text,
+    font: DEFAULT_STYLE.font,
+    weight: DEFAULT_STYLE.weight,
+    case: DEFAULT_STYLE.case,
+    align: DEFAULT_STYLE.align,
+    size: DEFAULT_STYLE.size,
+    position: DEFAULT_STYLE.position,
+  };
+}
+
 describe('shapeFrames', () => {
   it('keeps valid frames, sorts by order, and renumbers 1..n', () => {
     const raw = [
@@ -15,6 +29,7 @@ describe('shapeFrames', () => {
         order: 1,
         caption: 'first',
         style: DEFAULT_STYLE,
+        texts: [textFallback('first')],
         suggestions: [],
       },
       {
@@ -22,6 +37,7 @@ describe('shapeFrames', () => {
         order: 2,
         caption: 'last',
         style: DEFAULT_STYLE,
+        texts: [textFallback('last')],
         suggestions: [],
       },
     ]);
@@ -54,8 +70,67 @@ describe('shapeFrames', () => {
         order: 1,
         caption: 'earlier',
         style: DEFAULT_STYLE,
+        texts: [textFallback('earlier')],
         suggestions: [],
       },
+    ]);
+  });
+
+  it("threads the model's placed text blocks when present", () => {
+    const raw = [
+      {
+        photoId: 'a',
+        order: 1,
+        caption: 'we ate everything',
+        texts: [
+          {
+            text: 'we ate',
+            font: 'playfair',
+            weight: 'bold',
+            case: 'normal',
+            align: 'right',
+            size: 'l',
+            position: 'top-right',
+          },
+          {
+            text: 'brunch · Tartine',
+            font: 'inter',
+            weight: 'regular',
+            case: 'normal',
+            align: 'left',
+            size: 's',
+            position: 'bottom-left',
+          },
+          { text: '', font: 'inter' }, // empty text dropped, capping at the two valid
+        ],
+      },
+    ];
+    expect(shapeFrames(raw, ids)[0].texts).toEqual([
+      {
+        text: 'we ate',
+        font: 'playfair',
+        weight: 'bold',
+        case: 'normal',
+        align: 'right',
+        size: 'l',
+        position: 'top-right',
+      },
+      {
+        text: 'brunch · Tartine',
+        font: 'inter',
+        weight: 'regular',
+        case: 'normal',
+        align: 'left',
+        size: 's',
+        position: 'bottom-left',
+      },
+    ]);
+  });
+
+  it('falls back to a single caption block when the model gives no texts', () => {
+    const raw = [{ photoId: 'a', order: 1, caption: 'golden hour' }];
+    expect(shapeFrames(raw, ids)[0].texts).toEqual([
+      textFallback('golden hour'),
     ]);
   });
 

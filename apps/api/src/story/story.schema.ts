@@ -51,6 +51,43 @@ export const STORY_RESPONSE_SCHEMA: Schema = {
               'letterbox',
             ],
           },
+          texts: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                text: { type: Type.STRING },
+                font: {
+                  type: Type.STRING,
+                  enum: ['inter', 'playfair', 'space-mono', 'caveat'],
+                },
+                weight: { type: Type.STRING, enum: ['regular', 'bold'] },
+                case: { type: Type.STRING, enum: ['normal', 'upper'] },
+                align: { type: Type.STRING, enum: ['left', 'center', 'right'] },
+                size: { type: Type.STRING, enum: ['s', 'm', 'l'] },
+                position: {
+                  type: Type.STRING,
+                  enum: [
+                    'top-left',
+                    'top-center',
+                    'top-right',
+                    'bottom-left',
+                    'bottom-center',
+                    'bottom-right',
+                  ],
+                },
+              },
+              required: [
+                'text',
+                'font',
+                'weight',
+                'case',
+                'align',
+                'size',
+                'position',
+              ],
+            },
+          },
           suggestions: {
             type: Type.ARRAY,
             items: {

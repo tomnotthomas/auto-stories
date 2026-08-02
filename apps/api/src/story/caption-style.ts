@@ -9,6 +9,7 @@ import type {
   StyleLetterboxEnum,
   Suggestion,
   SuggestionTypeEnum,
+  TextBlock,
 } from '@auto-stories/api-types';
 
 const FONTS: readonly StyleFontEnum[] = [
@@ -75,6 +76,58 @@ export function normalizeStyle(raw: unknown): Style {
     position: pick(POSITIONS, r['position'], DEFAULT_STYLE.position),
     letterbox: pick(LETTERBOXES, r['letterbox'], DEFAULT_STYLE.letterbox),
   };
+}
+
+/** A frame carries at most this many placed text blocks (breathe — usually 0–1). */
+export const MAX_TEXT_BLOCKS = 2;
+
+/**
+ * Turn the model's raw `texts` into 0–2 clean {@link TextBlock}s — each with a
+ * non-empty text and a valid style, capped and junk-dropped like the rest. When
+ * the model gives no usable blocks, fall back to a single block mirroring the
+ * frame's `caption` + `style`, so the client always has an editorial layer to
+ * render and edit. An empty caption with no texts yields `[]` (a caption-less,
+ * breathing frame). Pure and unit-tested.
+ */
+export function normalizeTexts(
+  raw: unknown,
+  fallbackText: string,
+  fallbackStyle: Style,
+): TextBlock[] {
+  const out: TextBlock[] = [];
+  if (Array.isArray(raw)) {
+    for (const entry of raw) {
+      if (out.length >= MAX_TEXT_BLOCKS) break;
+      if (typeof entry !== 'object' || entry === null) continue;
+      const r = entry as Record<string, unknown>;
+      const text = typeof r['text'] === 'string' ? r['text'].trim() : '';
+      if (text === '') continue;
+      out.push({
+        text,
+        font: pick(FONTS, r['font'], fallbackStyle.font),
+        weight: pick(WEIGHTS, r['weight'], fallbackStyle.weight),
+        case: pick(CASES, r['case'], fallbackStyle.case),
+        align: pick(ALIGNS, r['align'], fallbackStyle.align),
+        size: pick(SIZES, r['size'], fallbackStyle.size),
+        position: pick(POSITIONS, r['position'], fallbackStyle.position),
+      });
+    }
+  }
+  if (out.length > 0) return out;
+
+  const text = fallbackText.trim();
+  if (text === '') return [];
+  return [
+    {
+      text,
+      font: fallbackStyle.font,
+      weight: fallbackStyle.weight,
+      case: fallbackStyle.case,
+      align: fallbackStyle.align,
+      size: fallbackStyle.size,
+      position: fallbackStyle.position,
+    },
+  ];
 }
 
 const SUGGESTION_TYPES: readonly SuggestionTypeEnum[] = [
