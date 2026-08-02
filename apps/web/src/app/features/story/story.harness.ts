@@ -25,6 +25,17 @@ export class StoryHarness extends ComponentHarness {
     return (await this.caption()).text();
   }
 
+  /** Whether the art-directed layout view is showing (a frame carried a layout). */
+  async hasLayoutView(): Promise<boolean> {
+    return (await this.locatorForOptional('app-layout-view')()) !== null;
+  }
+
+  /** The lines the layout view rendered, in order. */
+  async layoutLines(): Promise<string[]> {
+    const els = await this.locatorForAll('[data-layout-line]')();
+    return Promise.all(els.map(async (el) => (await el.text()).trim()));
+  }
+
   /** The AI's extra placed text blocks shown on the current frame, in order. */
   async extraTexts(): Promise<string[]> {
     const els = await this.locatorForAll('[data-extra-text]')();

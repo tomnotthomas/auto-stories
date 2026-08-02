@@ -10,6 +10,7 @@ import {
   sizeScale,
   textTransformCss,
 } from './caption-render';
+import { drawLayout } from './layout-canvas';
 import type { EditableFrame } from './story.service';
 
 /** Instagram Story canvas size. */
@@ -55,6 +56,22 @@ export async function renderFrame(file: File, frame: EditableFrame): Promise<Blo
     ctx.filter = 'none';
   } finally {
     bitmap.close();
+  }
+
+  // When the layout agent composed a layout (decision 7.21), it supersedes the
+  // caption/style/texts — draw it through the shared renderer so the export
+  // matches the DOM preview exactly. Colour comes from the device sampling (7.10).
+  if (frame.layout) {
+    const palette = paletteFor();
+    drawLayout(ctx, frame.layout, FRAME_W, FRAME_H, () => ({
+      fill: frame.light ? palette.textLight : palette.textDark,
+      scrim: frame.legibility
+        ? frame.light
+          ? 'rgba(0,0,0,0.42)'
+          : 'rgba(255,255,255,0.62)'
+        : undefined,
+    }));
+    return canvas.convertToBlob({ type: 'image/png' });
   }
 
   const style = frame.style ?? DEFAULT_STYLE;
