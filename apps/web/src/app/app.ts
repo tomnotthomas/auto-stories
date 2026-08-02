@@ -2,6 +2,7 @@ import { Component, inject } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
 
 import { StoryService } from './story/story.service';
+import { ViewportService } from './viewport.service';
 import { Example } from './features/example/example';
 import { Create } from './features/create/create';
 import { Generating } from './features/generating/generating';
@@ -21,6 +22,8 @@ import { ErrorScreen } from './features/error/error-screen';
 export class App {
   private readonly document = inject(DOCUMENT);
   protected readonly story = inject(StoryService);
+  /** Drives the keyboard-aware shell height (see template). */
+  protected readonly viewport = inject(ViewportService);
 
   constructor() {
     // Honour the landing page's deep-link: /app/create opens the picker,
