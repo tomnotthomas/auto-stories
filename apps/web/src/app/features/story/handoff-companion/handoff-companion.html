@@ -1,0 +1,90 @@
+<!-- A full-screen sheet that walks the AI's ideas one at a time. -->
+<div class="sheet-enter absolute inset-0 z-40 flex flex-col bg-surface text-on-surface">
+  <div class="flex flex-none items-center gap-1 px-1.5 pt-11">
+    <h2 class="mat-title-medium flex-1 pl-2.5">Add your extras</h2>
+    <button matButton data-companion-done (click)="close()">Done</button>
+  </div>
+
+  @if (current(); as item) {
+    <div class="flex flex-1 flex-col gap-4 overflow-y-auto px-5 pb-6 pt-1" data-companion-card>
+      <!-- The photo, with the idea shown on the spot it belongs -->
+      <div class="drop-in relative mx-auto w-full max-w-[300px] overflow-hidden rounded-3xl bg-black">
+        <div class="aspect-4/5 w-full">
+          @if (item.previewUrl) {
+            <img [src]="item.previewUrl" alt="" class="h-full w-full object-cover" />
+          }
+          <div
+            class="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/60"
+          ></div>
+        </div>
+
+        @if (item.positioned) {
+          <!-- a soft glow says "here", the pin sits in it -->
+          <span
+            aria-hidden="true"
+            class="absolute h-16 w-16 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/25 blur-lg"
+            [style.left.%]="item.xPct"
+            [style.top.%]="item.yPct"
+          ></span>
+          <div
+            class="absolute -translate-x-1/2 -translate-y-1/2"
+            [style.left.%]="item.xPct"
+            [style.top.%]="item.yPct"
+          >
+            <span
+              class="relative flex items-center gap-1 rounded-full bg-primary py-1 pl-2 pr-2.5 text-on-primary shadow-lg"
+            >
+              <mat-icon class="h-4 w-4 flex-none text-[16px] leading-none">{{ item.icon }}</mat-icon>
+              <span class="mat-label-large whitespace-nowrap">{{ item.query }}</span>
+              <span
+                aria-hidden="true"
+                class="absolute -bottom-1 left-3 h-2 w-2 rotate-45 rounded-[1px] bg-primary"
+              ></span>
+            </span>
+          </div>
+        }
+      </div>
+
+      <!-- The suggestion, in words -->
+      <div>
+        <p class="mat-body-medium text-on-surface-variant">
+          @if (item.positioned) {
+            A <b class="text-on-surface">{{ item.label }}</b> would sit nicely there. In Instagram,
+            drop a {{ item.label }} sticker on that spot and search:
+          } @else {
+            A <b class="text-on-surface">soundtrack</b> would fit this story. In Instagram's music,
+            search:
+          }
+        </p>
+        <div
+          class="mt-2.5 flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-surface-container-high py-2 pl-4 pr-2"
+        >
+          <span data-companion-term class="story-caption min-w-0 flex-1 truncate !text-2xl">{{
+            item.query
+          }}</span>
+          <button matButton="filled" class="flex-none" (click)="copy(item)">
+            <mat-icon>{{ copiedKey() === item.key ? 'check' : 'content_copy' }}</mat-icon>
+            {{ copiedKey() === item.key ? 'Copied' : 'Copy' }}
+          </button>
+        </div>
+      </div>
+
+      <div class="mt-auto flex flex-col gap-2">
+        <button matButton="tonal" class="w-full" data-companion-next (click)="next()">
+          Added it → next
+        </button>
+        <button matButton class="w-full" data-companion-dismiss (click)="notThisOne(item)">
+          Not this one
+        </button>
+        <p class="mat-label-medium mt-1 text-center text-on-surface-variant">
+          Only frames with an idea appear · no checklist
+        </p>
+      </div>
+    </div>
+  } @else {
+    <div class="flex flex-1 flex-col items-center justify-center gap-2 px-8 text-center">
+      <mat-icon class="text-primary">check_circle</mat-icon>
+      <p class="mat-body-medium text-on-surface-variant">That's everything — your story's posted.</p>
+    </div>
+  }
+</div>
