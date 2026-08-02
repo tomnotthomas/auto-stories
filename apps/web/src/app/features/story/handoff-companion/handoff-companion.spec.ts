@@ -25,7 +25,7 @@ function imageFile(name: string): File {
   return new File(['bytes'], name, { type: 'image/jpeg' });
 }
 
-describe('HandoffCompanion', () => {
+describe('HandoffCompanion (tray)', () => {
   let fixture: ComponentFixture<HandoffCompanion>;
   let story: StoryService;
   let copied: string[];
@@ -57,61 +57,50 @@ describe('HandoffCompanion', () => {
 
   afterEach(() => fixture?.destroy());
 
-  it('shows the first idea, and only frames that carry one', async () => {
+  it('lists a card for every kept add-on, across frames, skipping frames with none', async () => {
     const harness = await render([
       [{ type: 'location', query: 'Tartine', confidence: 0.9 }],
-      [], // frame 2 has no suggestion — it is skipped
-      [{ type: 'poll', query: 'Best pastry?', confidence: 0.7 }],
+      [], // frame 2 has no add-on
+      [
+        { type: 'music', query: 'indie folk', confidence: 0.6 },
+        { type: 'poll', query: 'Best pastry?', confidence: 0.7 },
+      ],
     ]);
 
-    expect(await harness.isShowingCard()).toBe(true);
-    expect(await harness.term()).toBe('Tartine');
+    expect(await harness.itemCount()).toBe(3);
+    expect(await harness.termTexts()).toEqual(['Tartine', 'indie folk', 'Best pastry?']);
   });
 
-  it('copies the current term for the Instagram sticker', async () => {
+  it('shows no cards when no frame has an add-on', async () => {
+    const harness = await render([[], []]);
+    expect(await harness.itemCount()).toBe(0);
+  });
+
+  it('copies a card term and confirms', async () => {
     const harness = await render([[{ type: 'location', query: 'Bixby Bridge', confidence: 0.9 }]]);
 
-    await harness.clickCopy();
+    await harness.clickCopy(0);
 
     expect(copied).toEqual(['Bixby Bridge']);
-    expect(await harness.isCopied()).toBe(true);
+    expect(await harness.isCopied(0)).toBe(true);
   });
 
-  it('advances to the next idea on "Added it → next"', async () => {
+  it('dismisses a card, removing it and recording it', async () => {
     const harness = await render([
       [{ type: 'location', query: 'Tartine', confidence: 0.9 }],
       [{ type: 'poll', query: 'Best pastry?', confidence: 0.7 }],
     ]);
 
-    await harness.clickNext();
+    await harness.clickDismiss(0);
 
-    expect(await harness.term()).toBe('Best pastry?');
-  });
-
-  it('closes when the last idea is passed', async () => {
-    const harness = await render([[{ type: 'location', query: 'Tartine', confidence: 0.9 }]]);
-
-    await harness.clickNext();
-
-    expect(closed).toBe(1);
-  });
-
-  it('dismisses an idea and slides the next one in', async () => {
-    const harness = await render([
-      [{ type: 'location', query: 'Tartine', confidence: 0.9 }],
-      [{ type: 'poll', query: 'Best pastry?', confidence: 0.7 }],
-    ]);
-
-    await harness.clickDismiss();
-
+    expect(await harness.termTexts()).toEqual(['Best pastry?']);
     expect(story.sparks().get(sparkKey(story.photos()[0].id, 0))?.dismissed).toBe(true);
-    expect(await harness.term()).toBe('Best pastry?');
   });
 
-  it('closes on Done', async () => {
+  it('collapses on "All set"', async () => {
     const harness = await render([[{ type: 'location', query: 'Tartine', confidence: 0.9 }]]);
 
-    await harness.clickDone();
+    await harness.clickAllSet();
 
     expect(closed).toBe(1);
   });

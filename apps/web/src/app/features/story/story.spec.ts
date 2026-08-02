@@ -5,6 +5,7 @@ import type { Frame } from '@auto-stories/api-types';
 import { Story } from './story';
 import { StoryHarness } from './story.harness';
 import { StoryService } from '../../story/story.service';
+import { StoryExporter } from '../../story/story-exporter.service';
 
 const frames: Frame[] = [
   { photoId: 'a', order: 1, caption: 'Everyone made it to the lake', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } },
@@ -159,6 +160,64 @@ describe('Story', () => {
       // Back in view mode: tap zones page the story again.
       await harness.tapNext();
       expect(await harness.getCaption()).toBe('Then she blew out the candle');
+    });
+  });
+
+  describe('hand-off', () => {
+    const STYLE = frames[0].style;
+
+    /** Render with a stubbed exporter (jsdom has no canvas) and post. */
+    async function postWith(frameList: Frame[]): Promise<StoryHarness> {
+      TestBed.configureTestingModule({
+        imports: [Story],
+        providers: [{ provide: StoryExporter, useValue: { post: () => Promise.resolve('shared') } }],
+      });
+      await TestBed.compileComponents();
+      story = TestBed.inject(StoryService);
+      story.completeStory(frameList, false);
+      const fixture = TestBed.createComponent(Story);
+      const harness = await TestbedHarnessEnvironment.harnessForFixture(fixture, StoryHarness);
+      await harness.clickPost();
+      await fixture.whenStable();
+      return harness;
+    }
+
+    it('rises the tray with the add-ons the moment the story is posted', async () => {
+      const harness = await postWith([
+        {
+          photoId: 'a',
+          order: 1,
+          caption: 'By the lake',
+          style: STYLE,
+          suggestions: [{ type: 'location', query: 'Bixby Bridge', confidence: 0.9 }],
+        },
+      ]);
+
+      expect(await harness.hasTray()).toBe(true);
+      expect(await harness.trayTerms()).toEqual(['Bixby Bridge']);
+    });
+
+    it('still enters the hand-off state when there are no add-ons', async () => {
+      const harness = await postWith([{ photoId: 'a', order: 1, caption: 'x', style: STYLE }]);
+
+      expect(await harness.hasTray()).toBe(true);
+      expect(await harness.trayTerms()).toEqual([]);
+    });
+
+    it('collapses the tray on "All set"', async () => {
+      const harness = await postWith([
+        {
+          photoId: 'a',
+          order: 1,
+          caption: 'By the lake',
+          style: STYLE,
+          suggestions: [{ type: 'location', query: 'Bixby Bridge', confidence: 0.9 }],
+        },
+      ]);
+
+      await harness.clickAllSet();
+
+      expect(await harness.hasTray()).toBe(false);
     });
   });
 });
