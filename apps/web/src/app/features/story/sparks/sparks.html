@@ -1,110 +1,77 @@
-<!-- Click-through overlay: only the dots and blooms take pointer events, so tapping
-     the photo between sparks still pages the story underneath. -->
+<!-- Click-through overlay: only the markers take pointer events, so tapping the
+     photo between them still pages the story underneath. -->
 <div class="pointer-events-none absolute inset-0 z-20">
-  <!-- Music is story-level (no anchor), so it docks as a chip near the top, where
-       Instagram's music sticker lives. Copy the search term for the hand-off. -->
+  <!-- Music is story-level (no anchor), so it previews as a chip near the top,
+       where Instagram's music sticker lives. -->
   @if (music().length) {
-    <div class="pointer-events-auto absolute left-1/2 top-16 flex -translate-x-1/2 flex-col gap-1.5">
+    <div class="pointer-events-none absolute left-1/2 top-16 flex -translate-x-1/2 flex-col gap-1.5">
       @for (track of music(); track track.index) {
         <div
           data-spark-music
-          class="drop-in flex max-w-[280px] items-center gap-2 rounded-full border border-white/10 bg-surface-container-high py-1 pl-3 pr-1 text-on-surface shadow-lg"
+          class="drop-in flex max-w-[280px] items-center gap-2 rounded-full border border-white/10 bg-surface-container-high px-3 py-1 text-on-surface shadow-lg"
         >
           <mat-icon class="flex-none text-primary">music_note</mat-icon>
-          <span data-spark-music-query class="mat-label-large min-w-0 flex-1 truncate">
-            {{ track.query }}
-          </span>
-          <button matButton class="flex-none" (click)="copy(track)">
-            {{ copiedIndex() === track.index ? 'Copied' : 'Copy' }}
-          </button>
-          <button
-            matIconButton
-            data-spark-music-dismiss
-            class="flex-none"
-            aria-label="Dismiss music suggestion"
-            (click)="dismiss(track)"
-          >
-            <mat-icon>close</mat-icon>
-          </button>
+          <span data-spark-music-query class="mat-label-large truncate">{{ track.query }}</span>
         </div>
       }
     </div>
   }
 
   @for (spark of sparks(); track spark.index) {
+    <!-- Each marker is shaped like the Instagram element it stands for and shows
+         the exact term — self-explanatory at a glance. Flick sideways to dismiss;
+         `touch-none` so the flick doesn't scroll. Preview only — copy/add happens
+         in the hand-off companion after export. -->
     <div
-      data-spark
-      class="pointer-events-auto absolute -translate-x-1/2 -translate-y-1/2"
+      data-spark-marker
+      [attr.data-spark-type]="spark.type"
+      [attr.aria-label]="spark.type + ' suggestion: ' + spark.query"
+      class="press pointer-events-auto absolute touch-none"
       [style.left.%]="spark.xPct"
       [style.top.%]="spark.yPct"
+      [style.transform]="'translate(-50%, -50%) translateX(' + flickDx(spark.index) + 'px)'"
+      (pointerdown)="onPointerDown($event, spark.index)"
+      (pointermove)="onPointerMove($event)"
+      (pointerup)="onPointerUp($event, spark.index)"
+      (pointercancel)="onPointerCancel($event)"
     >
-      <!-- The dot: a tappable anchor at the suggested spot. Tap to bloom; flick
-           sideways to dismiss. `touch-none` so the flick doesn't scroll the page. -->
-      <button
-        type="button"
-        data-spark-dot
-        [attr.aria-label]="'Suggested ' + spark.label + ': ' + spark.query"
-        [attr.aria-expanded]="openIndex() === spark.index"
-        (click)="onTap(spark.index)"
-        (pointerdown)="onPointerDown($event, spark)"
-        (pointermove)="onPointerMove($event)"
-        (pointerup)="onPointerUp($event, spark)"
-        (pointercancel)="onPointerCancel($event)"
-        class="press relative flex h-9 w-9 touch-none items-center justify-center rounded-full text-on-primary shadow-lg"
-        [class]="spark.done ? 'bg-primary/60' : 'bg-primary'"
-        [style.transform]="'translateX(' + flickDx(spark.index) + 'px)'"
-      >
-        @if (!spark.done) {
-          <span aria-hidden="true" class="spark-pulse absolute inset-0 rounded-full bg-primary"></span>
+      @switch (spark.type) {
+        @case ('location') {
+          <span
+            class="relative flex items-center gap-1 rounded-full bg-primary py-1 pl-2 pr-2.5 text-on-primary shadow-lg"
+          >
+            <mat-icon class="h-4 w-4 flex-none text-[16px] leading-none">location_on</mat-icon>
+            <span data-spark-query class="mat-label-large whitespace-nowrap">{{ spark.query }}</span>
+            <span
+              aria-hidden="true"
+              class="absolute -bottom-1 left-3 h-2 w-2 rotate-45 rounded-[1px] bg-primary"
+            ></span>
+          </span>
         }
-        <mat-icon class="relative h-5 w-5 text-[20px] leading-none">
-          {{ spark.done ? 'check' : spark.icon }}
-        </mat-icon>
-      </button>
-
-      <!-- The bloom: the ghost of the element, scaling out from its dot. The
-           recommendation (icon + what + the exact term) sits on its own row so it
-           always has the full width; the actions (Copy for the hand-off, Done,
-           Dismiss) sit on a second row and can't crowd the term. -->
-      @if (openIndex() === spark.index) {
-        <div
-          class="drop-in absolute bottom-full left-1/2 mb-2 flex w-60 max-w-[80vw] -translate-x-1/2 flex-col gap-2 rounded-2xl border border-white/10 bg-surface-container-high p-3 text-on-surface shadow-xl"
-        >
-          <div class="flex items-start gap-2">
-            <mat-icon class="flex-none text-primary">{{ spark.icon }}</mat-icon>
-            <div class="min-w-0 flex-1">
-              <p class="mat-label-medium text-on-surface-variant">{{ spark.label }}</p>
-              <p data-spark-query class="mat-label-large break-words text-on-surface">
-                {{ spark.query }}
-              </p>
-            </div>
-          </div>
-          <div class="flex items-center gap-1">
-            <button matButton="filled" class="flex-1" (click)="copy(spark)">
-              <mat-icon>{{ copiedIndex() === spark.index ? 'check' : 'content_copy' }}</mat-icon>
-              {{ copiedIndex() === spark.index ? 'Copied' : 'Copy' }}
-            </button>
-            <button
-              matIconButton
-              data-spark-done
-              class="flex-none"
-              [attr.aria-label]="spark.done ? 'Mark not added' : 'Mark added in Instagram'"
-              [attr.aria-pressed]="spark.done"
-              (click)="toggleDone(spark)"
-            >
-              <mat-icon>{{ spark.done ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>
-            </button>
-            <button
-              matIconButton
-              data-spark-dismiss
-              class="flex-none"
-              aria-label="Dismiss suggestion"
-              (click)="dismiss(spark)"
-            >
-              <mat-icon>close</mat-icon>
-            </button>
-          </div>
-        </div>
+        @case ('mention') {
+          <span
+            class="flex items-center gap-0.5 rounded-full border border-white/15 bg-surface-container-high/85 py-1 pl-2 pr-2.5 text-on-surface shadow-lg backdrop-blur-sm"
+          >
+            <span class="mat-label-large font-bold text-primary">&#64;</span>
+            <span data-spark-query class="mat-label-large whitespace-nowrap">{{ spark.query }}</span>
+          </span>
+        }
+        @case ('poll') {
+          <span
+            class="flex items-center gap-1 rounded-xl border border-white/15 bg-surface-container-high/85 px-2.5 py-1 text-on-surface shadow-lg backdrop-blur-sm"
+          >
+            <mat-icon class="h-4 w-4 flex-none text-[16px] leading-none text-primary">poll</mat-icon>
+            <span data-spark-query class="mat-label-large whitespace-nowrap">{{ spark.query }}</span>
+          </span>
+        }
+        @case ('gif') {
+          <span
+            class="flex items-center gap-1.5 rounded-xl border border-white/15 bg-surface-container-high/85 px-2.5 py-1 text-on-surface shadow-lg backdrop-blur-sm"
+          >
+            <span class="mat-label-medium font-extrabold tracking-wide text-primary">GIF</span>
+            <span data-spark-query class="mat-label-large whitespace-nowrap">{{ spark.query }}</span>
+          </span>
+        }
       }
     </div>
   }
