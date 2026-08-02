@@ -21,7 +21,8 @@ import { CaptionEditor } from '../refine/caption-editor/caption-editor';
 import { RefineFilmstrip } from '../refine/filmstrip/filmstrip';
 import { StorySparks } from './sparks/sparks';
 import { HandoffCompanion } from './handoff-companion/handoff-companion';
-import type { Suggestion } from '@auto-stories/api-types';
+import { LayoutView } from './layout-view/layout-view';
+import type { Layout, Suggestion } from '@auto-stories/api-types';
 
 /** A frame resolved for display: the picked photo plus its editable state. */
 interface ViewFrame {
@@ -47,6 +48,11 @@ interface ViewFrame {
   readonly suggestions: readonly Suggestion[];
   /** Extra placed text blocks the AI added besides the caption (read-only). */
   readonly extraTexts: readonly ViewTextBlock[];
+  /** The art-directed layout the agent composed, when present — supersedes the
+   * caption/style/texts for rendering in view mode (decision 7.21). */
+  readonly layout: Layout | undefined;
+  /** Frame-level computed light (white vs dark text), used to colour the layout. */
+  readonly light: boolean;
 }
 
 /** One extra placed text block, resolved to CSS + its editable state. */
@@ -83,6 +89,7 @@ interface ViewTextBlock {
     RefineFilmstrip,
     StorySparks,
     HandoffCompanion,
+    LayoutView,
   ],
   templateUrl: './story.html',
 })
@@ -144,6 +151,8 @@ export class Story {
         color: frame.light ? palette.textLight : palette.textDark,
         scrimClass: frame.legibility ? (frame.light ? 'bg-black/40' : 'bg-white/60') : '',
         suggestions: frame.suggestions ?? [],
+        layout: frame.layout,
+        light: frame.light,
         extraTexts: frame.extraTexts.map((b, i) => ({
           index: i,
           text: b.text,

@@ -54,6 +54,34 @@ describe('Story', () => {
     expect(await harness.extraTexts()).toEqual(['we ate', 'brunch · Tartine']);
   });
 
+  it('renders the art-directed layout when a frame carries one', async () => {
+    await TestBed.configureTestingModule({ imports: [Story] }).compileComponents();
+    story = TestBed.inject(StoryService);
+    const style = frames[0].style;
+    story.completeStory(
+      [
+        {
+          photoId: 'a',
+          order: 1,
+          caption: 'we ate everything',
+          style,
+          layout: {
+            elements: [
+              { role: 'title', text: 'Golden hour', font: 'playfair', weight: 'bold', case: 'normal', align: 'left', size: 4, tracking: 'normal', leading: 'normal', x: 8, y: 12, anchor: 'top-left' },
+              { role: 'deck', text: 'the coast', font: 'inter', weight: 'regular', case: 'normal', align: 'left', size: 2, tracking: 'normal', leading: 'normal', x: 8, y: 82, anchor: 'bottom-left' },
+            ],
+          },
+        },
+      ],
+      false,
+    );
+    const fixture = TestBed.createComponent(Story);
+    const harness = await TestbedHarnessEnvironment.harnessForFixture(fixture, StoryHarness);
+
+    expect(await harness.hasLayoutView()).toBe(true);
+    expect(await harness.layoutLines()).toEqual(['Golden hour', 'the coast']);
+  });
+
   it('advances to the next frame on tap', async () => {
     const harness = await render();
     await harness.tapNext();
