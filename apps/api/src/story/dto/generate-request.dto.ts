@@ -25,6 +25,11 @@ export class GenerateRequestDto implements GenerateRequest {
   @IsIn(TONES)
   tone?: Tone;
 
+  @IsOptional()
+  @IsString()
+  @Length(1, 60)
+  atmosphere?: string;
+
   @IsArray()
   @ArrayMinSize(3)
   @ArrayMaxSize(30)
