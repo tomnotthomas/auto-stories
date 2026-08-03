@@ -200,6 +200,30 @@ Non-GPS EXIF (timestamps, camera settings) does survive; location specifically
 does not. Since this product is built around the mobile photo picker, a
 coordinate-first design would work only on desktop uploads.
 
+### First: where does the name actually come from?
+
+Worth being blunt, because the answer bounds the whole feature. A photo of five
+croissants and a coffee on a table **cannot be resolved to a place**. It could be
+any of a million cafés. No amount of lookup fixes that — there is nothing to look
+up.
+
+The name has to be legible somewhere. Three cases:
+
+| Evidence | Resolvable? |
+| --- | --- |
+| A name **visible in the photo** — shopfront, signage, cup logo, menu, napkin, receipt | **Yes.** The vision model reads it; the lookup confirms it exists |
+| The **user's own story line names it** — "croissants at Blé Sucré" | **Yes**, and this is the strongest and cheapest signal |
+| Neither — food on a table, a generic interior | **No. Emit nothing.** |
+
+So the feature is narrower than "every commercial photo gets its venue". It fires
+on shopfronts, signage, branded cups, menus, and anything the user says — and
+stays silent on the generic food shot, which is probably most café photos.
+
+That silence is the point. Today the model is asked for a place name with no
+evidence and no way to decline, so it produces a plausible invention and the app
+shows it as fact. A lookup makes "never invent a place" **enforceable** instead of
+merely requested: no match, no suggestion.
+
 ### What replaces it: resolve the model's reading, not its coordinates
 
 The model already emits a `query` — the exact text to search in Instagram —
