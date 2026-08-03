@@ -8,6 +8,7 @@ export class HandoffCompanionHarness extends ComponentHarness {
   private readonly items = this.locatorForAll('[data-tray-item]');
   private readonly terms = this.locatorForAll('[data-tray-term]');
   private readonly copyButtons = this.locatorForAll(MatButtonHarness.with({ text: /Copy|Copied/ }));
+  private readonly dismissButtons = this.locatorForAll('[data-tray-dismiss]');
   private readonly saveButton = this.locatorFor(
     MatButtonHarness.with({ text: /Save & open|Preparing/ }),
   );
@@ -27,6 +28,11 @@ export class HandoffCompanionHarness extends ComponentHarness {
   /** Copy the term at `index` (0 = hero). */
   async clickCopy(index: number): Promise<void> {
     await (await this.copyButtons())[index].click();
+  }
+
+  /** Drop the add-on at `index` from the list (0 = hero). */
+  async clickDismiss(index: number): Promise<void> {
+    await (await this.dismissButtons())[index].click();
   }
 
   /** Whether the copy control at `index` has confirmed "Copied". */

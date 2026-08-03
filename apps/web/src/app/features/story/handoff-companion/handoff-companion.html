@@ -23,6 +23,15 @@
         <mat-icon>{{ copiedKey() === h.key ? 'check' : 'content_copy' }}</mat-icon>
         {{ copiedKey() === h.key ? 'Copied' : 'Copy' }}
       </button>
+      <button
+        matIconButton
+        data-tray-dismiss
+        class="flex-none"
+        [attr.aria-label]="'Remove ' + h.query"
+        (click)="dismiss(h)"
+      >
+        <mat-icon>close</mat-icon>
+      </button>
     </div>
 
     <!-- Anything else, quieter — same readable term, lighter copy. -->
@@ -32,6 +41,15 @@
         <p data-tray-term class="mat-body-medium min-w-0 flex-1 leading-snug">{{ item.query }}</p>
         <button matButton class="flex-none" (click)="copy(item)">
           {{ copiedKey() === item.key ? 'Copied' : 'Copy' }}
+        </button>
+        <button
+          matIconButton
+          data-tray-dismiss
+          class="flex-none"
+          [attr.aria-label]="'Remove ' + item.query"
+          (click)="dismiss(item)"
+        >
+          <mat-icon>close</mat-icon>
         </button>
       </div>
     }
