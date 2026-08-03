@@ -30,8 +30,10 @@ function jsonResponse(frames: unknown): { text: string } {
 
 async function makeService(
   generateContent: jest.Mock,
-  opts: { enabled?: boolean; composeLayouts?: jest.Mock } = {},
+  opts: { composeLayouts?: jest.Mock } = {},
 ): Promise<StoryGeneratorService> {
+  // The layout agent always runs; the identity default leaves frames untouched
+  // (no layout) so the tests that assert the plain frames stay valid.
   const composeLayouts =
     opts.composeLayouts ??
     jest.fn((frames: Frame[]) => Promise.resolve(frames));
@@ -42,14 +44,7 @@ async function makeService(
       { provide: LayoutAgentService, useValue: { composeLayouts } },
       {
         provide: ConfigService,
-        useValue: {
-          get: (k: string, d: unknown) =>
-            k === 'LAYOUT_AGENT_ENABLED'
-              ? opts.enabled
-                ? 'true'
-                : undefined
-              : d,
-        },
+        useValue: { get: (_k: string, d: unknown) => d },
       },
     ],
   }).compile();
@@ -269,21 +264,7 @@ describe('StoryGeneratorService', () => {
     });
   });
 
-  it('does not run the layout agent by default (flag off)', async () => {
-    const generateContent = jest
-      .fn()
-      .mockResolvedValue(
-        jsonResponse([{ photoId: 'p1', order: 1, caption: 'x' }]),
-      );
-    const composeLayouts = jest.fn();
-    const service = await makeService(generateContent, { composeLayouts });
-
-    await service.generate(makeRequest(3));
-
-    expect(composeLayouts).not.toHaveBeenCalled();
-  });
-
-  it('runs the layout agent and returns its frames when enabled', async () => {
+  it('runs the layout agent on every story, threading the atmosphere', async () => {
     const generateContent = jest.fn().mockResolvedValue(
       jsonResponse([
         { photoId: 'p1', order: 1, caption: 'hook' },
@@ -293,10 +274,7 @@ describe('StoryGeneratorService', () => {
     const composeLayouts = jest.fn((frames: Frame[]) =>
       Promise.resolve(frames.map((f) => ({ ...f, layout: { elements: [] } }))),
     );
-    const service = await makeService(generateContent, {
-      enabled: true,
-      composeLayouts,
-    });
+    const service = await makeService(generateContent, { composeLayouts });
 
     const result = await service.generate({
       ...makeRequest(3),
