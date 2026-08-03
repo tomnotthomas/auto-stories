@@ -63,8 +63,12 @@ export async function renderFrame(file: File, frame: EditableFrame): Promise<Blo
   // exactly. Colour comes from the device sampling (7.10).
   if (frame.composition) {
     const palette = paletteFor();
+    // The Look states its own polarity when it lays a scrim; `auto` defers to
+    // the luminance sampled from the photo (7.10).
+    const declared = frame.composition.ink;
+    const light = declared === 'auto' ? frame.light : declared === 'light';
     drawComposition(ctx, frame.composition, FRAME_W, FRAME_H, {
-      ink: frame.light ? palette.textLight : palette.textDark,
+      ink: light ? palette.textLight : palette.textDark,
       accent: frame.accent ?? frame.composition.accent,
     });
     return canvas.convertToBlob({ type: 'image/png' });

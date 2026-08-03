@@ -10,8 +10,8 @@
   class="absolute"
   [style.left.%]="composition().leftPct"
   [style.right.%]="composition().rightPct"
-  [style.top.%]="composition().anchor === 'top' ? composition().offsetHPct : null"
-  [style.bottom.%]="composition().anchor === 'bottom' ? composition().offsetHPct : null"
+  [style.top]="composition().anchor === 'top' ? edgeOffset() : null"
+  [style.bottom]="composition().anchor === 'bottom' ? edgeOffset() : null"
 >
   @for (part of parts(); track $index) {
     @if (isText(part)) {

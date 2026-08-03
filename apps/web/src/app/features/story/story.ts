@@ -133,6 +133,14 @@ export class Story {
   protected readonly hasAddOns = computed(() => this.story.keptSuggestionCount() > 0);
 
   /** Frames in narrative order, each resolved to its picked photo. */
+  /**
+   * How much of the frame the bottom action bar covers on screen (its 136px of
+   * buttons plus the 24px `bottom-6` gap). The exported PNG has no action bar,
+   * so a Look's bottom offset is measured from the bottom of the usable frame
+   * and only the preview allows for this.
+   */
+  protected readonly ACTION_BAR_PX = 160;
+
   protected readonly frames = computed<ViewFrame[]>(() => {
     const photos = this.story.photos();
     const palette = paletteFor();

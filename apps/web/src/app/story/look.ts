@@ -94,7 +94,11 @@ export interface TextPart extends TypeStyle {
   readonly gapHPct: number;
   readonly mark?: Mark;
   /** A small filled block before the text — Magazine's kicker tab. */
-  readonly tab?: { readonly widthWPct: number; readonly heightHPct: number; readonly gapWPct: number };
+  readonly tab?: {
+    readonly widthWPct: number;
+    readonly heightHPct: number;
+    readonly gapWPct: number;
+  };
 }
 
 /** A hairline. Width is a % of the type column, thickness a % of frame HEIGHT. */
@@ -125,9 +129,18 @@ export interface Scrim {
   readonly strength: number;
 }
 
+/**
+ * Which way a Look's type reads. A Look that lays its own scrim has already
+ * decided what is behind the words, so it states the polarity outright;
+ * `auto` defers to the luminance the device sampled from the photo (7.10),
+ * which is what a Look with no scrim needs.
+ */
+export type Ink = 'light' | 'dark' | 'auto';
+
 /** One frame, fully composed and ready to draw. */
 export interface Composition {
   readonly lookId: LookId;
+  readonly ink: Ink;
   /** The type column, as % of the frame width. */
   readonly leftPct: number;
   readonly rightPct: number;
@@ -254,7 +267,10 @@ function coalesce(words: readonly { text: string; emphasised: boolean }[]): Run[
   for (const word of words) {
     const last = runs[runs.length - 1];
     if (last && (last.emphasised === true) === word.emphasised) {
-      runs[runs.length - 1] = { text: last.text + word.text, ...(word.emphasised ? { emphasised: true } : {}) };
+      runs[runs.length - 1] = {
+        text: last.text + word.text,
+        ...(word.emphasised ? { emphasised: true } : {}),
+      };
     } else {
       runs.push(word.emphasised ? { text: word.text, emphasised: true } : { text: word.text });
     }

@@ -28,8 +28,25 @@ export class LayoutView {
   readonly accent = input<string | undefined>(undefined);
   /** true → light (white) type, false → dark; computed on-device (7.10). */
   readonly light = input(true);
+  /**
+   * Chrome overlaying the bottom of the preview (the action bar) that the
+   * exported PNG does not have. A Look's offset is measured from the bottom of
+   * the *usable* frame, so the preview adds this and the export passes nothing —
+   * otherwise a bottom-anchored masthead renders correctly at 1080×1920 and sits
+   * behind the buttons on screen (the same trap as the caption fix, 7c9df88).
+   */
+  readonly safeBottomPx = input(0);
 
   protected readonly parts = computed<readonly Part[]>(() => this.composition().parts);
+
+  /** Where the stack hangs from, in CSS, once the preview's chrome is allowed for. */
+  protected readonly edgeOffset = computed<string>(() => {
+    const offset = `${this.composition().offsetHPct}%`;
+    const inset = this.safeBottomPx();
+    return this.composition().anchor === 'bottom' && inset > 0
+      ? `calc(${offset} + ${inset}px)`
+      : offset;
+  });
 
   protected isText(part: Part): part is TextPart {
     return part.kind === 'text';
@@ -43,10 +60,12 @@ export class LayoutView {
     return part.kind === 'row';
   }
 
-  /** The legible ink colour for this frame. */
+  /** The legible ink colour: the Look's own polarity, or the sampled one (7.10). */
   protected get ink(): string {
     const palette = paletteFor();
-    return this.light() ? palette.textLight : palette.textDark;
+    const declared = this.composition().ink;
+    const isLight = declared === 'auto' ? this.light() : declared === 'light';
+    return isLight ? palette.textLight : palette.textDark;
   }
 
   protected colorFor(part: TextPart | RowPart | RulePart): string {
@@ -60,9 +79,7 @@ export class LayoutView {
 
   /** `.head u` — the accent bar riding the baseline of an emphasised phrase. */
   protected markStyle(part: TextPart): string | null {
-    return part.mark === 'accent-underline'
-      ? `inset 0 -0.1em 0 ${this.accentColor}`
-      : null;
+    return part.mark === 'accent-underline' ? `inset 0 -0.1em 0 ${this.accentColor}` : null;
   }
 
   /** The gradient that keeps type readable over an unknown photo. */

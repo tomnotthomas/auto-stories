@@ -116,6 +116,9 @@ function compose(content: FrameContent, photo: PhotoAnalysis): Composition {
 
   return {
     lookId: 'magazine-masthead',
+    // The scrim below is unconditional, so the words always sit on a dark
+    // gradient — white type, whatever the photo underneath is doing.
+    ink: 'light',
     leftPct: COLUMN_INSET_WPCT,
     rightPct: COLUMN_INSET_WPCT,
     anchor,
