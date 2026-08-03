@@ -56,7 +56,7 @@ describe('App (e2e)', () => {
    * architecture 6.1: the route answers 202 straight away so a 30-photo run
    * can't hold the request open past Render's timeout.
    */
-  async function enqueue(body: unknown): Promise<string> {
+  async function enqueue(body: object): Promise<string> {
     const res = await request(app.getHttpServer())
       .post('/api/v1/generate')
       .send(body)
@@ -80,7 +80,7 @@ describe('App (e2e)', () => {
   }
 
   /** Run a story end to end and assert it succeeded, returning the story. */
-  async function generate(body: unknown): Promise<GenerateResponse> {
+  async function generate(body: object): Promise<GenerateResponse> {
     const state = await settle(await enqueue(body));
     if (state.status !== 'done') {
       throw new Error(`Expected the job to finish, got ${state.status}.`);
