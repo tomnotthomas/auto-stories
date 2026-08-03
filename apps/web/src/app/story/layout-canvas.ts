@@ -1,4 +1,7 @@
 import {
+  PAPER,
+  PAPER_INK,
+  handStroke,
   wrapRuns,
   type Composition,
   type Line,
@@ -43,10 +46,11 @@ export interface CompositionColors {
  * sampled: paper is a material, not a reaction to the photo. It doubles as the
  * light tone type reverses to when it sits on accent (a block mark, a chip).
  */
-export const PAPER = '#f7f4ec';
+// Re-exported: the paper tone is shared with the DOM half, and callers of the
+// canvas renderer read it from here.
+export { PAPER };
 
 /** The dark the paper tone is legible against — the ink that goes ON paper. */
-const PAPER_INK = '#1f1b16';
 
 /** The slice of a 2D context the renderer needs — structural, so tests can pass
  * a lightweight fake instead of a real canvas. */
@@ -386,13 +390,15 @@ function drawHandUnderline(
   runWidth: number,
   seed: string,
 ): void {
+  // The shape is shared with the DOM half so the same word bends identically in
+  // the preview and in the export; only the scale is ours.
+  const stroke = handStroke(seed);
   const baseline = top + paint.lineHeight - paint.fontPx * 0.08;
-  const wander = paint.fontPx * 0.07;
-  const startY = baseline + (jitter(seed, 1) - 0.5) * wander * 2;
-  const endY = baseline + (jitter(seed, 2) - 0.5) * wander * 2;
-  const sag = paint.fontPx * (0.05 + jitter(seed, 3) * 0.07);
-  const lift = paint.fontPx * (0.02 + jitter(seed, 4) * 0.06);
-  const overshoot = paint.fontPx * 0.05;
+  const startY = baseline + stroke.startY * paint.fontPx;
+  const endY = baseline + stroke.endY * paint.fontPx;
+  const sag = paint.fontPx * stroke.sag;
+  const lift = paint.fontPx * stroke.lift;
+  const overshoot = paint.fontPx * stroke.overshoot;
 
   ctx.strokeStyle = paint.accent;
   ctx.lineWidth = Math.max(1, paint.fontPx * 0.075);
@@ -642,14 +648,6 @@ function clamp01(value: number): number {
 }
 
 /** A stable 0…1 from a string — the hand-drawn wobble must not move on redraw. */
-function jitter(seed: string, salt: number): number {
-  let hash = 2166136261 ^ salt;
-  for (let i = 0; i < seed.length; i += 1) {
-    hash ^= seed.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  return ((hash >>> 0) % 1000) / 1000;
-}
 
 /** Runs joined — handy for tests and for measuring a whole line. */
 export function lineText(line: { runs: readonly Run[] }): string {

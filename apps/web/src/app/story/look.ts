@@ -328,6 +328,57 @@ export function wrapRuns(
   return lines.map((line) => ({ runs: coalesce(line) }));
 }
 
+/**
+ * The off-white a Look lays down for its own panels and tape, and the near-black
+ * that reads on it. Fixed materials, not sampled — a sheet of paper does not
+ * react to the photograph under it. Shared so both renderers paint the same
+ * tone; they diverged while they were written in parallel.
+ */
+export const PAPER = '#f7f4ec';
+export const PAPER_INK = '#1f1b16';
+
+/**
+ * The shape of a hand-drawn underline, in units of the type's own size: each end
+ * at its own height, a sag on the way out and a lift on the way back, plus a
+ * little overshoot past the word.
+ *
+ * Shared, and this matters. Both surfaces draw this stroke, and each derived its
+ * wobble from its own constants while they were built in parallel — so the same
+ * word bent one way in the preview and another in the export. A composition is
+ * supposed to look identical on both. One source, scaled by each renderer.
+ */
+export interface HandStroke {
+  readonly startY: number;
+  readonly endY: number;
+  readonly sag: number;
+  readonly lift: number;
+  readonly overshoot: number;
+}
+
+/**
+ * Derive a stroke from the word itself, so it is stable: the same word always
+ * bends the same way, and redrawing never makes it twitch.
+ */
+export function handStroke(word: string): HandStroke {
+  return {
+    startY: (jitter(word, 1) - 0.5) * 0.14,
+    endY: (jitter(word, 2) - 0.5) * 0.14,
+    sag: 0.05 + jitter(word, 3) * 0.07,
+    lift: 0.02 + jitter(word, 4) * 0.06,
+    overshoot: 0.05,
+  };
+}
+
+/** FNV-1a over the word, so the wobble is a pure function of the input. */
+function jitter(seed: string, salt: number): number {
+  let hash = 2166136261 ^ salt;
+  for (let i = 0; i < seed.length; i += 1) {
+    hash ^= seed.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return ((hash >>> 0) % 1000) / 1000;
+}
+
 /** Every text part of a composition — the convenience most callers want. */
 export function textParts(composition: Composition): TextPart[] {
   return composition.parts.filter((part): part is TextPart => part.kind === 'text');

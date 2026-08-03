@@ -1,6 +1,7 @@
 import { Component, computed, input } from '@angular/core';
 
 import { paletteFor } from '../../../story/caption-palette';
+import { PAPER, PAPER_INK, handStroke } from '../../../story/look';
 import type {
   Composition,
   Mark,
@@ -28,14 +29,6 @@ import type {
  * Colour is not decided here: parts declare `ink` or `accent`, and `ink` resolves
  * to the legible white/dark computed from the pixels behind the type (7.10).
  */
-
-/**
- * The off-white a Look lays down for its own panels and taped notes, and the
- * near-black that reads on it. Kept in step with `PAPER` / `PAPER_INK` in
- * `layout-canvas.ts`: both halves have to paint the same material.
- */
-const PAPER = '#f7f4ec';
-const PAPER_INK = '#1f1b16';
 
 /** Outline weight for stencilled type, as a fraction of the type size. */
 const STROKE_EM = 0.028;
@@ -230,7 +223,7 @@ export class LayoutView {
         return `linear-gradient(to bottom, transparent 28%, ${wash} 28%, ${wash} 82%, transparent 82%)`;
       }
       case 'hand-underline':
-        return `${handStroke(run.text, accent)} no-repeat left bottom / 100% 0.3em`;
+        return `${handStrokeImage(run.text, accent)} no-repeat left bottom / 100% 0.3em`;
       default:
         return null;
     }
@@ -348,11 +341,17 @@ function tilt(degrees: number | undefined): number | null {
  * The wobble is a hash of the word, so a given word always wobbles the same way
  * and a redraw never makes the line twitch.
  */
-function handStroke(seed: string, color: string): string {
-  const startY = 7 + jitter(seed, 1) * 3;
-  const endY = 7 + jitter(seed, 2) * 3;
-  const sag = 1.5 + jitter(seed, 3) * 2.5;
-  const lift = 1 + jitter(seed, 4) * 2.5;
+function handStrokeImage(seed: string, color: string): string {
+  // The shape comes from the shared `handStroke` so the same word bends the same
+  // way here and in the export; the viewBox below is only how we scale it. The
+  // two halves each had their own constants when they were written in parallel,
+  // which quietly broke the promise that a preview matches its PNG.
+  const stroke = handStroke(seed);
+  const MID = 8.5;
+  const startY = MID + stroke.startY * 14;
+  const endY = MID + stroke.endY * 14;
+  const sag = stroke.sag * 14;
+  const lift = stroke.lift * 14;
   const path = `M1 ${round(startY)} C30 ${round(startY + sag)} 66 ${round(endY - lift)} 99 ${round(
     endY,
   )}`;
@@ -360,15 +359,6 @@ function handStroke(seed: string, color: string): string {
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 14" preserveAspectRatio="none">` +
     `<path d="${path}" fill="none" stroke="${color}" stroke-width="3" stroke-linecap="round"/></svg>`;
   return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
-}
-
-/** A stable 0…1 from a word, so a hand mark is the same every render. */
-function jitter(seed: string, salt: number): number {
-  let hash = (salt * 2654435761) >>> 0;
-  for (let index = 0; index < seed.length; index += 1) {
-    hash = (Math.imul(hash, 31) + seed.charCodeAt(index)) >>> 0;
-  }
-  return (hash % 1000) / 1000;
 }
 
 function clamp01(value: number): number {
