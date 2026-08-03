@@ -36,6 +36,9 @@ describe('buildLayoutPrompt', () => {
     expect(prompt).toContain('safe margin');
     // Colour/scrim is the app's job, not the model's (7.10).
     expect(prompt).toMatch(/do not choose colour|app computes/);
+    // Restraint (usually one element) and no frame-number chrome.
+    expect(prompt).toMatch(/one element|restrained/);
+    expect(prompt).toMatch(/frame number|no chrome|"01"/);
   });
 
   it('honours a given atmosphere, else asks the model to infer it', () => {

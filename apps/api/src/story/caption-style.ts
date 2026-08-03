@@ -143,10 +143,14 @@ const ANCHORS: readonly LayoutElementAnchorEnum[] = [
   'bottom-right',
 ];
 
-/** A frame's layout carries at most this many placed elements. */
-export const MAX_LAYOUT_ELEMENTS = 6;
+/** A frame's layout is restrained: at most this many placed elements (usually
+ * one). More reads as decorated, not designed. */
+export const MAX_LAYOUT_ELEMENTS = 2;
 /** The client size ramp has this many steps, so `size` is an index in [0, 6]. */
 export const SIZE_STEPS = 7;
+/** A frame index / count like "01", "1/5", "no. 3" — brand chrome, not personal,
+ * so it's dropped even if the model emits it. */
+const INDEX_LABEL = /^(no\.?\s*)?\d{1,2}(\s*(of|\/|-|–|—|·)\s*\d{1,2})?$/i;
 
 /** Keep a finite number clamped to [min, max]; otherwise use `fallback`. */
 function clampNum(
@@ -179,7 +183,8 @@ export function normalizeLayout(raw: unknown): Layout | undefined {
     if (typeof entry !== 'object' || entry === null) continue;
     const e = entry as Record<string, unknown>;
     const text = typeof e['text'] === 'string' ? e['text'].trim() : '';
-    if (text === '') continue;
+    // Drop empties and frame-index chrome ("01", "1/5") — never personal.
+    if (text === '' || INDEX_LABEL.test(text)) continue;
     const element: LayoutElement = {
       role: pick(ROLES, e['role'], 'title'),
       text,
