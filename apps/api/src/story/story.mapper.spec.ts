@@ -34,7 +34,9 @@ describe('shapeFrames', () => {
 
     expect(frames.map((f) => f.photoId)).toEqual(['a', 'b', 'c']);
     expect(frames.map((f) => f.headline)).toEqual(['', '', 'real']);
-    expect(shapeFrames([{ photoId: 'a', order: 1, headline: 42 }], ids)[0].headline).toBe('');
+    expect(
+      shapeFrames([{ photoId: 'a', order: 1, headline: 42 }], ids)[0].headline,
+    ).toBe('');
   });
 
   it('trims the headline', () => {
