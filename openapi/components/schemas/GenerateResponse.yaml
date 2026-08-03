@@ -1,7 +1,9 @@
 type: object
-required: [frames]
+required: [frames, look]
 additionalProperties: false
 properties:
+  look:
+    $ref: './Look.yaml'
   frames:
     type: array
     description: The chosen photos in order. May be a subset of the request.
