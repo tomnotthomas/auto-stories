@@ -119,6 +119,12 @@ jobs:
       - name: Test (with coverage gate)
         run: npm run test:cov --workspace apps/api
 
+      # Jest's rootDir is `src`, so the unit run never sees these. Without this
+      # step the e2e suite drifts from the routes silently — it did, through the
+      # move to async generation (6.1) and the Looks engine (7.24).
+      - name: Test (end-to-end)
+        run: npm run test:e2e --workspace apps/api
+
       - name: Upload coverage report
         if: always()
         uses: actions/upload-artifact@v4
