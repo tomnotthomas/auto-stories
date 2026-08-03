@@ -37,16 +37,52 @@ describe('buildPrompt', () => {
     expect(prompt).toMatch(/location|gif|poll|music/);
   });
 
-  it('tells the model to vary headline length per photo, not a uniform terseness', () => {
+  // Decision 7.26: the model picks how much the photo needs from a fixed
+  // vocabulary, instead of guessing an amount the design never asked for. The
+  // old "vary the headline length" wording said the same thing vaguely and is
+  // replaced by the five rungs below.
+  it('asks for a density per frame and names all five rungs', () => {
+    const prompt = buildPrompt(story);
+    expect(prompt).toContain('`density`');
+    for (const rung of ['silent', 'beat', 'line', 'thought', 'question']) {
+      expect(prompt).toContain(`\`${rung}\``);
+    }
+  });
+
+  it('gives each rung an amount of text, so the rungs are distinguishable', () => {
     const prompt = buildPrompt(story).toLowerCase();
-    // A self-explanatory photo still breathes…
-    expect(prompt).toContain('breathe');
-    expect(prompt).toContain('vary');
-    // …but a frame that needs context earns a fuller line.
-    expect(prompt).toMatch(/fuller line|short sentence/);
-    // The headlines across the story should have rhythm, not the same few words.
-    expect(prompt).toMatch(/rhythm|never a uniform/);
-    // The judgement is about the headline now — there is no second text field.
+    expect(prompt).toMatch(/1 to 3 words/);
+    expect(prompt).toMatch(/4 to 12 words/);
+    expect(prompt).toMatch(/15 to 35 words|2 to 3 lines/);
+  });
+
+  // The first failure mode: a model that treats an empty headline as a mistake
+  // captions every frame, and the story reads as relentless.
+  it('makes clear that silent is a correct choice, not a failure', () => {
+    const prompt = buildPrompt(story).toLowerCase();
+    expect(prompt).toMatch(/no text at all|no words at all/);
+    expect(prompt).toMatch(/not a failure|real, correct choice/);
+    expect(prompt).toMatch(/relentless|every frame is captioned/);
+  });
+
+  // The second: `thought` and `line` collapse into each other unless the
+  // prompt says outright that a thought is more text.
+  it('separates thought from line by making thought deliberately longer', () => {
+    const prompt = buildPrompt(story).toLowerCase();
+    expect(prompt).toMatch(/more text than a `line`|deliberately more text/);
+  });
+
+  // The third: a uniform row of same-length labels.
+  it('asks for rhythm across the story, never a uniform row of labels', () => {
+    const prompt = buildPrompt(story).toLowerCase();
+    expect(prompt).toContain('rhythm');
+    expect(prompt).toMatch(/never a uniform/);
+  });
+
+  it('ties the headline to the density the model chose', () => {
+    const prompt = buildPrompt(story).toLowerCase();
+    expect(prompt).toMatch(/write the `headline` to the density/);
+    expect(prompt).toMatch(/must agree/);
     expect(prompt).toContain('headline');
   });
 
