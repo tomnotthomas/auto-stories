@@ -97,23 +97,22 @@ describe('LayoutAgentService.composeLayouts', () => {
     expect(out[1].layout).toBeDefined();
   });
 
-  it('threads recent lead anchors forward so frames do not repeat', async () => {
+  it('art-directs every frame in one parallel pass', async () => {
     const generateContent = jest
       .fn()
-      .mockResolvedValueOnce(
-        layoutResponse(elementJson({ anchor: 'top-left' })),
-      )
-      .mockResolvedValueOnce(
-        layoutResponse(elementJson({ anchor: 'bottom-right' })),
-      );
+      .mockResolvedValue(layoutResponse(elementJson()));
     const service = await makeService(generateContent);
 
-    await service.composeLayouts([frame('a', 1), frame('b', 2)], photos, opts);
+    const out = await service.composeLayouts(
+      [frame('a', 1), frame('b', 2)],
+      photos,
+      opts,
+    );
 
-    // The 2nd frame's prompt must mention the 1st frame's lead anchor.
-    const secondPrompt = generateContent.mock.calls[1][0].contents[0].parts[0]
-      .text as string;
-    expect(secondPrompt).toContain('top-left');
+    // One call per frame, results in frame order.
+    expect(generateContent).toHaveBeenCalledTimes(2);
+    expect(out.map((f) => f.photoId)).toEqual(['a', 'b']);
+    expect(out.every((f) => f.layout)).toBe(true);
   });
 
   it('keeps a frame unchanged when its layout call fails', async () => {
