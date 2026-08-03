@@ -103,7 +103,7 @@ also still emits placement, which 7.24 said it never would again.
 ### Slice 1 — one text per frame
 - Drop the caption/headline split. `headline` is the frame's words.
 - Refine renders the **same** composition as view and edits `headline`.
-- Delete `texts` / `TextBlock` and the model's `style` placement fields. Keep `letterbox` (non-9:16 fill), moved onto the frame.
+- Delete `texts` / `TextBlock` and `Style` outright. `letterbox` looked worth keeping but is dead — it is normalized and defaulted and no renderer ever reads it, since `drawCover` always cover-fits.
 
 ### Slice 2 — the pipeline itself
 - Give the composition a **free-space map** it subtracts from, rather than a band score it reads once.
@@ -113,10 +113,66 @@ also still emits placement, which 7.24 said it never would again.
 - A location the Look draws itself (Magazine byline, Scrapbook tape tag, Poster pill) is consumed by the design and must **not** also draw as a sticker — that is today's double-location bug.
 - Drop `position` from `Suggestion` in the contract; stage 4 decides placement.
 
-### Slice 3 — tell the model how much fits
-- The model needs a **length budget**, not layout. Each Look declares one per field (e.g. Magazine kicker ≤ 24 chars, headline ≤ 42; Poster headline ≤ 18).
-- The Look is picked in the same call that writes the words, so the budget cannot be tailored to it in that prompt. State all six budgets in the prompt **and** clamp on the client, because the model will still miss.
-- Extend the content-aware type fit (5ccf7a8) per Look instead of globally.
+### Slice 3 — the designer and the content creator, working from one brief
+
+Two parties decide a frame together: a **designer**, who builds the frame and
+says where things go, and a **content creator**, who fills it while making sure
+the story is actually told. Neither can do the frame alone — design without story
+is decoration, story without design is a note on a picture.
+
+They do **not** take turns. A real back-and-forth means several model calls per
+frame, which is exactly what 7.23 was and why it timed out. Instead they share a
+brief, and meet deterministically:
+
+- The **content creator picks a density** for each photo — how much this moment
+  needs. It has seen the photo, so this is its judgement to make.
+- The **designer publishes what it can set at each density** — the slot, the type
+  ramp, whether a kicker exists, how many characters fit before it stops looking
+  designed.
+- **They resolve in code**: density picks the slot; if the words overflow it, the
+  Look re-ramps or trims. That is the back-and-forth, done instantly, per frame,
+  in parallel, at no cost.
+
+The model still decides what the image needs — it just decides knowing what the
+design will do with each answer.
+
+#### The density set
+
+| Density | What it is | Roughly |
+| --- | --- | --- |
+| `silent` | the photo speaks for itself | no text |
+| `beat` | a label, an exhale | 1–3 words |
+| `line` | one sentence that lands the moment | 4–12 words |
+| `thought` | something reflective — clearly more text | 2–3 lines, 15–35 words |
+| `question` | invites the viewer to answer | one short question |
+
+- `thought` must feel **deliberately bigger** than `line` or the model collapses
+  the two. The design gives it a different slot, not just more words in the same one.
+- `question` is strictly a different axis from the others — they are about *how
+  much*, it is about *what for*. It is still one rung of the same enum, so the
+  model cannot emit nonsense like "silent + question", and so a Look can set a
+  question differently from a statement: it invites a reply.
+- A `question` frame is what should pair with Instagram's poll/question sticker
+  in stage 4, so the two stop being unrelated decisions.
+- **`silent` is a legitimate choice, not a failure.** Slice 1 currently drops a
+  frame with no `headline`; that is wrong under this model and must be undone —
+  see below.
+
+#### Also in this slice
+- Each Look declares a per-density budget (e.g. Magazine `beat` ≤ 24 chars, `line` ≤ 42).
+- The Look is picked in the same call that writes the words, so the budget cannot be tailored to it in that prompt. State every Look's budget in the prompt **and** clamp on the client, because the model will still miss.
+- Extend the content-aware type fit (`fitMultiplier`, 5ccf7a8) per Look and per density instead of globally.
+
+#### Correction to slice 1
+Slice 1 made a frame with a missing or blank `headline` **unusable, and dropped
+it**. That was right while every frame had to carry words; it is wrong once
+`silent` exists. When density lands, no-text must mean "the photo speaks for
+itself" and the frame must survive.
+
+#### If a real critique is still needed
+Do **one pass over the whole story**, not one per frame — a single extra model
+call reviewing every frame together. Per-frame review is 7.23, which timed out on
+every story.
 
 ### Slice 4 — know a face from a plate of food
 - The P1 detector scores three bands by luminance variance + edge density. It moves the masthead off a busy bottom, but it cannot tell a subject from clutter.
