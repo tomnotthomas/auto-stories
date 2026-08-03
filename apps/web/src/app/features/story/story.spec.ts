@@ -1,15 +1,36 @@
+import type { WritableSignal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import type { Frame } from '@auto-stories/api-types';
 
 import { Story } from './story';
 import { StoryHarness } from './story.harness';
-import { StoryService } from '../../story/story.service';
+import { StoryService, type EditableFrame } from '../../story/story.service';
 import { StoryExporter } from '../../story/story-exporter.service';
+import { composeFrame, type Composition, type PhotoAnalysis } from '../../story/look';
+
+/** An evenly lit photo, so the Look's band choice is not what's under test. */
+const CALM_PHOTO: PhotoAnalysis = {
+  accent: '#e8663a',
+  bands: { top: 0.1, middle: 0.1, bottom: 0.1 },
+};
+
+/**
+ * Put a composition on a frame directly. The service composes frames inside
+ * computeReadable(), which needs a decoded bitmap — jsdom has no canvas, so the
+ * render path is exercised by seeding the same state the decode would produce.
+ */
+function setComposition(service: StoryService, photoId: string, composition: Composition): void {
+  const frames = (service as unknown as { _frames: WritableSignal<readonly EditableFrame[]> })
+    ._frames;
+  frames.update((list) =>
+    list.map((frame) => (frame.photoId === photoId ? { ...frame, composition } : frame)),
+  );
+}
 
 const frames: Frame[] = [
-  { photoId: 'a', order: 1, caption: 'Everyone made it to the lake', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } },
-  { photoId: 'b', order: 2, caption: 'Then she blew out the candle', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } },
+  { photoId: 'a', order: 1, caption: 'Everyone made it to the lake', headline: 'Everyone made it to the lake', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } },
+  { photoId: 'b', order: 2, caption: 'Then she blew out the candle', headline: 'Then she blew out the candle', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } },
 ];
 
 describe('Story', () => {
@@ -37,7 +58,7 @@ describe('Story', () => {
         {
           photoId: 'a',
           order: 1,
-          caption: 'we ate everything',
+          caption: 'we ate everything', headline: 'we ate everything',
           style,
           texts: [
             { text: 'we ate', font: 'playfair', weight: 'bold', case: 'normal', align: 'right', size: 'l', position: 'top-right' },
@@ -54,32 +75,23 @@ describe('Story', () => {
     expect(await harness.extraTexts()).toEqual(['we ate', 'brunch · Tartine']);
   });
 
-  it('renders the art-directed layout when a frame carries one', async () => {
+  it("renders the frame's composition when it has composed under the story Look", async () => {
     await TestBed.configureTestingModule({ imports: [Story] }).compileComponents();
     story = TestBed.inject(StoryService);
     const style = frames[0].style;
+    const content = { kicker: 'The coast', headline: 'Golden hour' };
     story.completeStory(
-      [
-        {
-          photoId: 'a',
-          order: 1,
-          caption: 'we ate everything',
-          style,
-          layout: {
-            elements: [
-              { role: 'title', text: 'Golden hour', font: 'playfair', weight: 'bold', case: 'normal', align: 'left', size: 4, tracking: 'normal', leading: 'normal', x: 8, y: 12, anchor: 'top-left' },
-              { role: 'deck', text: 'the coast', font: 'inter', weight: 'regular', case: 'normal', align: 'left', size: 2, tracking: 'normal', leading: 'normal', x: 8, y: 82, anchor: 'bottom-left' },
-            ],
-          },
-        },
-      ],
+      [{ photoId: 'a', order: 1, caption: 'we ate everything', ...content, style }],
       false,
+      'magazine-masthead',
     );
+    setComposition(story, 'a', composeFrame('magazine-masthead', content, CALM_PHOTO));
     const fixture = TestBed.createComponent(Story);
     const harness = await TestbedHarnessEnvironment.harnessForFixture(fixture, StoryHarness);
 
-    expect(await harness.hasLayoutView()).toBe(true);
-    expect(await harness.layoutLines()).toEqual(['Golden hour', 'the coast']);
+    const layout = await harness.getLayoutView();
+    expect(layout).not.toBeNull();
+    expect(await layout!.textContents()).toEqual(['The coast', 'Golden hour']);
   });
 
   it('advances to the next frame on tap', async () => {
@@ -97,9 +109,9 @@ describe('Story', () => {
 
   it('preloads the current frame and its neighbours so paging stays in sync', async () => {
     const three: Frame[] = [
-      { photoId: 'a', order: 1, caption: 'one', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } },
-      { photoId: 'b', order: 2, caption: 'two', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } },
-      { photoId: 'c', order: 3, caption: 'three', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } },
+      { photoId: 'a', order: 1, caption: 'one', headline: 'one', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } },
+      { photoId: 'b', order: 2, caption: 'two', headline: 'two', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } },
+      { photoId: 'c', order: 3, caption: 'three', headline: 'three', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } },
     ];
     await TestBed.configureTestingModule({ imports: [Story] }).compileComponents();
     story = TestBed.inject(StoryService);
@@ -198,7 +210,7 @@ describe('Story', () => {
     const withLocation: Frame = {
       photoId: 'a',
       order: 1,
-      caption: 'By the lake',
+      caption: 'By the lake', headline: 'By the lake',
       style: STYLE,
       suggestions: [{ type: 'location', query: 'Bixby Bridge', confidence: 0.9 }],
     };
@@ -230,7 +242,7 @@ describe('Story', () => {
     });
 
     it('hands off directly, with no card, when there are no add-ons', async () => {
-      const harness = await postWith([{ photoId: 'a', order: 1, caption: 'x', style: STYLE }]);
+      const harness = await postWith([{ photoId: 'a', order: 1, caption: 'x', headline: 'x', style: STYLE }]);
 
       expect(await harness.hasTray()).toBe(false);
       expect(post).toHaveBeenCalledTimes(1);

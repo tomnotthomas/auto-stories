@@ -1,43 +1,49 @@
-import { resolveLayout, type LayoutSpec, type ResolvedElement } from './layout-spec';
+import {
+  wrapRuns,
+  type Composition,
+  type Line,
+  type PartColor,
+  type RowPart,
+  type Run,
+  type TextPart,
+} from './look';
 
 /**
- * The canvas half of the shared spec renderer (decision 7.21, slice 3). Draws a
- * {@link LayoutSpec} onto a 2D context by resolving it once with `resolveLayout`
- * (the same resolution the DOM preview uses, so the two never drift) and painting
- * each element at its anchor.
+ * The canvas half of the Looks renderer (decision 7.24). Draws a
+ * {@link Composition} — the same object the DOM preview draws — so the export
+ * and the preview never drift.
  *
- * Colour is NOT decided here: the caller passes `colorFor`, which resolves the
- * fill (and optional scrim) per element from the sampled pixels (7.10). This keeps
- * the export clean and the module deterministic.
+ * Colour is NOT decided here: the caller passes `colorFor`, which resolves `ink`
+ * from the device's pixel sampling (7.10) and `accent` from the photo. This keeps
+ * the module deterministic and the export clean.
+ *
+ * Geometry arrives in the Looks' authoring units — a percentage of the frame's
+ * width for type sizes, of its height for vertical rhythm — and is multiplied up
+ * to pixels here, so one Look renders identically at preview size and at 1080px.
  */
 
-/** Base caption size in px at the export width; multiplied by an element's ramp. */
-export const LAYOUT_BASE_PX = 64;
-
-export interface ElementColor {
-  readonly fill: string;
-  /** Optional scrim behind the text, for legibility on a busy photo. */
-  readonly scrim?: string;
-  /** Colour for a hand underline beneath this element (7.23), when it has one. */
-  readonly underline?: string;
+export interface CompositionColors {
+  /** The legible text colour computed from the pixels behind the type (7.10). */
+  readonly ink: string;
+  /** The story accent sampled from the photo. */
+  readonly accent: string;
 }
 
-/** Resolve an element's colour from the device's pixel sampling (7.10). */
-export type ColorFor = (element: ResolvedElement, index: number) => ElementColor;
-
-/** The slice of a 2D context {@link drawLayout} needs — structural, so tests can
- * pass a lightweight fake instead of a real canvas. */
+/** The slice of a 2D context the renderer needs — structural, so tests can pass
+ * a lightweight fake instead of a real canvas. */
 export interface Ctx2D {
   font: string;
   textAlign: CanvasTextAlign;
   textBaseline: CanvasTextBaseline;
   fillStyle: string | CanvasGradient | CanvasPattern;
+  globalAlpha: number;
   letterSpacing?: string;
   strokeStyle: string | CanvasGradient | CanvasPattern;
   lineWidth: number;
   lineCap: CanvasLineCap;
   fillText(text: string, x: number, y: number): void;
   measureText(text: string): { width: number };
+  fillRect(x: number, y: number, w: number, h: number): void;
   beginPath(): void;
   moveTo(x: number, y: number): void;
   lineTo(x: number, y: number): void;
@@ -46,109 +52,213 @@ export interface Ctx2D {
   closePath(): void;
   fill(): void;
   stroke(): void;
+  createLinearGradient(x0: number, y0: number, x1: number, y1: number): CanvasGradient;
+}
+
+/** One part, measured and ready to paint at a known y. */
+interface Placed {
+  readonly draw: (top: number) => void;
+  readonly height: number;
+  readonly gap: number;
 }
 
 /**
- * Draw every element of `spec` onto `ctx` for a `width`×`height` frame. Wraps long
- * single lines to the element's max width; stacked elements draw one word per line.
- * The anchor + alignment come straight from `resolveLayout`, so a corner-anchored
- * block extends inward and stays on-screen.
+ * Draw a composition onto `ctx` for a `width`×`height` frame. Parts flow down a
+ * single column; the whole stack then hangs from the composition's anchor edge,
+ * which is what lets a Look sit low on one photo and high on the next without
+ * any part knowing where it ended up.
  */
-export function drawLayout(
+export function drawComposition(
   ctx: Ctx2D,
-  spec: LayoutSpec,
+  composition: Composition,
   width: number,
   height: number,
-  colorFor: ColorFor,
+  colors: CompositionColors,
 ): void {
-  resolveLayout(spec).forEach((el, index) => {
-    const fontPx = Math.round(LAYOUT_BASE_PX * el.sizeScale);
-    ctx.font = `${el.fontWeight} ${fontPx}px ${el.fontFamily}`;
-    if ('letterSpacing' in ctx) {
-      ctx.letterSpacing = `${Math.round(el.letterSpacingEm * fontPx)}px`;
-    }
-    ctx.textAlign = el.hAlign;
-    ctx.textBaseline = 'top';
+  drawScrim(ctx, composition, width, height);
 
-    const cased = (s: string): string => (el.textTransform === 'uppercase' ? s.toUpperCase() : s);
-    const maxWidthPx = (width * el.maxWidthPct) / 100;
-    const source = el.lines.length > 1 ? el.lines : wrap(ctx, el.lines[0] ?? '', maxWidthPx);
-    const lines = source.map(cased);
+  const left = (width * composition.leftPct) / 100;
+  const columnWidth = width * (1 - (composition.leftPct + composition.rightPct) / 100);
+  const resolve = (color: PartColor): string => (color === 'accent' ? colors.accent : colors.ink);
 
-    const lineH = fontPx * el.lineHeight;
-    const blockH = lines.length * lineH;
-    const ax = (width * el.xPct) / 100;
-    const ay = (height * el.yPct) / 100;
-    const blockTop =
-      el.vAlign === 'top' ? ay : el.vAlign === 'bottom' ? ay - blockH : ay - blockH / 2;
-
-    const color = colorFor(el, index);
-    const widest = Math.max(0, ...lines.map((l) => ctx.measureText(l).width));
-    const left = el.hAlign === 'left' ? ax : el.hAlign === 'right' ? ax - widest : ax - widest / 2;
-    if (color.scrim) {
-      const padX = fontPx * 0.5;
-      const padY = fontPx * 0.35;
-      ctx.fillStyle = color.scrim;
-      roundRect(
-        ctx,
-        left - padX,
-        blockTop - padY,
-        widest + padX * 2,
-        blockH + padY * 2,
-        fontPx * 0.35,
-      );
-      ctx.fill();
-    }
-
-    ctx.fillStyle = color.fill;
-    lines.forEach((line, i) => ctx.fillText(line, ax, blockTop + i * lineH));
-
-    // A hand-drawn underline in the accent colour (7.23), a loose bezier stroke.
-    if (el.underline && color.underline) {
-      const y = blockTop + blockH + fontPx * 0.14;
-      ctx.strokeStyle = color.underline;
-      ctx.lineWidth = Math.max(2, fontPx * 0.06);
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.moveTo(left, y);
-      ctx.bezierCurveTo(
-        left + widest * 0.3,
-        y - fontPx * 0.06,
-        left + widest * 0.7,
-        y + fontPx * 0.06,
-        left + widest,
-        y - fontPx * 0.02,
-      );
-      ctx.stroke();
+  const placed: Placed[] = composition.parts.map((part) => {
+    const gap = (height * part.gapHPct) / 100;
+    switch (part.kind) {
+      case 'rule': {
+        const thickness = Math.max(1, (height * part.thicknessHPct) / 100);
+        return {
+          gap,
+          height: thickness,
+          draw: (top) => {
+            ctx.globalAlpha = part.opacity;
+            ctx.fillStyle = resolve(part.color);
+            ctx.fillRect(left, top, (columnWidth * part.widthPct) / 100, thickness);
+            ctx.globalAlpha = 1;
+          },
+        };
+      }
+      case 'row':
+        return placeRow(ctx, part, left, columnWidth, width, height, resolve);
+      default:
+        return placeText(ctx, part, left, columnWidth, width, height, resolve, colors.accent);
     }
   });
-}
 
-/** Greedy word wrap to fit `maxWidth`. */
-function wrap(ctx: Ctx2D, text: string, maxWidth: number): string[] {
-  const words = text.split(/\s+/).filter(Boolean);
-  const lines: string[] = [];
-  let line = '';
-  for (const word of words) {
-    const candidate = line ? `${line} ${word}` : word;
-    if (ctx.measureText(candidate).width > maxWidth && line) {
-      lines.push(line);
-      line = word;
-    } else {
-      line = candidate;
-    }
+  const total = placed.reduce((sum, part) => sum + part.gap + part.height, 0);
+  let top =
+    composition.anchor === 'bottom'
+      ? height - (height * composition.offsetHPct) / 100 - total
+      : (height * composition.offsetHPct) / 100;
+
+  for (const part of placed) {
+    top += part.gap;
+    part.draw(top);
+    top += part.height;
   }
-  if (line) lines.push(line);
-  return lines.length ? lines : [''];
 }
 
-function roundRect(ctx: Ctx2D, x: number, y: number, w: number, h: number, r: number): void {
-  const radius = Math.min(r, w / 2, h / 2);
-  ctx.beginPath();
-  ctx.moveTo(x + radius, y);
-  ctx.arcTo(x + w, y, x + w, y + h, radius);
-  ctx.arcTo(x + w, y + h, x, y + h, radius);
-  ctx.arcTo(x, y + h, x, y, radius);
-  ctx.arcTo(x, y, x + w, y, radius);
-  ctx.closePath();
+/** Measure and prepare a text part: wrap it, then paint runs left to right. */
+function placeText(
+  ctx: Ctx2D,
+  part: TextPart,
+  left: number,
+  columnWidth: number,
+  width: number,
+  height: number,
+  resolve: (color: PartColor) => string,
+  accent: string,
+): Placed {
+  const fontPx = (width * part.fontSizeWPct) / 100;
+  const tabWidth = part.tab ? (width * part.tab.widthWPct) / 100 + (width * part.tab.gapWPct) / 100 : 0;
+  const textLeft = left + tabWidth;
+
+  applyType(ctx, part, fontPx);
+  const cased = (text: string): string =>
+    part.textTransform === 'uppercase' ? text.toUpperCase() : text;
+  const lines = wrapRuns(
+    part.runs,
+    (text) => ctx.measureText(cased(text)).width,
+    columnWidth - tabWidth,
+  );
+
+  const lineHeight = fontPx * part.lineHeight;
+  return {
+    gap: (height * part.gapHPct) / 100,
+    height: Math.max(lines.length, 1) * lineHeight,
+    draw: (top) => {
+      if (part.tab) {
+        const tabHeight = (height * part.tab.heightHPct) / 100;
+        ctx.fillStyle = accent;
+        // Sit the tab on the text's optical centre rather than its box top.
+        ctx.fillRect(left, top + (lineHeight - tabHeight) / 2, (width * part.tab.widthWPct) / 100, tabHeight);
+      }
+      applyType(ctx, part, fontPx);
+      lines.forEach((line, index) => {
+        drawRuns(ctx, line, textLeft, top + index * lineHeight, {
+          fontPx,
+          lineHeight,
+          cased,
+          ink: resolve(part.color),
+          accent,
+          mark: part.mark,
+        });
+      });
+    },
+  };
+}
+
+interface RunPaint {
+  readonly fontPx: number;
+  readonly lineHeight: number;
+  readonly cased: (text: string) => string;
+  readonly ink: string;
+  readonly accent: string;
+  readonly mark: TextPart['mark'];
+}
+
+/** Paint one line's runs in sequence, marking the emphasised ones. */
+function drawRuns(ctx: Ctx2D, line: Line, left: number, top: number, paint: RunPaint): void {
+  let x = left;
+  for (const run of line.runs) {
+    const text = paint.cased(run.text);
+    const runWidth = ctx.measureText(text).width;
+
+    if (run.emphasised && paint.mark === 'accent-underline') {
+      // `.head u { box-shadow: inset 0 -0.5cqh 0 var(--accent) }` — a solid bar
+      // riding the baseline, drawn first so the letters sit on top of it.
+      const bar = paint.fontPx * 0.1;
+      ctx.fillStyle = paint.accent;
+      ctx.fillRect(x, top + paint.lineHeight - bar * 1.6, runWidth, bar);
+    }
+    ctx.fillStyle = paint.ink;
+    ctx.fillText(text, x, top);
+    x += runWidth;
+  }
+}
+
+/** A byline row: one label left, one right, on a shared baseline. */
+function placeRow(
+  ctx: Ctx2D,
+  part: RowPart,
+  left: number,
+  columnWidth: number,
+  width: number,
+  height: number,
+  resolve: (color: PartColor) => string,
+): Placed {
+  const fontPx = (width * part.fontSizeWPct) / 100;
+  const lineHeight = fontPx * part.lineHeight;
+  const cased = (text: string): string =>
+    part.textTransform === 'uppercase' ? text.toUpperCase() : text;
+
+  return {
+    gap: (height * part.gapHPct) / 100,
+    height: lineHeight,
+    draw: (top) => {
+      applyType(ctx, part, fontPx);
+      ctx.fillStyle = resolve(part.color);
+      if (part.left) ctx.fillText(cased(part.left), left, top);
+      if (part.right) {
+        const right = cased(part.right);
+        ctx.fillText(right, left + columnWidth - ctx.measureText(right).width, top);
+      }
+    },
+  };
+}
+
+/** Set the context's type state from a part. */
+function applyType(
+  ctx: Ctx2D,
+  part: TextPart | RowPart,
+  fontPx: number,
+): void {
+  ctx.font = `${part.fontWeight} ${Math.round(fontPx)}px ${part.fontFamily}`;
+  if ('letterSpacing' in ctx) {
+    ctx.letterSpacing = `${(part.letterSpacingEm * fontPx).toFixed(2)}px`;
+  }
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+}
+
+/** The gradient that keeps type readable over an unknown photo. */
+function drawScrim(ctx: Ctx2D, composition: Composition, width: number, height: number): void {
+  const scrim = composition.scrim;
+  if (!scrim) return;
+
+  const extent = (height * scrim.extentHPct) / 100;
+  const from = scrim.from === 'bottom' ? height : 0;
+  const to = scrim.from === 'bottom' ? height - extent : extent;
+  const gradient = ctx.createLinearGradient(0, from, 0, to);
+  if (!gradient) return;
+
+  gradient.addColorStop(0, `rgba(0, 0, 0, ${scrim.strength})`);
+  gradient.addColorStop(0.45, `rgba(0, 0, 0, ${scrim.strength * 0.38})`);
+  gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, Math.min(from, to), width, extent);
+}
+
+/** Runs joined — handy for tests and for measuring a whole line. */
+export function lineText(line: { runs: readonly Run[] }): string {
+  return line.runs.map((run) => run.text).join('');
 }

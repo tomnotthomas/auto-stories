@@ -7,7 +7,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { StoryService, FramePlacement } from '../../story/story.service';
 import { GenerationService } from '../../story/generation.service';
 import { StoryExporter } from '../../story/story-exporter.service';
-import { DEFAULT_STYLE, type Readable } from '../../story/caption-style';
+import { DEFAULT_STYLE } from '../../story/caption-style';
 import { paletteFor } from '../../story/caption-palette';
 import {
   fitMultiplier,
@@ -22,7 +22,8 @@ import { RefineFilmstrip } from '../refine/filmstrip/filmstrip';
 import { StorySparks } from './sparks/sparks';
 import { HandoffCompanion } from './handoff-companion/handoff-companion';
 import { LayoutView } from './layout-view/layout-view';
-import type { Layout, Suggestion } from '@auto-stories/api-types';
+import type { Suggestion } from '@auto-stories/api-types';
+import type { Composition } from '../../story/look';
 
 /** A frame resolved for display: the picked photo plus its editable state. */
 interface ViewFrame {
@@ -48,15 +49,13 @@ interface ViewFrame {
   readonly suggestions: readonly Suggestion[];
   /** Extra placed text blocks the AI added besides the caption (read-only). */
   readonly extraTexts: readonly ViewTextBlock[];
-  /** The art-directed layout the agent composed, when present — supersedes the
-   * caption/style/texts for rendering in view mode (decision 7.21). */
-  readonly layout: Layout | undefined;
-  /** Frame-level computed light (white vs dark text) — the layout fallback. */
+  /** This frame composed under the story's Look — supersedes the
+   * caption/style/texts for rendering in view mode (decision 7.24). */
+  readonly composition: Composition | undefined;
+  /** Frame-level computed light (white vs dark text), from the pixels (7.10). */
   readonly light: boolean;
-  /** Per-element readability for the layout, computed on-device (7.10). */
-  readonly layoutReadable: readonly Readable[] | undefined;
-  /** The layout's accent colour, sampled from the photo (7.23). */
-  readonly layoutAccent: string | undefined;
+  /** The accent colour, sampled from the photo (7.23). */
+  readonly accent: string | undefined;
 }
 
 /** One extra placed text block, resolved to CSS + its editable state. */
@@ -134,6 +133,14 @@ export class Story {
   protected readonly hasAddOns = computed(() => this.story.keptSuggestionCount() > 0);
 
   /** Frames in narrative order, each resolved to its picked photo. */
+  /**
+   * How much of the frame the bottom action bar covers on screen (its 136px of
+   * buttons plus the 24px `bottom-6` gap). The exported PNG has no action bar,
+   * so a Look's bottom offset is measured from the bottom of the usable frame
+   * and only the preview allows for this.
+   */
+  protected readonly ACTION_BAR_PX = 160;
+
   protected readonly frames = computed<ViewFrame[]>(() => {
     const photos = this.story.photos();
     const palette = paletteFor();
@@ -155,10 +162,9 @@ export class Story {
         color: frame.light ? palette.textLight : palette.textDark,
         scrimClass: frame.legibility ? (frame.light ? 'bg-black/40' : 'bg-white/60') : '',
         suggestions: frame.suggestions ?? [],
-        layout: frame.layout,
+        composition: frame.composition,
         light: frame.light,
-        layoutReadable: frame.layoutReadable,
-        layoutAccent: frame.layoutAccent,
+        accent: frame.accent,
         extraTexts: frame.extraTexts.map((b, i) => ({
           index: i,
           text: b.text,

@@ -9,7 +9,8 @@ import {
   type Readable,
 } from './caption-style';
 import { cohesionFilter, frameLuminance } from './caption-cohesion';
-import { resolveLayout } from './layout-spec';
+import { composeFrame, type Composition, type FrameContent } from './look';
+import { sampleBands } from './quiet-zone';
 import { sampleAccent } from './accent-color';
 
 /**
@@ -88,13 +89,26 @@ export interface EditableFrame extends Frame {
   readonly imageFilter: string;
   /** Extra placed text blocks (0–2) besides the caption, each editable. */
   readonly extraTexts: readonly EditableTextBlock[];
-  /** Per-element readability for the AI layout (decision 7.21), parallel to
-   * `layout.elements` — computed on-device so each element is legible against the
-   * pixels under it (7.10). Undefined until computed / when there is no layout. */
-  readonly layoutReadable?: readonly Readable[];
-  /** The accent colour for this frame's layout (7.23), sampled from the photo.
-   * Undefined until computed / when there is no layout. */
-  readonly layoutAccent?: string;
+  /** This frame under the story's Look (decision 7.24) — type, rules and marks,
+   * fully placed. Composed on-device from the frame's words plus what we measured
+   * in the photo, and drawn by both the preview and the export. Undefined until
+   * the photo has been read. */
+  readonly composition?: Composition;
+  /** The accent colour for this frame (7.23), sampled from the photo. */
+  readonly accent?: string;
+}
+
+/** The words a Look composes with (decision 7.24). `headline` is guaranteed by
+ * the server, but fall back to the caption anyway so a frame always composes.
+ * The place name comes from the frame's location suggestion — the Looks that
+ * show one (Magazine's byline, Scrapbook's tag) read it from here. */
+function contentOf(frame: Frame): FrameContent {
+  return {
+    kicker: frame.kicker,
+    headline: frame.headline?.trim() || frame.caption,
+    emphasis: frame.emphasis,
+    location: frame.suggestions?.find((s) => s.type === 'location')?.query,
+  };
 }
 
 /** Build the editable extra-text state for a contract frame's `texts` — each
@@ -155,6 +169,9 @@ export class StoryService {
   private readonly _tone = signal<Tone | null>(null);
   private readonly _frames = signal<readonly EditableFrame[]>([]);
   private readonly _partial = signal(false);
+  /** The story's Look (decision 7.24) — one design language held across every
+   * frame. Undefined until a story arrives; the engine then uses its default. */
+  private readonly _look = signal<string | undefined>(undefined);
   private readonly _error = signal<StoryError | null>(null);
   private readonly _coachSeen = signal(false);
   private readonly _sparks = signal<ReadonlyMap<string, SparkState>>(new Map());
@@ -173,6 +190,7 @@ export class StoryService {
   readonly frames = this._frames.asReadonly();
   /** True when the model dropped a photo but still produced a story (4.3). */
   readonly partial = this._partial.asReadonly();
+  readonly look = this._look.asReadonly();
   /** The current failure, or null. */
   readonly error = this._error.asReadonly();
   /** True once the first-time refine coach mark has been shown (5.9). */
@@ -252,7 +270,8 @@ export class StoryService {
 
   /** Store the finished story and show the payoff. Each contract frame gains its
    * editable refine state (default placement, legibility on). */
-  completeStory(frames: readonly Frame[], partial: boolean): void {
+  completeStory(frames: readonly Frame[], partial: boolean, look?: string): void {
+    this._look.set(look);
     this._frames.set(
       reindex(
         frames.map((frame) => ({
@@ -289,7 +308,7 @@ export class StoryService {
         scrim: boolean;
         filter: string;
         extras: Readable[];
-        layout?: Readable[];
+        composition?: Composition;
         accent?: string;
       }
     >();
@@ -298,22 +317,21 @@ export class StoryService {
       if (!file) continue;
       try {
         const bitmap = await createImageBitmap(file);
-        // One decode does double duty: legibility under each text block + the
-        // exposure match that pulls the whole set together (cohesion).
+        // One decode does several jobs: legibility under each text block, the
+        // exposure match that pulls the whole set together (cohesion), and the
+        // two readings the Looks engine needs — the story accent and how busy
+        // each band of the photo is (7.24).
+        const accent = sampleAccent(bitmap);
+        const composition = composeFrame(this._look(), contentOf(frame), {
+          accent,
+          bands: sampleBands(bitmap),
+        });
         readable.set(frame.photoId, {
           ...pickReadable(sampleLuminance(bitmap, frame.placement)),
           filter: cohesionFilter(frameLuminance(bitmap)),
           extras: frame.extraTexts.map((b) => pickReadable(sampleLuminance(bitmap, b.placement))),
-          // Per-element readability for an AI layout: sample under each element's
-          // own spot, so a title in the bright sky and a deck over dark foreground
-          // each get a legible colour (7.10 / 7.21).
-          layout: frame.layout
-            ? resolveLayout(frame.layout).map((el) =>
-                pickReadable(sampleLuminance(bitmap, { xPct: el.xPct, yPct: el.yPct, scale: 1 })),
-              )
-            : undefined,
-          // One accent colour per frame, pulled from the photo (7.23).
-          accent: frame.layout ? sampleAccent(bitmap) : undefined,
+          composition,
+          accent,
         });
         bitmap.close();
       } catch {
@@ -333,8 +351,8 @@ export class StoryService {
           extraTexts: frame.extraTexts.map((b, i) =>
             r.extras[i] ? { ...b, light: r.extras[i].light, legibility: r.extras[i].scrim } : b,
           ),
-          layoutReadable: r.layout ?? frame.layoutReadable,
-          layoutAccent: r.accent ?? frame.layoutAccent,
+          composition: r.composition ?? frame.composition,
+          accent: r.accent ?? frame.accent,
         };
       }),
     );

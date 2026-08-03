@@ -3,6 +3,7 @@ import { MatButtonHarness } from '@angular/material/button/testing';
 
 import { CaptionEditorHarness } from '../refine/caption-editor/caption-editor.harness';
 import { RefineFilmstripHarness } from '../refine/filmstrip/filmstrip.harness';
+import { LayoutViewHarness } from './layout-view/layout-view.harness';
 
 /** Page-object harness for the finished-story (payoff) viewer. */
 export class StoryHarness extends ComponentHarness {
@@ -19,21 +20,16 @@ export class StoryHarness extends ComponentHarness {
   private readonly manageButton = this.locatorFor(MatButtonHarness.with({ text: /Reorder/ }));
   private readonly editor = this.locatorForOptional(CaptionEditorHarness);
   private readonly filmstrip = this.locatorForOptional(RefineFilmstripHarness);
+  private readonly layoutView = this.locatorForOptional(LayoutViewHarness);
 
   /** The caption of the frame currently shown. */
   async getCaption(): Promise<string> {
     return (await this.caption()).text();
   }
 
-  /** Whether the art-directed layout view is showing (a frame carried a layout). */
-  async hasLayoutView(): Promise<boolean> {
-    return (await this.locatorForOptional('app-layout-view')()) !== null;
-  }
-
-  /** The lines the layout view rendered, in order. */
-  async layoutLines(): Promise<string[]> {
-    const els = await this.locatorForAll('[data-layout-line]')();
-    return Promise.all(els.map(async (el) => (await el.text()).trim()));
+  /** The Looks renderer for the current frame, when the frame composed one. */
+  async getLayoutView(): Promise<LayoutViewHarness | null> {
+    return this.layoutView();
   }
 
   /** The AI's extra placed text blocks shown on the current frame, in order. */

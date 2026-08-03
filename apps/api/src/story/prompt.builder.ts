@@ -8,15 +8,26 @@ import type { Tone } from '@auto-stories/api-types';
  * sweet spot rather than cutting to the bone (2.5), order by the story line and
  * what's visible (strongest hook first → payoff, 2.1), use capture time only as
  * a soft hint, and write specific, grounded captions in the requested tone.
+ *
+ * Since 7.24 the model also names one `look` for the story and writes each
+ * frame's words (headline, optional kicker/emphasis) — but no geometry: the
+ * client composes every frame deterministically from the chosen Look.
  */
 export function buildPrompt(
   story: string,
   tone?: Tone,
   mustInclude?: readonly string[],
+  atmosphere?: string,
 ): string {
   const toneLine = tone
     ? `\n- Match this tone: ${tone}. Let it color word choice, not the facts.`
     : '';
+
+  // The user-set atmosphere (7.21) is a mood judgement, so it steers which Look
+  // the story is set in; without one the model reads the mood off the batch.
+  const atmosphereLine = atmosphere
+    ? `\n- The atmosphere for this story is "${atmosphere}". Let it drive which \`look\` you pick.`
+    : '\n- Read the atmosphere from the photos and the story line (heartfelt, hectic, still, triumphant, tender…) and let it drive which `look` you pick.';
 
   // Photos added by hand during refine must appear and be captioned, even if
   // the story is already at the target length (decision 2.5).
@@ -41,10 +52,14 @@ export function buildPrompt(
     '- Optionally add `texts`: up to 2 EXTRA short text blocks placed elsewhere on the frame besides the caption — a small line and a bigger line in different spots — but only when it makes the frame genuinely more engaging (a phrase pointing at something in the photo, a beat above it). Usually leave it empty; the caption alone is enough (breathe). Each block is { text, font, weight, case, align, size, position } (same sets as the style above; give each its own size and position). Keep every block short.',
     '- Optionally add `suggestions`: 0 to 2 Instagram add-ons per frame, and only when they genuinely fit the moment — most frames should have none. Each is { type (location, mention, gif, poll, music), query, position (same six zones as above; omit it for music, which is story-level), confidence (0..1) }. The `query` is the exact text the user will search for in Instagram, so it must be accurate and searchable: for a place or account use its real NAME, not an @handle, and only when you are confident of it from the story line or what the photo clearly shows; for a gif a short search term; for music a song or a genre/mood; for a poll a short question. When unsure, lower the confidence or leave the suggestion out — never invent a place, handle, or song you cannot stand behind.',
     "- Don't overload a photo. Every mark competes with the image, so prefer a clean frame: a short caption, or a single suggestion — both only when each genuinely adds to the moment, not by default.",
+    '- Pick exactly one `look` for the whole story — the design language every frame is set in, chosen to fit the mood of these photos and this story line. Hold it across every frame; do not switch part-way. The six: `quiet-editorial` — restrained serif, the photo does the talking; `film-postcard` — warm nostalgic 35mm keepsake; `bold-poster` — loud all-caps hype; `scrapbook` — personal handwritten journal; `minimal` — calm and spare, lots of space; `magazine-masthead` — structured editorial spread.',
+    "- Give each frame a `headline`: its main line, short — the design sets it large. It can be the caption itself or a tighter version of it. Optionally add a `kicker`, a short line sitting above the headline (a place, a day, a beat) — usually leave it out. Optionally add an `emphasis`: one word or a short phrase that MUST appear verbatim inside that frame's `headline`, which the design will mark; leave it out when no single word carries the line.",
+    '- Do not choose any position, size, or coordinates for these lines. The design system owns placement, type size and every mark — you only choose the look and write the words.',
+    atmosphereLine,
     toneLine,
     includeLine,
     '',
-    'Return only the chosen photos, each as a frame with its photoId, its 1-based order, its caption, its style, and any suggestions.',
+    'Return the story-level `look`, then only the chosen photos, each as a frame with its photoId, its 1-based order, its caption, its headline (plus kicker/emphasis when they earn a place), its style, and any suggestions.',
   ]
     .filter((line) => line !== '')
     .join('\n');

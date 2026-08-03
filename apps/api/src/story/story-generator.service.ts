@@ -13,8 +13,8 @@ import type {
   Tone,
 } from '@auto-stories/api-types';
 import { ApiException, ApiErrors } from '../common/api-exception';
+import { normalizeLook } from './caption-style';
 import { buildPrompt } from './prompt.builder';
-import { LayoutAgentService } from './layout-agent.service';
 import { shapeFrames } from './story.mapper';
 import { STORY_RESPONSE_SCHEMA } from './story.schema';
 import {
@@ -27,9 +27,12 @@ import {
 
 /**
  * Turns a validated request into an ordered, captioned story via Gemini.
- * A single structured call with a responseSchema (architecture 3.3); the
- * non-deterministic model output is defended by shapeFrames. On a safety
- * block the flagged photo is dropped and the call retried with the rest.
+ * ONE structured call with a responseSchema (architecture 3.3) — the model
+ * picks the story's Look and writes the words, and deterministic client code
+ * composes every frame from that (decision 7.24), so there is no second
+ * geometry pass. The non-deterministic output is defended by shapeFrames and
+ * normalizeLook. On a safety block the flagged photo is dropped and the call
+ * retried with the rest.
  */
 @Injectable()
 export class StoryGeneratorService {
@@ -39,7 +42,6 @@ export class StoryGeneratorService {
 
   constructor(
     @Inject(GENAI) private readonly genai: GoogleGenAI,
-    private readonly layoutAgent: LayoutAgentService,
     config: ConfigService,
   ) {
     this.model = config.get<string>('MODEL', DEFAULT_MODEL);
@@ -61,6 +63,7 @@ export class StoryGeneratorService {
         photos,
         request.tone,
         request.mustInclude,
+        request.atmosphere,
       );
 
       if (response.promptFeedback?.blockReason) {
@@ -77,26 +80,17 @@ export class StoryGeneratorService {
         continue;
       }
 
-      const frames = shapeFrames(parseFrames(response.text), validIds);
+      const parsed = parseStory(response.text);
+      const frames = shapeFrames(parsed.frames, validIds);
       if (frames.length === 0) {
         throw ApiErrors.emptyResult();
       }
 
-      // Second pass: art-direct each frame's typography (decision 7.21). Always
-      // runs now; best-effort per frame, so a failed frame keeps the caption
-      // render and it never fails the story.
-      const finalFrames = await this.layoutAgent.composeLayouts(
-        frames,
-        photos,
-        {
-          story: request.story,
-          tone: request.tone,
-          atmosphere: request.atmosphere,
-        },
-      );
-
       return {
-        frames: finalFrames,
+        frames,
+        // One Look for the whole story; an unknown or missing one falls back so
+        // the client always has a renderer for it (decision 7.24).
+        look: normalizeLook(parsed.look),
         // Curating a subset of the batch is the whole job (the user dumps 30,
         // we keep the best 5–7), not a failure — so only a safety-dropped photo
         // makes a story "partial" (4.3, 2.4/2.5).
@@ -110,9 +104,10 @@ export class StoryGeneratorService {
     photos: Photo[],
     tone?: Tone,
     mustInclude?: string[],
+    atmosphere?: string,
   ): Promise<GenerateContentResponse> {
     const parts: Part[] = [
-      { text: buildPrompt(story, tone, mustInclude) },
+      { text: buildPrompt(story, tone, mustInclude, atmosphere) },
       ...photos.flatMap((photo): Part[] => [
         { text: photo.id },
         { inlineData: { mimeType: PROXY_MIME_TYPE, data: photo.b64 } },
@@ -157,12 +152,22 @@ export class StoryGeneratorService {
   }
 }
 
-/** Pull the `frames` array out of the model's JSON text, or undefined. */
-function parseFrames(text: string | undefined): unknown {
-  if (!text) return undefined;
+/**
+ * Pull the `frames` array and the story-level `look` out of the model's JSON
+ * text. Defensive: unparseable or non-object output yields both undefined, and
+ * the callers (shapeFrames / normalizeLook) turn that into an empty story and
+ * the default Look rather than a throw.
+ */
+function parseStory(text: string | undefined): {
+  frames?: unknown;
+  look?: unknown;
+} {
+  if (!text) return {};
   try {
-    return (JSON.parse(text) as { frames?: unknown }).frames;
+    const parsed: unknown = JSON.parse(text);
+    if (typeof parsed !== 'object' || parsed === null) return {};
+    return parsed;
   } catch {
-    return undefined;
+    return {};
   }
 }

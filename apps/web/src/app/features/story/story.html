@@ -79,23 +79,22 @@
         </div>
       }
 
-      <!-- Art-directed layout (decision 7.21): when the agent composed one, it
-         supersedes the caption/style/texts for viewing. Refine still edits the
-         legacy caption path for now. -->
-      @if (frame.layout && !refining() && !editingFrame()) {
+      <!-- The frame under the story's Look (decision 7.24): deterministic
+         composition, drawn identically here and in the export. Refine still
+         edits the legacy caption path for now. -->
+      @if (frame.composition && !refining() && !editingFrame()) {
         <app-layout-view
-          [layout]="frame.layout"
-          [readable]="frame.layoutReadable"
-          [accent]="frame.layoutAccent"
+          [composition]="frame.composition"
+          [accent]="frame.accent"
           [light]="frame.light"
-          [legibility]="frame.legibility"
+          [safeBottomPx]="ACTION_BAR_PX"
         />
       }
 
       <!-- The caption, at the placement the user gave it. In refine it becomes a
          tappable, editable-looking layer; the editor overlay opens on tap.
-         Hidden while the editor is open, or when a layout supersedes it. -->
-      @if (!editingFrame() && (refining() || !frame.layout)) {
+         Hidden while the editor is open, or when a composition supersedes it. -->
+      @if (!editingFrame() && (refining() || !frame.composition)) {
         <div
           class="absolute z-20 w-[78%] max-w-[320px] -translate-x-1/2 -translate-y-1/2"
           [style.left.%]="frame.placement.xPct"
@@ -148,7 +147,7 @@
       <!-- Extra placed text blocks besides the caption — the editorial layer (a
          small line + a bigger line). In refine each is tappable to edit/move/
          resize; in view it's read-only. Hidden when a layout supersedes them. -->
-      @if (!editingFrame() && (refining() || !frame.layout)) {
+      @if (!editingFrame() && (refining() || !frame.composition)) {
         @for (t of frame.extraTexts; track t.index) {
           <div
             class="absolute z-20 w-[78%] max-w-[320px] -translate-x-1/2 -translate-y-1/2"

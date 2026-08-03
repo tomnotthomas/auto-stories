@@ -21,9 +21,11 @@ const STORY: GenerateResponse = {
       photoId: 'p1',
       order: 1,
       caption: 'A day at the lake.',
+      headline: 'A day at the lake.',
       style: DEFAULT_STYLE,
     },
   ],
+  look: 'magazine-masthead',
   partial: false,
 };
 

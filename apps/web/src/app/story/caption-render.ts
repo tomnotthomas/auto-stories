@@ -39,6 +39,10 @@ export async function loadCaptionFonts(): Promise<void> {
   if (!fonts) return;
   await Promise.all([
     fonts.load(`400 64px "${DISPLAY_FONT}"`),
+    // 600 is the Magazine Look's byline weight (7.24). The canvas paints with
+    // whatever is loaded at that instant, so every weight a Look asks for has to
+    // be named here or the PNG silently falls back to a system face.
+    fonts.load(`600 64px "${DISPLAY_FONT}"`),
     fonts.load(`700 64px "${DISPLAY_FONT}"`),
     fonts.load('400 64px "Fraunces"'),
     fonts.load('700 64px "Fraunces"'),

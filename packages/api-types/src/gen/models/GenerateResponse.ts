@@ -4,8 +4,14 @@
 */
 
 import type { Frame } from "./Frame.js";
+import type { Look } from "./Look.js";
 
 export type GenerateResponse = {
+    /**
+     * @description The story\'s design language (decision 7.24). One Look is chosen per story and held across every frame. A Look is a full grammar — type pairing, placement, accent usage, marks, scrim — implemented deterministically on the client; the model only names it. The client owns all geometry, so no coordinates cross this boundary.
+     * @type string
+    */
+    look: Look;
     /**
      * @description The chosen photos in order. May be a subset of the request.
      * @type array

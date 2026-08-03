@@ -26,7 +26,7 @@ describe('RefineFilmstrip', () => {
       .map((photo, i) => ({
         photoId: photo.id,
         order: i + 1,
-        caption: `caption ${i + 1}`,
+        caption: `caption ${i + 1}`, headline: `caption ${i + 1}`,
         style: {
           font: 'inter',
           weight: 'regular',

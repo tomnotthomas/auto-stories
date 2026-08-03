@@ -114,7 +114,7 @@ describe('StoryService', () => {
   });
 
   it('shows the payoff with the finished frames, ready to refine', () => {
-    const frames = [{ photoId: 'p1', order: 1, caption: 'By the water', style: STYLE }];
+    const frames = [{ photoId: 'p1', order: 1, caption: 'By the water', headline: 'By the water', style: STYLE }];
     service.completeStory(frames, true);
     expect(service.phase()).toBe('story');
     expect(service.partial()).toBe(true);
@@ -135,7 +135,7 @@ describe('StoryService', () => {
     service.addPhotos([imageFile('a.jpg')]);
     service.setStoryLine('something');
     service.setTone('funny');
-    service.completeStory([{ photoId: 'photo-1', order: 1, caption: 'x', style: STYLE }], false);
+    service.completeStory([{ photoId: 'photo-1', order: 1, caption: 'x', headline: 'x', style: STYLE }], false);
     service.failStory({ code: 'timeout', message: 'took too long' });
 
     service.reset();
@@ -152,10 +152,10 @@ describe('StoryService', () => {
     const seedFour = () =>
       service.completeStory(
         [
-          { photoId: 'p1', order: 1, caption: 'first', style: STYLE },
-          { photoId: 'p2', order: 2, caption: 'second', style: STYLE },
-          { photoId: 'p3', order: 3, caption: 'third', style: STYLE },
-          { photoId: 'p4', order: 4, caption: 'fourth', style: STYLE },
+          { photoId: 'p1', order: 1, caption: 'first', headline: 'first', style: STYLE },
+          { photoId: 'p2', order: 2, caption: 'second', headline: 'second', style: STYLE },
+          { photoId: 'p3', order: 3, caption: 'third', headline: 'third', style: STYLE },
+          { photoId: 'p4', order: 4, caption: 'fourth', headline: 'fourth', style: STYLE },
         ],
         false,
       );
@@ -192,10 +192,10 @@ describe('StoryService', () => {
       const pooled = service.photos()[0].id;
       service.completeStory(
         [
-          { photoId: 'p1', order: 1, caption: 'first', style: STYLE },
-          { photoId: pooled, order: 2, caption: 'second', style: STYLE },
-          { photoId: 'p3', order: 3, caption: 'third', style: STYLE },
-          { photoId: 'p4', order: 4, caption: 'fourth', style: STYLE },
+          { photoId: 'p1', order: 1, caption: 'first', headline: 'first', style: STYLE },
+          { photoId: pooled, order: 2, caption: 'second', headline: 'second', style: STYLE },
+          { photoId: 'p3', order: 3, caption: 'third', headline: 'third', style: STYLE },
+          { photoId: 'p4', order: 4, caption: 'fourth', headline: 'fourth', style: STYLE },
         ],
         false,
       );
@@ -209,9 +209,9 @@ describe('StoryService', () => {
     it('refuses to drop below the minimum photo count', () => {
       service.completeStory(
         [
-          { photoId: 'p1', order: 1, caption: 'a', style: STYLE },
-          { photoId: 'p2', order: 2, caption: 'b', style: STYLE },
-          { photoId: 'p3', order: 3, caption: 'c', style: STYLE },
+          { photoId: 'p1', order: 1, caption: 'a', headline: 'a', style: STYLE },
+          { photoId: 'p2', order: 2, caption: 'b', headline: 'b', style: STYLE },
+          { photoId: 'p3', order: 3, caption: 'c', headline: 'c', style: STYLE },
         ],
         false,
       );
@@ -222,7 +222,7 @@ describe('StoryService', () => {
     it('appends a hand-added photo as a new frame, keeping the rest', () => {
       seedFour();
       service.setPlacement('p1', { xPct: 10, yPct: 10 });
-      service.appendFrame({ photoId: 'p5', order: 99, caption: 'newcomer', style: STYLE });
+      service.appendFrame({ photoId: 'p5', order: 99, caption: 'newcomer', headline: 'newcomer', style: STYLE });
 
       const frames = service.frames();
       expect(frames.map((f) => f.photoId)).toEqual(['p1', 'p2', 'p3', 'p4', 'p5']);
@@ -237,7 +237,7 @@ describe('StoryService', () => {
 
     it('ignores appending a photo already in the story', () => {
       seedFour();
-      service.appendFrame({ photoId: 'p2', order: 9, caption: 'dupe', style: STYLE });
+      service.appendFrame({ photoId: 'p2', order: 9, caption: 'dupe', headline: 'dupe', style: STYLE });
       expect(service.frames()).toHaveLength(4);
     });
 
@@ -250,7 +250,7 @@ describe('StoryService', () => {
 
   describe('sparks (per-suggestion user edits)', () => {
     const seed = () =>
-      service.completeStory([{ photoId: 'p1', order: 1, caption: 'a', style: STYLE }], false);
+      service.completeStory([{ photoId: 'p1', order: 1, caption: 'a', headline: 'a', style: STYLE }], false);
 
     it('starts with no spark edits', () => {
       seed();
@@ -286,7 +286,7 @@ describe('StoryService', () => {
       seed();
       service.dismissSpark('p1', 0);
       expect(service.sparks().size).toBe(1);
-      service.completeStory([{ photoId: 'p9', order: 1, caption: 'fresh', style: STYLE }], false);
+      service.completeStory([{ photoId: 'p9', order: 1, caption: 'fresh', headline: 'fresh', style: STYLE }], false);
       expect(service.sparks().size).toBe(0);
     });
 
@@ -296,14 +296,14 @@ describe('StoryService', () => {
           {
             photoId: 'p1',
             order: 1,
-            caption: 'a',
+            caption: 'a', headline: 'a',
             style: STYLE,
             suggestions: [
               { type: 'location', query: 'Tartine', confidence: 0.9 },
               { type: 'music', query: 'indie folk', confidence: 0.6 },
             ],
           },
-          { photoId: 'p2', order: 2, caption: 'b', style: STYLE },
+          { photoId: 'p2', order: 2, caption: 'b', headline: 'b', style: STYLE },
         ],
         false,
       );
@@ -326,7 +326,7 @@ describe('StoryService', () => {
           {
             photoId: 'p1',
             order: 1,
-            caption: 'cap',
+            caption: 'cap', headline: 'cap',
             style: STYLE,
             texts: [
               {

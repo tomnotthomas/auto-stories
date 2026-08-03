@@ -2,11 +2,10 @@ import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import { ApiError } from '@google/genai';
-import type { Frame, GenerateRequest } from '@auto-stories/api-types';
+import type { GenerateRequest } from '@auto-stories/api-types';
 import { StoryGeneratorService } from './story-generator.service';
-import { LayoutAgentService } from './layout-agent.service';
 import { GENAI } from './story.constants';
-import { DEFAULT_STYLE } from './caption-style';
+import { DEFAULT_LOOK, DEFAULT_STYLE } from './caption-style';
 
 // The service logs unexpected causes on purpose; keep them out of test output.
 beforeAll(() => {
@@ -24,24 +23,17 @@ function makeRequest(count = 3): GenerateRequest {
   };
 }
 
-function jsonResponse(frames: unknown): { text: string } {
-  return { text: JSON.stringify({ frames }) };
+function jsonResponse(frames: unknown, look?: unknown): { text: string } {
+  return { text: JSON.stringify({ frames, look }) };
 }
 
 async function makeService(
   generateContent: jest.Mock,
-  opts: { composeLayouts?: jest.Mock } = {},
 ): Promise<StoryGeneratorService> {
-  // The layout agent always runs; the identity default leaves frames untouched
-  // (no layout) so the tests that assert the plain frames stay valid.
-  const composeLayouts =
-    opts.composeLayouts ??
-    jest.fn((frames: Frame[]) => Promise.resolve(frames));
   const moduleRef = await Test.createTestingModule({
     providers: [
       StoryGeneratorService,
       { provide: GENAI, useValue: { models: { generateContent } } },
-      { provide: LayoutAgentService, useValue: { composeLayouts } },
       {
         provide: ConfigService,
         useValue: { get: (_k: string, d: unknown) => d },
@@ -52,13 +44,16 @@ async function makeService(
 }
 
 describe('StoryGeneratorService', () => {
-  it('returns ordered frames for a clean response (partial=false)', async () => {
+  it('returns ordered frames and the story Look (partial=false)', async () => {
     const generateContent = jest.fn().mockResolvedValue(
-      jsonResponse([
-        { photoId: 'p2', order: 1, caption: 'hook' },
-        { photoId: 'p1', order: 2, caption: 'build' },
-        { photoId: 'p3', order: 3, caption: 'payoff' },
-      ]),
+      jsonResponse(
+        [
+          { photoId: 'p2', order: 1, caption: 'hook' },
+          { photoId: 'p1', order: 2, caption: 'build' },
+          { photoId: 'p3', order: 3, caption: 'payoff' },
+        ],
+        'scrapbook',
+      ),
     );
     const service = await makeService(generateContent);
 
@@ -70,6 +65,7 @@ describe('StoryGeneratorService', () => {
           photoId: 'p2',
           order: 1,
           caption: 'hook',
+          headline: 'hook',
           style: DEFAULT_STYLE,
           texts: [],
           suggestions: [],
@@ -78,6 +74,7 @@ describe('StoryGeneratorService', () => {
           photoId: 'p1',
           order: 2,
           caption: 'build',
+          headline: 'build',
           style: DEFAULT_STYLE,
           texts: [],
           suggestions: [],
@@ -86,13 +83,59 @@ describe('StoryGeneratorService', () => {
           photoId: 'p3',
           order: 3,
           caption: 'payoff',
+          headline: 'payoff',
           style: DEFAULT_STYLE,
           texts: [],
           suggestions: [],
         },
       ],
+      look: 'scrapbook',
       partial: false,
     });
+  });
+
+  it('falls back to the default Look when the model omits it', async () => {
+    const generateContent = jest
+      .fn()
+      .mockResolvedValue(
+        jsonResponse([{ photoId: 'p1', order: 1, caption: 'x' }]),
+      );
+    const service = await makeService(generateContent);
+
+    const result = await service.generate(makeRequest(3));
+
+    expect(result.look).toBe(DEFAULT_LOOK);
+  });
+
+  it('falls back to the default Look when the model invents one', async () => {
+    const generateContent = jest
+      .fn()
+      .mockResolvedValue(
+        jsonResponse([{ photoId: 'p1', order: 1, caption: 'x' }], 'polaroid'),
+      );
+    const service = await makeService(generateContent);
+
+    const result = await service.generate(makeRequest(3));
+
+    expect(result.look).toBe(DEFAULT_LOOK);
+  });
+
+  // One structured call per story again (decision 7.24): no second geometry pass.
+  it('makes exactly one model call for a clean story', async () => {
+    const generateContent = jest.fn().mockResolvedValue(
+      jsonResponse(
+        [
+          { photoId: 'p1', order: 1, caption: 'a' },
+          { photoId: 'p2', order: 2, caption: 'b' },
+        ],
+        'minimal',
+      ),
+    );
+    const service = await makeService(generateContent);
+
+    await service.generate(makeRequest(3));
+
+    expect(generateContent).toHaveBeenCalledTimes(1);
   });
 
   it('sends the prompt plus one inline image per photo', async () => {
@@ -167,6 +210,17 @@ describe('StoryGeneratorService', () => {
     await expect(service.generate(makeRequest(3))).rejects.toMatchObject({
       code: 'empty_result',
     });
+  });
+
+  it('rejects with empty_result on JSON that is not a story object', async () => {
+    for (const text of [undefined, '"sorry"', 'null']) {
+      const generateContent = jest.fn().mockResolvedValue({ text });
+      const service = await makeService(generateContent);
+
+      await expect(service.generate(makeRequest(3))).rejects.toMatchObject({
+        code: 'empty_result',
+      });
+    }
   });
 
   it('drops a photo and retries on a safety block, flagging partial', async () => {
@@ -262,32 +316,5 @@ describe('StoryGeneratorService', () => {
     await expect(service.generate(makeRequest(3))).rejects.toMatchObject({
       code: 'upstream_error',
     });
-  });
-
-  it('runs the layout agent on every story, threading the atmosphere', async () => {
-    const generateContent = jest.fn().mockResolvedValue(
-      jsonResponse([
-        { photoId: 'p1', order: 1, caption: 'hook' },
-        { photoId: 'p2', order: 2, caption: 'build' },
-      ]),
-    );
-    const composeLayouts = jest.fn((frames: Frame[]) =>
-      Promise.resolve(frames.map((f) => ({ ...f, layout: { elements: [] } }))),
-    );
-    const service = await makeService(generateContent, { composeLayouts });
-
-    const result = await service.generate({
-      ...makeRequest(3),
-      atmosphere: 'tender',
-    });
-
-    expect(composeLayouts).toHaveBeenCalledTimes(1);
-    // The user-set atmosphere is threaded to the agent (decision 7.21).
-    expect(composeLayouts).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.anything(),
-      expect.objectContaining({ atmosphere: 'tender' }),
-    );
-    expect(result.frames.every((f) => f.layout !== undefined)).toBe(true);
   });
 });

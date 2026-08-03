@@ -10,7 +10,7 @@ import {
   sizeScale,
   textTransformCss,
 } from './caption-render';
-import { drawLayout } from './layout-canvas';
+import { drawComposition } from './layout-canvas';
 import type { EditableFrame } from './story.service';
 
 /** Instagram Story canvas size. */
@@ -58,24 +58,18 @@ export async function renderFrame(file: File, frame: EditableFrame): Promise<Blo
     bitmap.close();
   }
 
-  // When the layout agent composed a layout (decision 7.21), it supersedes the
-  // caption/style/texts — draw it through the shared renderer so the export
-  // matches the DOM preview exactly. Colour comes from the device sampling (7.10).
-  if (frame.layout) {
+  // The frame's Look (decision 7.24) supersedes the caption/style/texts — draw
+  // the same composition the DOM preview draws, so the export matches it
+  // exactly. Colour comes from the device sampling (7.10).
+  if (frame.composition) {
     const palette = paletteFor();
-    drawLayout(ctx, frame.layout, FRAME_W, FRAME_H, (element, index) => {
-      // Per-element readability sampled on-device (7.10), frame-level as fallback.
-      const r = frame.layoutReadable?.[index];
-      const light = r?.light ?? frame.light;
-      const scrim = r?.scrim ?? frame.legibility;
-      const legible = light ? palette.textLight : palette.textDark;
-      // The story accent (7.23) paints a flagged element and any hand underline.
-      const fill = element.accent && frame.layoutAccent ? frame.layoutAccent : legible;
-      return {
-        fill,
-        scrim: scrim ? (light ? 'rgba(0,0,0,0.42)' : 'rgba(255,255,255,0.62)') : undefined,
-        underline: frame.layoutAccent ?? fill,
-      };
+    // The Look states its own polarity when it lays a scrim; `auto` defers to
+    // the luminance sampled from the photo (7.10).
+    const declared = frame.composition.ink;
+    const light = declared === 'auto' ? frame.light : declared === 'light';
+    drawComposition(ctx, frame.composition, FRAME_W, FRAME_H, {
+      ink: light ? palette.textLight : palette.textDark,
+      accent: frame.accent ?? frame.composition.accent,
     });
     return canvas.convertToBlob({ type: 'image/png' });
   }

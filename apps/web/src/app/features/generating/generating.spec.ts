@@ -43,7 +43,7 @@ describe('Generating', () => {
 
   const success: GenerateOutcome = {
     ok: true,
-    response: { frames: [{ photoId: 'p1', order: 1, caption: 'By the water', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } }] },
+    response: { frames: [{ photoId: 'p1', order: 1, caption: 'By the water', headline: 'By the water', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } }], look: 'magazine-masthead' },
   };
 
   it('tells the user the story is being built', async () => {
@@ -64,7 +64,13 @@ describe('Generating', () => {
     expect(
       story
         .frames()
-        .map((f) => ({ photoId: f.photoId, order: f.order, caption: f.caption, style: f.style })),
+        .map((f) => ({
+          photoId: f.photoId,
+          order: f.order,
+          caption: f.caption,
+          headline: f.headline,
+          style: f.style,
+        })),
     ).toEqual(
       success.response.frames,
     );

@@ -20,9 +20,9 @@ function imageFile(name: string): File {
 }
 
 const FRAMES: Frame[] = [
-  { photoId: 'a', order: 1, caption: 'Everyone made it to the lake', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } },
-  { photoId: 'b', order: 2, caption: 'Then she blew out the candle', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } },
-  { photoId: 'c', order: 3, caption: 'And every cousin cheered', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } },
+  { photoId: 'a', order: 1, caption: 'Everyone made it to the lake', headline: 'Everyone made it to the lake', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } },
+  { photoId: 'b', order: 2, caption: 'Then she blew out the candle', headline: 'Then she blew out the candle', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } },
+  { photoId: 'c', order: 3, caption: 'And every cousin cheered', headline: 'And every cousin cheered', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } },
 ];
 
 describe('Accessibility (WCAG 2 A/AA)', () => {
@@ -69,7 +69,7 @@ describe('Accessibility (WCAG 2 A/AA)', () => {
       generate: async () => ({ ok: true, jobId: 'job-1' }),
       streamStory: async (): Promise<GenerateOutcome> => ({
         ok: true,
-        response: { frames: FRAMES },
+        response: { frames: FRAMES, look: 'magazine-masthead' },
       }),
     };
     const images: Pick<ImageService, 'toProxies'> = { toProxies: async () => [{ id: 'p1', b64: 'x' }] };

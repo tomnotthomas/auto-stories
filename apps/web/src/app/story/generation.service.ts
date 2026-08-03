@@ -27,7 +27,11 @@ export class GenerationService {
     try {
       const outcome = await this.request();
       if (outcome.ok) {
-        this.story.completeStory(outcome.response.frames, outcome.response.partial ?? false);
+        this.story.completeStory(
+          outcome.response.frames,
+          outcome.response.partial ?? false,
+          outcome.response.look,
+        );
       } else {
         this.story.failStory({ code: outcome.code, message: outcome.message });
       }
@@ -92,6 +96,9 @@ export class GenerationService {
         photoId: id,
         order: 0,
         caption: captions.get(id) ?? '',
+        // The model captions the added photo; that same line is its headline, so
+        // the frame composes under the story's Look like every other one (7.24).
+        headline: captions.get(id) ?? '',
         style: DEFAULT_STYLE,
       });
     }

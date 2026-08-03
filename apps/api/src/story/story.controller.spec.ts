@@ -12,7 +12,16 @@ const JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xe0]).toString('base64');
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
 const STORY: GenerateResponse = {
-  frames: [{ photoId: 'p1', order: 1, caption: 'x', style: DEFAULT_STYLE }],
+  frames: [
+    {
+      photoId: 'p1',
+      order: 1,
+      caption: 'x',
+      headline: 'x',
+      style: DEFAULT_STYLE,
+    },
+  ],
+  look: 'magazine-masthead',
   partial: false,
 };
 

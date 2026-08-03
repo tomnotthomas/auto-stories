@@ -3,7 +3,6 @@ import { FairUseGuard } from '../fair-use/fair-use.guard';
 import { FairUseService } from '../fair-use/fair-use.service';
 import { JobModule } from '../job/job.module';
 import { genaiProvider } from './genai.provider';
-import { LayoutAgentService } from './layout-agent.service';
 import { StoryController } from './story.controller';
 import { StoryGeneratorService } from './story-generator.service';
 
@@ -13,7 +12,6 @@ import { StoryGeneratorService } from './story-generator.service';
   providers: [
     genaiProvider,
     StoryGeneratorService,
-    LayoutAgentService,
     FairUseService,
     FairUseGuard,
   ],

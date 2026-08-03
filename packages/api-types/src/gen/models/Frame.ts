@@ -3,7 +3,6 @@
 * Do not edit manually.
 */
 
-import type { Layout } from "./Layout.js";
 import type { Style } from "./Style.js";
 import type { Suggestion } from "./Suggestion.js";
 import type { TextBlock } from "./TextBlock.js";
@@ -44,8 +43,21 @@ export type Frame = {
     */
     suggestions?: Suggestion[];
     /**
-     * @description The art-directed typography for one frame: a small set of placed elements the layout agent composed (decision 7.21). Present only once the agent has run — the client falls back to caption + style + texts when it is absent. A single shared renderer draws these identically in the DOM preview and the canvas export.
-     * @type object | undefined
+     * @description Optional short line above the headline (decision 7.24). Each Look decides whether to show it and how to set it — Magazine renders it as a spaced all-caps eyebrow, Quiet Editorial as a letter-spaced kicker, Minimal drops it entirely.
+     * @minLength 1
+     * @type string | undefined
     */
-    layout?: Layout;
+    kicker?: string;
+    /**
+     * @description The frame\'s main line (decision 7.24). Short — the Looks set it large. Always present: the server falls back to `caption` when the model omits it, so a frame can always compose.
+     * @minLength 1
+     * @type string
+    */
+    headline: string;
+    /**
+     * @description A word or phrase inside `headline` to mark — the Look decides how (accent underline, colour block, hand-drawn stroke) and some Looks ignore it. The client skips the mark when this is absent or is not found in `headline`.
+     * @minLength 1
+     * @type string | undefined
+    */
+    emphasis?: string;
 };
