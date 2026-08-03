@@ -17,25 +17,54 @@ function pick<T extends string>(
     : fallback;
 }
 
-const LOOKS: readonly Look[] = [
+/** Every Look the client can render. Exported so a test can prove the prompt
+ * offers all of them — the two drifting apart is how every story ended up
+ * wearing the same one (7.27). */
+export const LOOKS: readonly Look[] = [
   'quiet-editorial',
-  'film-postcard',
-  'bold-poster',
-  'scrapbook',
   'minimal',
+  'gallery-label',
+  'corner-note',
+  'footer-rule',
+  'caption-card',
   'magazine-masthead',
+  'broadsheet',
+  'contents-page',
+  'pull-quote',
+  'chapter',
+  'dateline',
+  'bold-poster',
+  'split-block',
+  'ticker',
+  'stencil-caps',
+  'zine',
+  'duotone-band',
+  'film-postcard',
+  'polaroid',
+  'super-8',
+  'faded-album',
+  'postcard-back',
+  'scrapbook',
+  'marker',
+  'sticker-sheet',
+  'index-card',
+  'typewriter',
+  'title-card',
+  'subtitle',
+  'edge-caps',
+  'letterbox',
 ];
 
 /**
  * The Look a story falls back to when the model omits it or names one that does
- * not exist. Magazine Masthead is the most structured of the six and the one
- * that reads as deliberately designed on any photo, so an unchosen story still
- * lands somewhere composed rather than plain.
+ * not exist. Deliberately the most restrained of the set: a fallback is a case
+ * where nobody chose, and the least presumptuous thing to do to somebody's photo
+ * is to stay quiet. Kept in step with the client's own default (7.27).
  */
-export const DEFAULT_LOOK: Look = 'magazine-masthead';
+export const DEFAULT_LOOK: Look = 'quiet-editorial';
 
 /**
- * Turn the model's story-level `look` into one of the six {@link Look} ids
+ * Turn the model's story-level `look` into one of the {@link Look} ids
  * (decision 7.24). The client renders a Look deterministically and has no
  * renderer for anything else, so an unknown value becomes {@link DEFAULT_LOOK}
  * rather than crossing the boundary. Pure and unit-tested.

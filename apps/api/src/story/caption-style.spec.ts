@@ -114,7 +114,8 @@ describe('normalizeLook', () => {
   });
 
   it('falls back to the default Look for a value outside the set', () => {
-    expect(normalizeLook('polaroid')).toBe(DEFAULT_LOOK);
+    // `polaroid` used to stand in for an unknown Look; it is a real one now.
+    expect(normalizeLook('watercolour')).toBe(DEFAULT_LOOK);
     expect(normalizeLook(7)).toBe(DEFAULT_LOOK);
     expect(normalizeLook({ look: 'minimal' })).toBe(DEFAULT_LOOK);
   });

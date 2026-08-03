@@ -87,7 +87,10 @@ describe('StoryGeneratorService', () => {
     const generateContent = jest
       .fn()
       .mockResolvedValue(
-        jsonResponse([{ photoId: 'p1', order: 1, headline: 'x' }], 'polaroid'),
+        jsonResponse(
+          [{ photoId: 'p1', order: 1, headline: 'x' }],
+          'watercolour',
+        ),
       );
     const service = await makeService(generateContent);
 

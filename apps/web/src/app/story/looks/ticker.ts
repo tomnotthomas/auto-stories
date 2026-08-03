@@ -31,6 +31,24 @@ const PAD_HPCT = 2;
 /** Ticker belongs low in the frame; the top is its fallback. */
 const PREFERRED_BANDS: readonly Band[] = ['bottom', 'top'];
 
+/**
+ * A ticker is a *thin* bar, and that is the whole Look — so the type has to give
+ * way as the words get longer, or the bar swells to a fifth of the frame and
+ * reads as a caption block instead. Coarse steps on purpose: fine-grained sizing
+ * would give every frame in a story a slightly different bar.
+ */
+const SIZE_STEPS: readonly { readonly upTo: number; readonly fontSizeWPct: number }[] = [
+  { upTo: 24, fontSizeWPct: 5.4 },
+  { upTo: 40, fontSizeWPct: 4.4 },
+  { upTo: 62, fontSizeWPct: 3.6 },
+  { upTo: Number.POSITIVE_INFINITY, fontSizeWPct: 3 },
+];
+
+function sizeFor(headline: string): number {
+  const step = SIZE_STEPS.find((candidate) => headline.trim().length <= candidate.upTo);
+  return (step ?? SIZE_STEPS[SIZE_STEPS.length - 1]).fontSizeWPct;
+}
+
 function compose(content: FrameContent, photo: PhotoAnalysis): Composition {
   const band = quietestBand(photo.bands, PREFERRED_BANDS);
   const anchor = band === 'top' ? 'top' : 'bottom';
@@ -82,7 +100,7 @@ function compose(content: FrameContent, photo: PhotoAnalysis): Composition {
     runs: splitEmphasis(content.headline, content.emphasis),
     fontFamily: BRICOLAGE,
     fontWeight: 700,
-    fontSizeWPct: 5.4,
+    fontSizeWPct: sizeFor(content.headline),
     lineHeight: 1.14,
     letterSpacingEm: 0.06,
     textTransform: 'uppercase',

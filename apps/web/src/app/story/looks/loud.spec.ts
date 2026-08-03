@@ -166,6 +166,24 @@ describe('ticker', () => {
   });
 });
 
+describe('ticker', () => {
+  it('shrinks its type as the headline grows, so the bar stays thin', () => {
+    // The bar IS the Look. Without this a ~70-character headline wraps to four
+    // lines and the ticker becomes a caption block.
+    const short = TICKER.compose({ headline: 'We went higher' }, CALM);
+    const long = TICKER.compose(
+      { headline: 'Everyone made it to the lake before the cake even arrived and stayed all day' },
+      CALM,
+    );
+    const size = (c: ReturnType<typeof TICKER.compose>): number => {
+      const text = c.parts.find((part) => part.kind === 'text' && part.fontSizeWPct > 2.5);
+      return text && text.kind === 'text' ? text.fontSizeWPct : 0;
+    };
+
+    expect(size(long)).toBeLessThan(size(short));
+  });
+});
+
 describe('stencil-caps', () => {
   it('outlines the headline instead of filling it', () => {
     const headline = headlinePart(STENCIL_CAPS.compose(CONTENT, CALM).parts);

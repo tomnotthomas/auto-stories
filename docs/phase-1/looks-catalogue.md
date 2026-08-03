@@ -123,3 +123,25 @@ built for a single case.
 - **Colour stays a device decision** (7.10): a part declares `ink` or `accent`, never a literal.
 - **At most one mark per frame.** The mockups piled up three; the engine varies to about one (7.23).
 - **Both surfaces or neither.** A capability that the canvas export cannot draw does not ship, or the preview and the PNG drift.
+
+---
+
+## TODO — get the bundle back under budget
+
+Thirty-two Looks pushed the initial web bundle to **709 kB** against a 500 kB
+budget (`ng build` warns; it does not fail). The Looks are the growth: every one
+is imported eagerly by `look.ts` so the registry can name them all.
+
+The fix is to load them on demand — a story uses exactly ONE Look, so thirty-one
+of them are dead weight on first paint. Options, cheapest first:
+
+1. **Dynamic `import()` per Look**, resolved when the story's Look is known.
+   `composeFrame` becomes async, or the registry is warmed once the model
+   answers. Biggest win, and the natural shape: the Look is a story-level
+   decision made before any frame is drawn.
+2. Split the Looks into their own lazy chunk behind the `/app` route, so the
+   landing page does not carry them at all.
+3. Raise the budget — last resort, and only with a number that still means
+   something.
+
+Until then the warning is expected, not a regression to chase.
