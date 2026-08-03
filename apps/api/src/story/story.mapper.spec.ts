@@ -14,6 +14,7 @@ describe('shapeFrames', () => {
         photoId: 'a',
         order: 1,
         caption: 'first',
+        headline: 'first',
         style: DEFAULT_STYLE,
         texts: [],
         suggestions: [],
@@ -22,6 +23,7 @@ describe('shapeFrames', () => {
         photoId: 'c',
         order: 2,
         caption: 'last',
+        headline: 'last',
         style: DEFAULT_STYLE,
         texts: [],
         suggestions: [],
@@ -55,6 +57,7 @@ describe('shapeFrames', () => {
         photoId: 'a',
         order: 1,
         caption: 'earlier',
+        headline: 'earlier',
         style: DEFAULT_STYLE,
         texts: [],
         suggestions: [],
@@ -145,39 +148,80 @@ describe('shapeFrames', () => {
     ]);
   });
 
-  it('threads a frame layout when present, and omits it otherwise', () => {
+  it("threads the model's kicker, headline and emphasis, trimmed", () => {
+    const raw = [
+      {
+        photoId: 'a',
+        order: 1,
+        caption: 'the light went gold just before we left',
+        kicker: '  Day two  ',
+        headline: '  Golden hour  ',
+        emphasis: ' Golden ',
+      },
+    ];
+    expect(shapeFrames(raw, ids)[0]).toMatchObject({
+      kicker: 'Day two',
+      headline: 'Golden hour',
+      emphasis: 'Golden',
+    });
+  });
+
+  it('falls back to the caption when the headline is missing or blank', () => {
+    const raw = [
+      { photoId: 'a', order: 1, caption: 'golden hour' },
+      { photoId: 'b', order: 2, caption: 'we swam', headline: '   ' },
+      { photoId: 'c', order: 3, caption: 'and ate', headline: 42 },
+    ];
+    expect(shapeFrames(raw, ids).map((f) => f.headline)).toEqual([
+      'golden hour',
+      'we swam',
+      'and ate',
+    ]);
+  });
+
+  it('omits kicker and emphasis when the model gives none', () => {
+    const frame = shapeFrames(
+      [{ photoId: 'a', order: 1, caption: 'golden hour' }],
+      ids,
+    )[0];
+    expect(frame.kicker).toBeUndefined();
+    expect(frame.emphasis).toBeUndefined();
+  });
+
+  it('drops an emphasis that does not occur in the headline', () => {
     const raw = [
       {
         photoId: 'a',
         order: 1,
         caption: 'sunset',
-        layout: {
-          elements: [
-            {
-              role: 'title',
-              text: 'Golden hour',
-              font: 'playfair',
-              weight: 'bold',
-              case: 'normal',
-              align: 'left',
-              size: 4,
-              tracking: 'wide',
-              leading: 'tight',
-              x: 8,
-              y: 12,
-              anchor: 'top-left',
-            },
-          ],
-        },
+        headline: 'Golden hour',
+        emphasis: 'sunset',
       },
-      { photoId: 'b', order: 2, caption: 'no layout here' },
+    ];
+    expect(shapeFrames(raw, ids)[0].emphasis).toBeUndefined();
+  });
+
+  it('keeps an emphasis that occurs in the headline, ignoring case', () => {
+    const raw = [
+      {
+        photoId: 'a',
+        order: 1,
+        caption: 'sunset',
+        headline: 'Golden hour',
+        emphasis: 'GOLDEN',
+      },
+    ];
+    expect(shapeFrames(raw, ids)[0].emphasis).toBe('GOLDEN');
+  });
+
+  it('checks the emphasis against the caption when the headline falls back', () => {
+    const raw = [
+      { photoId: 'a', order: 1, caption: 'we ate everything', emphasis: 'ate' },
+      { photoId: 'b', order: 2, caption: 'we swam', emphasis: 'ate' },
     ];
     const frames = shapeFrames(raw, ids);
-    expect(frames[0].layout?.elements[0]).toMatchObject({
-      text: 'Golden hour',
-      anchor: 'top-left',
-    });
-    expect(frames[1].layout).toBeUndefined();
+    expect(frames[0].emphasis).toBe('ate');
+    expect(frames[1].emphasis).toBeUndefined();
   });
 
   it('ignores malformed entries (missing/mistyped fields)', () => {

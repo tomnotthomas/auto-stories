@@ -1,9 +1,9 @@
 import {
+  DEFAULT_LOOK,
   DEFAULT_STYLE,
-  MAX_LAYOUT_ELEMENTS,
   MAX_SUGGESTIONS_PER_FRAME,
   MAX_TEXT_BLOCKS,
-  normalizeLayout,
+  normalizeLook,
   normalizeStyle,
   normalizeSuggestions,
   normalizeTexts,
@@ -204,126 +204,28 @@ describe('normalizeTexts', () => {
   });
 });
 
-describe('normalizeLayout', () => {
-  const el = (over: Record<string, unknown> = {}) => ({
-    role: 'title',
-    text: 'Golden hour',
-    font: 'playfair',
-    weight: 'bold',
-    case: 'normal',
-    align: 'left',
-    size: 4,
-    tracking: 'wide',
-    leading: 'tight',
-    x: 8,
-    y: 12,
-    anchor: 'top-left',
-    ...over,
+describe('normalizeLook', () => {
+  it('keeps each of the six Look ids', () => {
+    for (const look of [
+      'quiet-editorial',
+      'film-postcard',
+      'bold-poster',
+      'scrapbook',
+      'minimal',
+      'magazine-masthead',
+    ]) {
+      expect(normalizeLook(look)).toBe(look);
+    }
   });
 
-  it('returns undefined when there is no layout', () => {
-    expect(normalizeLayout(undefined)).toBeUndefined();
-    expect(normalizeLayout(null)).toBeUndefined();
-    expect(normalizeLayout({})).toBeUndefined();
-    expect(normalizeLayout({ elements: 'nope' })).toBeUndefined();
+  it('falls back to the default Look when the model omits it', () => {
+    expect(normalizeLook(undefined)).toBe(DEFAULT_LOOK);
+    expect(normalizeLook(null)).toBe(DEFAULT_LOOK);
   });
 
-  it('keeps a valid element as-is', () => {
-    const layout = normalizeLayout({ elements: [el()] });
-    expect(layout?.elements[0]).toMatchObject({
-      role: 'title',
-      text: 'Golden hour',
-      font: 'playfair',
-      weight: 'bold',
-      align: 'left',
-      size: 4,
-      tracking: 'wide',
-      leading: 'tight',
-      x: 8,
-      y: 12,
-      anchor: 'top-left',
-    });
-  });
-
-  it('defaults junk fields and drops empty-text elements', () => {
-    const layout = normalizeLayout({
-      elements: [
-        el({
-          role: '???',
-          font: 'comic',
-          align: 'sideways',
-          tracking: 'x',
-          anchor: 'nowhere',
-        }),
-        el({ text: '   ' }), // empty after trim → dropped
-      ],
-    });
-    expect(layout?.elements).toHaveLength(1);
-    expect(layout?.elements[0]).toMatchObject({
-      role: 'title',
-      font: 'inter',
-      align: 'left',
-      tracking: 'normal',
-      anchor: 'center',
-    });
-  });
-
-  it('clamps size to a ramp index and x/y to [0, 100]', () => {
-    const layout = normalizeLayout({
-      elements: [el({ size: 99, x: -20, y: 150 })],
-    });
-    expect(layout?.elements[0]).toMatchObject({ size: 6, x: 0, y: 100 });
-    // A non-numeric coordinate falls back to centre.
-    expect(
-      normalizeLayout({ elements: [el({ x: 'left' })] })?.elements[0].x,
-    ).toBe(50);
-  });
-
-  it('keeps the optional stack flag only when it is a boolean', () => {
-    expect(
-      normalizeLayout({ elements: [el({ stack: true })] })?.elements[0].stack,
-    ).toBe(true);
-    expect(
-      normalizeLayout({ elements: [el({ stack: 'yes' })] })?.elements[0].stack,
-    ).toBeUndefined();
-  });
-
-  it('keeps the optional accent + underline flags only when boolean', () => {
-    const el0 = normalizeLayout({
-      elements: [el({ accent: true, underline: true })],
-    })?.elements[0];
-    expect(el0?.accent).toBe(true);
-    expect(el0?.underline).toBe(true);
-    const el1 = normalizeLayout({
-      elements: [el({ accent: 'yes', underline: 1 })],
-    })?.elements[0];
-    expect(el1?.accent).toBeUndefined();
-    expect(el1?.underline).toBeUndefined();
-  });
-
-  it('drops frame-index chrome labels like "01" or "1 / 5"', () => {
-    const layout = normalizeLayout({
-      elements: [
-        el({ text: '01' }),
-        el({ text: '1 / 5' }),
-        el({ text: 'no. 3' }),
-        el({ text: 'Golden hour' }),
-      ],
-    });
-    expect(layout?.elements).toHaveLength(1);
-    expect(layout?.elements[0].text).toBe('Golden hour');
-  });
-
-  it('caps the number of elements', () => {
-    const many = Array.from({ length: MAX_LAYOUT_ELEMENTS + 3 }, () => el());
-    expect(normalizeLayout({ elements: many })?.elements).toHaveLength(
-      MAX_LAYOUT_ELEMENTS,
-    );
-  });
-
-  it('returns undefined when every element is unusable', () => {
-    expect(
-      normalizeLayout({ elements: [{ text: '' }, 'junk', null] }),
-    ).toBeUndefined();
+  it('falls back to the default Look for a value outside the set', () => {
+    expect(normalizeLook('polaroid')).toBe(DEFAULT_LOOK);
+    expect(normalizeLook(7)).toBe(DEFAULT_LOOK);
+    expect(normalizeLook({ look: 'minimal' })).toBe(DEFAULT_LOOK);
   });
 });

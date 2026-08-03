@@ -9,6 +9,19 @@ import { Type, type Schema } from '@google/genai';
 export const STORY_RESPONSE_SCHEMA: Schema = {
   type: Type.OBJECT,
   properties: {
+    // One design language for the whole story (decision 7.24). The model names
+    // it; the client composes every frame from it — no geometry crosses here.
+    look: {
+      type: Type.STRING,
+      enum: [
+        'quiet-editorial',
+        'film-postcard',
+        'bold-poster',
+        'scrapbook',
+        'minimal',
+        'magazine-masthead',
+      ],
+    },
     frames: {
       type: Type.ARRAY,
       items: {
@@ -17,6 +30,11 @@ export const STORY_RESPONSE_SCHEMA: Schema = {
           photoId: { type: Type.STRING },
           order: { type: Type.INTEGER },
           caption: { type: Type.STRING },
+          // The words the chosen Look sets: an optional line above, the main
+          // line, and an optional phrase inside it to mark (decision 7.24).
+          kicker: { type: Type.STRING },
+          headline: { type: Type.STRING },
+          emphasis: { type: Type.STRING },
           style: {
             type: Type.OBJECT,
             properties: {
@@ -115,10 +133,11 @@ export const STORY_RESPONSE_SCHEMA: Schema = {
             },
           },
         },
-        // `suggestions` is intentionally optional — most frames have none.
-        required: ['photoId', 'order', 'caption', 'style'],
+        // `suggestions` is intentionally optional — most frames have none, and
+        // so are `kicker`/`emphasis`, which most frames should leave out.
+        required: ['photoId', 'order', 'caption', 'headline', 'style'],
       },
     },
   },
-  required: ['frames'],
+  required: ['frames', 'look'],
 };

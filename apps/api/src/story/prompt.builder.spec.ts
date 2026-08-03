@@ -65,6 +65,57 @@ describe('buildPrompt', () => {
     const prompt = buildPrompt(story);
     expect(prompt).toContain('photoId');
     expect(prompt).toContain('caption');
+    expect(prompt).toContain('look');
+    expect(prompt).toContain('headline');
+  });
+
+  it('names all six Looks so the choice is informed', () => {
+    const prompt = buildPrompt(story);
+    for (const look of [
+      'quiet-editorial',
+      'film-postcard',
+      'bold-poster',
+      'scrapbook',
+      'minimal',
+      'magazine-masthead',
+    ]) {
+      expect(prompt).toContain(look);
+    }
+  });
+
+  it('asks for exactly one Look, held across every frame', () => {
+    const prompt = buildPrompt(story).toLowerCase();
+    expect(prompt).toMatch(/exactly one|one look/);
+    expect(prompt).toContain('every frame');
+  });
+
+  it('asks for a headline plus an optional kicker and emphasis', () => {
+    const prompt = buildPrompt(story);
+    expect(prompt).toContain('kicker');
+    expect(prompt).toContain('emphasis');
+    // The marked phrase has to be findable in the headline or the mark is lost.
+    expect(prompt.toLowerCase()).toContain('verbatim');
+  });
+
+  // Ported from the deleted layout-prompt builder: the user-set atmosphere now
+  // steers the Look choice instead of per-frame geometry.
+  it('honours a given atmosphere, else asks the model to infer it', () => {
+    expect(buildPrompt(story, undefined, undefined, 'tender')).toContain(
+      '"tender"',
+    );
+    expect(buildPrompt(story).toLowerCase()).toContain('read the atmosphere');
+  });
+
+  it('points the given atmosphere at the look choice', () => {
+    const prompt = buildPrompt(story, undefined, undefined, 'tender');
+    expect(prompt).toContain('look');
+    expect(prompt.toLowerCase()).toContain('atmosphere');
+  });
+
+  it('forbids the model from choosing any geometry (decision 7.24)', () => {
+    const prompt = buildPrompt(story).toLowerCase();
+    expect(prompt).toMatch(/do not choose|never choose/);
+    expect(prompt).toMatch(/coordinates/);
   });
 
   it('treats capture time as a soft hint only', () => {
