@@ -57,6 +57,10 @@ export interface LayoutElement {
   readonly anchor: Anchor;
   /** Break the text into one word per line (the vertical-stack move). */
   readonly stack?: boolean;
+  /** Paint this element in the story's accent colour (decision 7.23). */
+  readonly accent?: boolean;
+  /** Draw a hand-drawn underline in the accent colour beneath this element. */
+  readonly underline?: boolean;
 }
 
 export interface LayoutSpec {
@@ -85,6 +89,10 @@ export interface ResolvedElement {
   readonly vAlign: 'top' | 'middle' | 'bottom';
   /** Max width as a % of the frame, so a wide title wraps and stays on-screen. */
   readonly maxWidthPct: number;
+  /** Render this element in the story's accent colour (decision 7.23). */
+  readonly accent: boolean;
+  /** Draw a hand-drawn underline in the accent colour beneath this element. */
+  readonly underline: boolean;
 }
 
 /** Modular size scale (multipliers on the base). Wide range so a whisper and a
@@ -140,6 +148,8 @@ export function resolveLayout(
       hAlign: align.h,
       vAlign: align.v,
       maxWidthPct,
+      accent: e.accent ?? false,
+      underline: e.underline ?? false,
     };
   });
 }

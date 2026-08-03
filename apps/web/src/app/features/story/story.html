@@ -12,160 +12,117 @@
          the swap is instant (no transition) so it lands in the same paint as the
          progress bar. -->
       @for (layer of frameWindow(); track layer.frame.photoId) {
-      <div
-        [attr.data-frame]="layer.frame.photoId"
-        class="absolute inset-0"
-        [class.opacity-0]="layer.index !== currentIndex()"
-        [attr.aria-hidden]="layer.index !== currentIndex()"
-      >
-        @if (layer.frame.previewUrl) {
-          <img
-            [src]="layer.frame.previewUrl"
-            alt=""
-            class="absolute inset-0 h-full w-full object-cover"
-            [style.filter]="layer.frame.imageFilter"
-          />
-        }
-      </div>
-    }
-    <div class="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/80"></div>
-
-    <!-- Tap zones: left goes back, right advances (Stories convention). Active in
-         refine too (tap the caption itself to edit); off while a sheet is open. -->
-    @if (!editingFrame() && !managing()) {
-      <button
-        type="button"
-        aria-label="Previous frame"
-        (click)="prev()"
-        class="absolute bottom-40 left-0 top-20 z-10 w-2/5"
-      ></button>
-      <button
-        type="button"
-        aria-label="Next frame"
-        (click)="next()"
-        class="absolute bottom-40 right-0 top-20 z-10 w-3/5"
-      ></button>
-    }
-
-    @if (!editingFrame()) {
-      <header class="relative z-20 flex gap-1 px-3 pt-11">
-        @for (f of frames(); track f.photoId) {
-          <span
-            class="h-[3px] flex-1 rounded bg-white"
-            [class.opacity-40]="$index > currentIndex()"
-          ></span>
-        }
-      </header>
-    }
-
-    @if (partial() && !bannerDismissed() && !refining()) {
-      <div
-        class="drop-in absolute inset-x-3.5 top-[104px] z-30 flex items-center gap-2.5 rounded-2xl border border-white/10 bg-surface-container-high p-3 shadow-lg"
-      >
-        <mat-icon class="text-primary">auto_fix_high</mat-icon>
-        <span class="mat-label-large flex-1 text-on-surface"
-          >1 photo didn't fit the story — we used {{ frameCount() }} of {{ pickedCount() }}.</span
+        <div
+          [attr.data-frame]="layer.frame.photoId"
+          class="absolute inset-0"
+          [class.opacity-0]="layer.index !== currentIndex()"
+          [attr.aria-hidden]="layer.index !== currentIndex()"
         >
+          @if (layer.frame.previewUrl) {
+            <img
+              [src]="layer.frame.previewUrl"
+              alt=""
+              class="absolute inset-0 h-full w-full object-cover"
+              [style.filter]="layer.frame.imageFilter"
+            />
+          }
+        </div>
+      }
+      <div
+        class="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/80"
+      ></div>
+
+      <!-- Tap zones: left goes back, right advances (Stories convention). Active in
+         refine too (tap the caption itself to edit); off while a sheet is open. -->
+      @if (!editingFrame() && !managing()) {
         <button
           type="button"
-          aria-label="Dismiss notice"
-          (click)="dismissBanner()"
-          class="text-on-surface-variant"
-        >
-          <mat-icon>close</mat-icon>
-        </button>
-      </div>
-    }
+          aria-label="Previous frame"
+          (click)="prev()"
+          class="absolute bottom-40 left-0 top-20 z-10 w-2/5"
+        ></button>
+        <button
+          type="button"
+          aria-label="Next frame"
+          (click)="next()"
+          class="absolute bottom-40 right-0 top-20 z-10 w-3/5"
+        ></button>
+      }
 
-    <!-- Art-directed layout (decision 7.21): when the agent composed one, it
-         supersedes the caption/style/texts for viewing. Refine still edits the
-         legacy caption path for now. -->
-    @if (frame.layout && !refining() && !editingFrame()) {
-      <app-layout-view
-        [layout]="frame.layout"
-        [readable]="frame.layoutReadable"
-        [light]="frame.light"
-        [legibility]="frame.legibility"
-      />
-    }
-
-    <!-- The caption, at the placement the user gave it. In refine it becomes a
-         tappable, editable-looking layer; the editor overlay opens on tap.
-         Hidden while the editor is open, or when a layout supersedes it. -->
-    @if (!editingFrame() && (refining() || !frame.layout)) {
-      <div
-        class="absolute z-20 w-[78%] max-w-[320px] -translate-x-1/2 -translate-y-1/2"
-        [style.left.%]="frame.placement.xPct"
-        [style.top.%]="frame.placement.yPct"
-      >
-        @if (refining()) {
-          @if (!coachSeen()) {
-            <div
-              class="mat-label-large coach-bob absolute -top-12 left-1/2 flex items-center gap-1.5 whitespace-nowrap rounded-full bg-primary px-3 py-1.5 text-on-primary shadow-lg"
-            >
-              <mat-icon class="h-[18px] w-[18px] text-[18px] leading-none">touch_app</mat-icon>
-              Tap to edit &amp; move
-            </div>
+      @if (!editingFrame()) {
+        <header class="relative z-20 flex gap-1 px-3 pt-11">
+          @for (f of frames(); track f.photoId) {
+            <span
+              class="h-[3px] flex-1 rounded bg-white"
+              [class.opacity-40]="$index > currentIndex()"
+            ></span>
           }
+        </header>
+      }
+
+      @if (partial() && !bannerDismissed() && !refining()) {
+        <div
+          class="drop-in absolute inset-x-3.5 top-[104px] z-30 flex items-center gap-2.5 rounded-2xl border border-white/10 bg-surface-container-high p-3 shadow-lg"
+        >
+          <mat-icon class="text-primary">auto_fix_high</mat-icon>
+          <span class="mat-label-large flex-1 text-on-surface"
+            >1 photo didn't fit the story — we used {{ frameCount() }} of {{ pickedCount() }}.</span
+          >
           <button
             type="button"
-            (click)="editCaption(frame.photoId)"
-            class="press story-caption relative block w-full rounded-2xl border-[1.5px] border-dashed border-white/60 px-4 py-3 leading-tight"
-            [class]="frame.scrimClass"
-            [style.fontFamily]="frame.fontFamily"
-            [style.fontWeight]="frame.fontWeight"
-            [style.textAlign]="frame.textAlign"
-            [style.textTransform]="frame.textTransform"
-            [style.color]="frame.color"
-            [style.fontSize.px]="frame.placement.scale * 24 * frame.sizeMult * frame.fitMult"
+            aria-label="Dismiss notice"
+            (click)="dismissBanner()"
+            class="text-on-surface-variant"
           >
-            {{ frame.caption }}
-            <mat-icon
-              class="absolute -right-2.5 -top-2.5 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-[16px] text-on-primary shadow-lg"
-              >edit</mat-icon
-            >
+            <mat-icon>close</mat-icon>
           </button>
-        } @else {
-          <p
-            class="story-caption leading-tight"
-            [class]="frame.scrimClass ? 'rounded-2xl px-4 py-3 ' + frame.scrimClass : ''"
-            [style.fontFamily]="frame.fontFamily"
-            [style.fontWeight]="frame.fontWeight"
-            [style.textAlign]="frame.textAlign"
-            [style.textTransform]="frame.textTransform"
-            [style.color]="frame.color"
-            [style.fontSize.px]="frame.placement.scale * 24 * frame.sizeMult * frame.fitMult"
-          >
-            {{ frame.caption }}
-          </p>
-        }
-      </div>
-    }
+        </div>
+      }
 
-    <!-- Extra placed text blocks besides the caption — the editorial layer (a
-         small line + a bigger line). In refine each is tappable to edit/move/
-         resize; in view it's read-only. Hidden when a layout supersedes them. -->
-    @if (!editingFrame() && (refining() || !frame.layout)) {
-      @for (t of frame.extraTexts; track t.index) {
+      <!-- Art-directed layout (decision 7.21): when the agent composed one, it
+         supersedes the caption/style/texts for viewing. Refine still edits the
+         legacy caption path for now. -->
+      @if (frame.layout && !refining() && !editingFrame()) {
+        <app-layout-view
+          [layout]="frame.layout"
+          [readable]="frame.layoutReadable"
+          [accent]="frame.layoutAccent"
+          [light]="frame.light"
+          [legibility]="frame.legibility"
+        />
+      }
+
+      <!-- The caption, at the placement the user gave it. In refine it becomes a
+         tappable, editable-looking layer; the editor overlay opens on tap.
+         Hidden while the editor is open, or when a layout supersedes it. -->
+      @if (!editingFrame() && (refining() || !frame.layout)) {
         <div
           class="absolute z-20 w-[78%] max-w-[320px] -translate-x-1/2 -translate-y-1/2"
-          [style.left.%]="t.placement.xPct"
-          [style.top.%]="t.placement.yPct"
+          [style.left.%]="frame.placement.xPct"
+          [style.top.%]="frame.placement.yPct"
         >
           @if (refining()) {
+            @if (!coachSeen()) {
+              <div
+                class="mat-label-large coach-bob absolute -top-12 left-1/2 flex items-center gap-1.5 whitespace-nowrap rounded-full bg-primary px-3 py-1.5 text-on-primary shadow-lg"
+              >
+                <mat-icon class="h-[18px] w-[18px] text-[18px] leading-none">touch_app</mat-icon>
+                Tap to edit &amp; move
+              </div>
+            }
             <button
               type="button"
-              (click)="editExtra(frame.photoId, t.index)"
+              (click)="editCaption(frame.photoId)"
               class="press story-caption relative block w-full rounded-2xl border-[1.5px] border-dashed border-white/60 px-4 py-3 leading-tight"
-              [class]="t.scrimClass"
-              [style.fontFamily]="t.fontFamily"
-              [style.fontWeight]="t.fontWeight"
-              [style.textAlign]="t.textAlign"
-              [style.textTransform]="t.textTransform"
-              [style.color]="t.color"
-              [style.fontSize.px]="t.placement.scale * 24 * t.sizeMult * t.fitMult"
+              [class]="frame.scrimClass"
+              [style.fontFamily]="frame.fontFamily"
+              [style.fontWeight]="frame.fontWeight"
+              [style.textAlign]="frame.textAlign"
+              [style.textTransform]="frame.textTransform"
+              [style.color]="frame.color"
+              [style.fontSize.px]="frame.placement.scale * 24 * frame.sizeMult * frame.fitMult"
             >
-              {{ t.text }}
+              {{ frame.caption }}
               <mat-icon
                 class="absolute -right-2.5 -top-2.5 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-[16px] text-on-primary shadow-lg"
                 >edit</mat-icon
@@ -173,37 +130,83 @@
             </button>
           } @else {
             <p
-              data-extra-text
               class="story-caption leading-tight"
-              [class]="t.scrimClass ? 'rounded-2xl px-4 py-3 ' + t.scrimClass : ''"
-              [style.fontFamily]="t.fontFamily"
-              [style.fontWeight]="t.fontWeight"
-              [style.textAlign]="t.textAlign"
-              [style.textTransform]="t.textTransform"
-              [style.color]="t.color"
-              [style.fontSize.px]="t.placement.scale * 24 * t.sizeMult * t.fitMult"
+              [class]="frame.scrimClass ? 'rounded-2xl px-4 py-3 ' + frame.scrimClass : ''"
+              [style.fontFamily]="frame.fontFamily"
+              [style.fontWeight]="frame.fontWeight"
+              [style.textAlign]="frame.textAlign"
+              [style.textTransform]="frame.textTransform"
+              [style.color]="frame.color"
+              [style.fontSize.px]="frame.placement.scale * 24 * frame.sizeMult * frame.fitMult"
             >
-              {{ t.text }}
+              {{ frame.caption }}
             </p>
           }
         </div>
       }
-    }
 
-    <!-- Sparks: the AI's optional Instagram add-ons for this frame, shown as
+      <!-- Extra placed text blocks besides the caption — the editorial layer (a
+         small line + a bigger line). In refine each is tappable to edit/move/
+         resize; in view it's read-only. Hidden when a layout supersedes them. -->
+      @if (!editingFrame() && (refining() || !frame.layout)) {
+        @for (t of frame.extraTexts; track t.index) {
+          <div
+            class="absolute z-20 w-[78%] max-w-[320px] -translate-x-1/2 -translate-y-1/2"
+            [style.left.%]="t.placement.xPct"
+            [style.top.%]="t.placement.yPct"
+          >
+            @if (refining()) {
+              <button
+                type="button"
+                (click)="editExtra(frame.photoId, t.index)"
+                class="press story-caption relative block w-full rounded-2xl border-[1.5px] border-dashed border-white/60 px-4 py-3 leading-tight"
+                [class]="t.scrimClass"
+                [style.fontFamily]="t.fontFamily"
+                [style.fontWeight]="t.fontWeight"
+                [style.textAlign]="t.textAlign"
+                [style.textTransform]="t.textTransform"
+                [style.color]="t.color"
+                [style.fontSize.px]="t.placement.scale * 24 * t.sizeMult * t.fitMult"
+              >
+                {{ t.text }}
+                <mat-icon
+                  class="absolute -right-2.5 -top-2.5 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-[16px] text-on-primary shadow-lg"
+                  >edit</mat-icon
+                >
+              </button>
+            } @else {
+              <p
+                data-extra-text
+                class="story-caption leading-tight"
+                [class]="t.scrimClass ? 'rounded-2xl px-4 py-3 ' + t.scrimClass : ''"
+                [style.fontFamily]="t.fontFamily"
+                [style.fontWeight]="t.fontWeight"
+                [style.textAlign]="t.textAlign"
+                [style.textTransform]="t.textTransform"
+                [style.color]="t.color"
+                [style.fontSize.px]="t.placement.scale * 24 * t.sizeMult * t.fitMult"
+              >
+                {{ t.text }}
+              </p>
+            }
+          </div>
+        }
+      }
+
+      <!-- Sparks: the AI's optional Instagram add-ons for this frame, shown as
          tappable dots the user copies into Instagram during the hand-off. View
          mode only — refine has its own gestures, and nothing is baked into the
          export (decision 7.10). -->
-    @if (!refining() && !editingFrame() && !managing()) {
-      <app-story-sparks [photoId]="frame.photoId" [suggestions]="frame.suggestions" />
-    }
+      @if (!refining() && !editingFrame() && !managing()) {
+        <app-story-sparks [photoId]="frame.photoId" [suggestions]="frame.suggestions" />
+      }
 
-    <!-- One-time nav hint: paging a Story isn't obvious on the web (5.3). -->
-    @if (!refining() && !editingFrame() && multiFrame() && !navHintSeen()) {
-      <p class="mat-label-small absolute inset-x-0 bottom-[136px] z-10 text-center text-white/70">
-        Tap or swipe the photo to move through the story
-      </p>
-    }
+      <!-- One-time nav hint: paging a Story isn't obvious on the web (5.3). -->
+      @if (!refining() && !editingFrame() && multiFrame() && !navHintSeen()) {
+        <p class="mat-label-small absolute inset-x-0 bottom-[136px] z-10 text-center text-white/70">
+          Tap or swipe the photo to move through the story
+        </p>
+      }
     </div>
     <!-- /story-stage -->
 
@@ -223,12 +226,7 @@
             Done
           </button>
         </div>
-        <button
-          matButton="tonal"
-          class="w-full"
-          [disabled]="!canAddText()"
-          (click)="addText()"
-        >
+        <button matButton="tonal" class="w-full" [disabled]="!canAddText()" (click)="addText()">
           <mat-icon>add</mat-icon>
           {{ canAddText() ? 'Add a text block' : 'Up to 2 text blocks per photo' }}
         </button>
@@ -270,11 +268,7 @@
     <!-- Hand-off card: shown before we leave, presenting the add-ons; its own
          button renders + hands off to Instagram. -->
     @if (handingOff()) {
-      <app-handoff-companion
-        [busy]="exporting()"
-        (save)="confirmHandoff()"
-        (done)="closeTray()"
-      />
+      <app-handoff-companion [busy]="exporting()" (save)="confirmHandoff()" (done)="closeTray()" />
     }
 
     <!-- Reorder & remove — a clean, dedicated surface for managing the frames. -->

@@ -48,6 +48,16 @@ describe('LayoutView', () => {
     expect(await harness.lineTexts()).toEqual(['we', 'drove', 'till']);
   });
 
+  it('renders a hand underline for an element flagged underline', async () => {
+    const harness = await render({ elements: [element({ underline: true })] });
+    expect(await harness.underlineCount()).toBe(1);
+  });
+
+  it('renders no underline for an element that is not flagged', async () => {
+    const harness = await render({ elements: [element({ underline: false })] });
+    expect(await harness.underlineCount()).toBe(0);
+  });
+
   it('renders every element when per-element readability is supplied', async () => {
     await TestBed.configureTestingModule({ imports: [LayoutView] }).compileComponents();
     const fixture = TestBed.createComponent(LayoutView);

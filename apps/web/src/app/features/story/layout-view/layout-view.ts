@@ -26,6 +26,8 @@ export class LayoutView {
   /** Per-element readability, computed on-device (7.10). Falls back to the
    * frame-level `light`/`legibility` for any element not yet sampled. */
   readonly readable = input<readonly Readable[] | undefined>(undefined);
+  /** The story accent colour, sampled from the photo (7.23). */
+  readonly accent = input<string | undefined>(undefined);
   /** Frame-level fallback: true → light (white) text, false → dark. */
   readonly light = input(true);
   /** Frame-level fallback: true → draw a scrim behind each element. */
@@ -33,12 +35,18 @@ export class LayoutView {
 
   protected readonly elements = computed<ResolvedElement[]>(() => resolveLayout(this.layout()));
 
-  /** Legible colour for element `index`, from its own sampled luminance if we
-   * have it, else the frame-level fallback. */
-  protected colorFor(index: number): string {
+  /** Colour for an element: the story accent when the agent flagged it (and we
+   * have one), else the legible colour from its sampled luminance / the fallback. */
+  protected colorFor(element: ResolvedElement, index: number): string {
+    if (element.accent && this.accent()) return this.accent() as string;
     const palette = paletteFor();
     const isLight = this.readable()?.[index]?.light ?? this.light();
     return isLight ? palette.textLight : palette.textDark;
+  }
+
+  /** Colour for a hand underline — always the accent, falling back to the text. */
+  protected underlineColor(element: ResolvedElement, index: number): string {
+    return this.accent() ?? this.colorFor(element, index);
   }
 
   /** Scrim class for element `index`, or '' when no scrim is needed. */

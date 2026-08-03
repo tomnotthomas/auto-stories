@@ -55,6 +55,8 @@ interface ViewFrame {
   readonly light: boolean;
   /** Per-element readability for the layout, computed on-device (7.10). */
   readonly layoutReadable: readonly Readable[] | undefined;
+  /** The layout's accent colour, sampled from the photo (7.23). */
+  readonly layoutAccent: string | undefined;
 }
 
 /** One extra placed text block, resolved to CSS + its editable state. */
@@ -156,6 +158,7 @@ export class Story {
         layout: frame.layout,
         light: frame.light,
         layoutReadable: frame.layoutReadable,
+        layoutAccent: frame.layoutAccent,
         extraTexts: frame.extraTexts.map((b, i) => ({
           index: i,
           text: b.text,

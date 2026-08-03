@@ -18,11 +18,16 @@ function fakeCtx() {
   // Text is painted with fillText; only the scrim rect uses fill(), so every
   // fill() call is one scrim.
   let scrimFills = 0;
+  // The underline is the only thing drawn with stroke(); record its colour.
+  const strokes: string[] = [];
   const ctx = {
     font: '',
     textAlign: 'left' as CanvasTextAlign,
     textBaseline: 'alphabetic' as CanvasTextBaseline,
     fillStyle: '' as string,
+    strokeStyle: '' as string,
+    lineWidth: 0,
+    lineCap: 'butt' as CanvasLineCap,
     letterSpacing: '',
     fillText(text: string, x: number, y: number) {
       texts.push({
@@ -41,13 +46,25 @@ function fakeCtx() {
     },
     beginPath() {},
     moveTo() {},
+    lineTo() {},
+    bezierCurveTo() {},
     arcTo() {},
     closePath() {},
     fill() {
       scrimFills += 1;
     },
+    stroke() {
+      strokes.push(this.strokeStyle);
+    },
   };
-  return { ctx: ctx as unknown as Ctx2D, texts, get scrimFills() { return scrimFills; } };
+  return {
+    ctx: ctx as unknown as Ctx2D,
+    texts,
+    get scrimFills() {
+      return scrimFills;
+    },
+    strokes,
+  };
 }
 
 function element(over: Partial<LayoutElement> = {}): LayoutElement {
@@ -114,7 +131,10 @@ describe('drawLayout', () => {
 
   it('draws a scrim rect only when the colour resolver asks for one', () => {
     const withScrim = fakeCtx();
-    drawLayout(withScrim.ctx, spec(element()), 1080, 1920, () => ({ fill: '#fff', scrim: 'rgba(0,0,0,.4)' }));
+    drawLayout(withScrim.ctx, spec(element()), 1080, 1920, () => ({
+      fill: '#fff',
+      scrim: 'rgba(0,0,0,.4)',
+    }));
     expect(withScrim.scrimFills).toBe(1);
 
     const noScrim = fakeCtx();
@@ -126,5 +146,21 @@ describe('drawLayout', () => {
     const { ctx, texts } = fakeCtx();
     drawLayout(ctx, spec(element({ text: 'a' }), element({ text: 'b' })), 1080, 1920, () => white);
     expect(texts.map((t) => t.text)).toEqual(['a', 'b']);
+  });
+
+  it('strokes a hand underline in the accent colour only when the element is underlined', () => {
+    const on = fakeCtx();
+    drawLayout(on.ctx, spec(element({ underline: true })), 1080, 1920, () => ({
+      fill: '#fff',
+      underline: '#e8663a',
+    }));
+    expect(on.strokes).toEqual(['#e8663a']);
+
+    const off = fakeCtx();
+    drawLayout(off.ctx, spec(element()), 1080, 1920, () => ({
+      fill: '#fff',
+      underline: '#e8663a',
+    }));
+    expect(off.strokes).toEqual([]);
   });
 });
