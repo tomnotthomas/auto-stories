@@ -16,10 +16,26 @@
     [style.letterSpacing.em]="element.letterSpacingEm"
     [style.lineHeight]="element.lineHeight"
     [style.fontSize.px]="fontPx(element)"
-    [style.color]="colorFor(i)"
+    [style.color]="colorFor(element, i)"
   >
     @for (line of element.lines; track $index) {
       <span data-layout-line class="block">{{ line }}</span>
+    }
+    @if (element.underline) {
+      <!-- A hand-drawn underline in the accent colour (7.23). -->
+      <svg
+        data-layout-underline
+        class="block w-full"
+        style="height: 0.42em; margin-top: 0.06em"
+        viewBox="0 0 200 12"
+        preserveAspectRatio="none"
+        fill="none"
+        [attr.stroke]="underlineColor(element, i)"
+        stroke-width="3"
+        stroke-linecap="round"
+      >
+        <path d="M4 8 C58 3 148 11 196 5" />
+      </svg>
     }
   </div>
 }

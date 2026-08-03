@@ -10,6 +10,7 @@ import {
 } from './caption-style';
 import { cohesionFilter, frameLuminance } from './caption-cohesion';
 import { resolveLayout } from './layout-spec';
+import { sampleAccent } from './accent-color';
 
 /**
  * The screen the flow is currently on. Phase 1 is one linear, in-memory flow
@@ -91,6 +92,9 @@ export interface EditableFrame extends Frame {
    * `layout.elements` — computed on-device so each element is legible against the
    * pixels under it (7.10). Undefined until computed / when there is no layout. */
   readonly layoutReadable?: readonly Readable[];
+  /** The accent colour for this frame's layout (7.23), sampled from the photo.
+   * Undefined until computed / when there is no layout. */
+  readonly layoutAccent?: string;
 }
 
 /** Build the editable extra-text state for a contract frame's `texts` — each
@@ -280,7 +284,14 @@ export class StoryService {
     const files = new Map(this._photos().map((photo) => [photo.id, photo.file]));
     const readable = new Map<
       string,
-      { light: boolean; scrim: boolean; filter: string; extras: Readable[]; layout?: Readable[] }
+      {
+        light: boolean;
+        scrim: boolean;
+        filter: string;
+        extras: Readable[];
+        layout?: Readable[];
+        accent?: string;
+      }
     >();
     for (const frame of this._frames()) {
       const file = files.get(frame.photoId);
@@ -301,6 +312,8 @@ export class StoryService {
                 pickReadable(sampleLuminance(bitmap, { xPct: el.xPct, yPct: el.yPct, scale: 1 })),
               )
             : undefined,
+          // One accent colour per frame, pulled from the photo (7.23).
+          accent: frame.layout ? sampleAccent(bitmap) : undefined,
         });
         bitmap.close();
       } catch {
@@ -321,6 +334,7 @@ export class StoryService {
             r.extras[i] ? { ...b, light: r.extras[i].light, legibility: r.extras[i].scrim } : b,
           ),
           layoutReadable: r.layout ?? frame.layoutReadable,
+          layoutAccent: r.accent ?? frame.layoutAccent,
         };
       }),
     );

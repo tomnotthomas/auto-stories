@@ -18,6 +18,8 @@ export interface ElementColor {
   readonly fill: string;
   /** Optional scrim behind the text, for legibility on a busy photo. */
   readonly scrim?: string;
+  /** Colour for a hand underline beneath this element (7.23), when it has one. */
+  readonly underline?: string;
 }
 
 /** Resolve an element's colour from the device's pixel sampling (7.10). */
@@ -31,13 +33,19 @@ export interface Ctx2D {
   textBaseline: CanvasTextBaseline;
   fillStyle: string | CanvasGradient | CanvasPattern;
   letterSpacing?: string;
+  strokeStyle: string | CanvasGradient | CanvasPattern;
+  lineWidth: number;
+  lineCap: CanvasLineCap;
   fillText(text: string, x: number, y: number): void;
   measureText(text: string): { width: number };
   beginPath(): void;
   moveTo(x: number, y: number): void;
+  lineTo(x: number, y: number): void;
+  bezierCurveTo(cp1x: number, cp1y: number, cp2x: number, cp2y: number, x: number, y: number): void;
   arcTo(x1: number, y1: number, x2: number, y2: number, radius: number): void;
   closePath(): void;
   fill(): void;
+  stroke(): void;
 }
 
 /**
@@ -75,18 +83,44 @@ export function drawLayout(
       el.vAlign === 'top' ? ay : el.vAlign === 'bottom' ? ay - blockH : ay - blockH / 2;
 
     const color = colorFor(el, index);
+    const widest = Math.max(0, ...lines.map((l) => ctx.measureText(l).width));
+    const left = el.hAlign === 'left' ? ax : el.hAlign === 'right' ? ax - widest : ax - widest / 2;
     if (color.scrim) {
-      const widest = Math.max(0, ...lines.map((l) => ctx.measureText(l).width));
-      const left = el.hAlign === 'left' ? ax : el.hAlign === 'right' ? ax - widest : ax - widest / 2;
       const padX = fontPx * 0.5;
       const padY = fontPx * 0.35;
       ctx.fillStyle = color.scrim;
-      roundRect(ctx, left - padX, blockTop - padY, widest + padX * 2, blockH + padY * 2, fontPx * 0.35);
+      roundRect(
+        ctx,
+        left - padX,
+        blockTop - padY,
+        widest + padX * 2,
+        blockH + padY * 2,
+        fontPx * 0.35,
+      );
       ctx.fill();
     }
 
     ctx.fillStyle = color.fill;
     lines.forEach((line, i) => ctx.fillText(line, ax, blockTop + i * lineH));
+
+    // A hand-drawn underline in the accent colour (7.23), a loose bezier stroke.
+    if (el.underline && color.underline) {
+      const y = blockTop + blockH + fontPx * 0.14;
+      ctx.strokeStyle = color.underline;
+      ctx.lineWidth = Math.max(2, fontPx * 0.06);
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(left, y);
+      ctx.bezierCurveTo(
+        left + widest * 0.3,
+        y - fontPx * 0.06,
+        left + widest * 0.7,
+        y + fontPx * 0.06,
+        left + widest,
+        y - fontPx * 0.02,
+      );
+      ctx.stroke();
+    }
   });
 }
 

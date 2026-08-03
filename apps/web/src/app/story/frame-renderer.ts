@@ -63,14 +63,18 @@ export async function renderFrame(file: File, frame: EditableFrame): Promise<Blo
   // matches the DOM preview exactly. Colour comes from the device sampling (7.10).
   if (frame.layout) {
     const palette = paletteFor();
-    drawLayout(ctx, frame.layout, FRAME_W, FRAME_H, (_element, index) => {
+    drawLayout(ctx, frame.layout, FRAME_W, FRAME_H, (element, index) => {
       // Per-element readability sampled on-device (7.10), frame-level as fallback.
       const r = frame.layoutReadable?.[index];
       const light = r?.light ?? frame.light;
       const scrim = r?.scrim ?? frame.legibility;
+      const legible = light ? palette.textLight : palette.textDark;
+      // The story accent (7.23) paints a flagged element and any hand underline.
+      const fill = element.accent && frame.layoutAccent ? frame.layoutAccent : legible;
       return {
-        fill: light ? palette.textLight : palette.textDark,
+        fill,
         scrim: scrim ? (light ? 'rgba(0,0,0,0.42)' : 'rgba(255,255,255,0.62)') : undefined,
+        underline: frame.layoutAccent ?? fill,
       };
     });
     return canvas.convertToBlob({ type: 'image/png' });

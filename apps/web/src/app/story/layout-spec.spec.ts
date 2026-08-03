@@ -66,9 +66,9 @@ describe('resolveLayout', () => {
   });
 
   it('stacks text into one line per word, and keeps a single line otherwise', () => {
-    expect(resolveLayout(spec(element({ text: 'we drove till the', stack: true })))[0].lines).toEqual(
-      ['we', 'drove', 'till', 'the'],
-    );
+    expect(
+      resolveLayout(spec(element({ text: 'we drove till the', stack: true })))[0].lines,
+    ).toEqual(['we', 'drove', 'till', 'the']);
     expect(resolveLayout(spec(element({ text: 'Golden hour', stack: false })))[0].lines).toEqual([
       'Golden hour',
     ]);
@@ -100,5 +100,12 @@ describe('resolveLayout', () => {
       spec(element({ text: 'one' }), element({ text: 'two', stack: false })),
     );
     expect(resolved.map((r) => r.lines[0])).toEqual(['one', 'two']);
+  });
+
+  it('passes the accent + underline flags through, defaulting both to false', () => {
+    const [on] = resolveLayout(spec(element({ accent: true, underline: true })));
+    expect(on).toMatchObject({ accent: true, underline: true });
+    const [off] = resolveLayout(spec(element()));
+    expect(off).toMatchObject({ accent: false, underline: false });
   });
 });
