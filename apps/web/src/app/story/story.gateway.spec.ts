@@ -1,17 +1,9 @@
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
-import {
-  HttpTestingController,
-  provideHttpClientTesting,
-} from '@angular/common/http/testing';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import type { GenerateRequest, GenerateResponse } from '@auto-stories/api-types';
 
-import {
-  EVENT_SOURCE_FACTORY,
-  GENERATE_URL,
-  JOBS_URL,
-  StoryGateway,
-} from './story.gateway';
+import { EVENT_SOURCE_FACTORY, GENERATE_URL, JOBS_URL, StoryGateway } from './story.gateway';
 
 const request: GenerateRequest = {
   story: 'A day at the lake',
@@ -19,7 +11,7 @@ const request: GenerateRequest = {
 };
 
 const STORY: GenerateResponse = {
-  frames: [{ photoId: 'p1', order: 1, caption: 'By the water', headline: 'By the water', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } }],
+  frames: [{ photoId: 'p1', order: 1, headline: 'By the water' }],
   partial: false,
   look: 'magazine-masthead',
 };
@@ -88,10 +80,12 @@ describe('StoryGateway', () => {
 
     it('maps a typed error response to its code and message', async () => {
       const pending = gateway.generate(request);
-      http.expectOne(GENERATE_URL).flush(
-        { error: { code: 'rate_limited', message: 'Slow down and retry shortly.' } },
-        { status: 429, statusText: 'Too Many Requests' },
-      );
+      http
+        .expectOne(GENERATE_URL)
+        .flush(
+          { error: { code: 'rate_limited', message: 'Slow down and retry shortly.' } },
+          { status: 429, statusText: 'Too Many Requests' },
+        );
       expect(await pending).toEqual({
         ok: false,
         code: 'rate_limited',

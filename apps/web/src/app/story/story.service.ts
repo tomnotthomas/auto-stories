@@ -1,17 +1,11 @@
 import { Injectable, computed, signal } from '@angular/core';
-import type { ErrorCode, Frame, TextBlock, Tone } from '@auto-stories/api-types';
+import type { ErrorCode, Frame, Tone } from '@auto-stories/api-types';
 
-import {
-  DEFAULT_STYLE,
-  pickReadable,
-  sampleLuminance,
-  zoneToPlacement,
-  type Readable,
-} from './caption-style';
+import { pickReadable, sampleLuminance } from './caption-style';
 import { cohesionFilter, frameLuminance } from './caption-cohesion';
-import { composeFrame, type Composition, type FrameContent } from './look';
+import { composeFrame, type Composition, type FrameContent, type PhotoAnalysis } from './look';
 import { sampleBands } from './quiet-zone';
-import { sampleAccent } from './accent-color';
+import { DEFAULT_ACCENT, sampleAccent } from './accent-color';
 
 /**
  * The screen the flow is currently on. Phase 1 is one linear, in-memory flow
@@ -48,84 +42,52 @@ export interface StoryError {
   readonly message: string;
 }
 
-/** Where the caption sits on a frame, as the user placed it in refine (1.5, 5.9):
- * box centre as a percentage of the photo, plus a text-size multiplier. Percentages
- * keep the placement correct across the phone-frame and full-bleed layouts (5.10). */
-export interface FramePlacement {
-  readonly xPct: number;
-  readonly yPct: number;
-  readonly scale: number;
-}
-
-/** The smart default: centred in the always-visible band — high enough that the
- * refine bar / edit sheet never cover it — unscaled (1.5). */
-export const DEFAULT_PLACEMENT: FramePlacement = { xPct: 50, yPct: 46, scale: 1 };
-
-/** One extra placed text block besides the caption, with its editable refine
- * state (its own spot, background, and computed colour). The style fields mirror
- * the contract {@link TextBlock}; `position` is replaced by a free `placement`. */
-export interface EditableTextBlock {
-  readonly text: string;
-  readonly font: TextBlock['font'];
-  readonly weight: TextBlock['weight'];
-  readonly case: TextBlock['case'];
-  readonly align: TextBlock['align'];
-  readonly size: TextBlock['size'];
-  readonly placement: FramePlacement;
-  readonly legibility: boolean;
-  readonly light: boolean;
-}
-
-/** A generated frame plus the state the user refines in place: the caption text,
- * where it sits, and whether it keeps its legibility background (5.3, 5.9), plus
- * any extra placed text blocks the AI added and the user can edit. */
+/** A generated frame plus what the device worked out for it: the reading of the
+ * photo, the composition that reading produced, and the exposure match. One text
+ * per frame (`headline`), and one renderer — the composition (decision 7.25). */
 export interface EditableFrame extends Frame {
-  readonly placement: FramePlacement;
-  readonly legibility: boolean;
-  /** Computed on-device: true → light (white) caption text, false → dark. */
+  /** Computed on-device: true → light (white) type, false → dark. Read by a
+   * composition whose Look declares `ink: 'auto'`. */
   readonly light: boolean;
   /** Computed on-device: a CSS/canvas `filter` that matches this photo's
    * exposure to the rest of the story (cohesion); `'none'` until computed. */
   readonly imageFilter: string;
-  /** Extra placed text blocks (0–2) besides the caption, each editable. */
-  readonly extraTexts: readonly EditableTextBlock[];
+  /** What we measured in the photo (7.24). Neutral until the photo is decoded,
+   * then the real reading — kept on the frame so editing the words can recompose
+   * without decoding the photo again. */
+  readonly analysis: PhotoAnalysis;
   /** This frame under the story's Look (decision 7.24) — type, rules and marks,
-   * fully placed. Composed on-device from the frame's words plus what we measured
-   * in the photo, and drawn by both the preview and the export. Undefined until
-   * the photo has been read. */
-  readonly composition?: Composition;
-  /** The accent colour for this frame (7.23), sampled from the photo. */
-  readonly accent?: string;
+   * fully placed — drawn by both the preview and the export. Always present: a
+   * frame composes the moment it arrives (from {@link NEUTRAL_ANALYSIS}) and
+   * recomposes once the photo has been read, so nothing renders a hole. */
+  readonly composition: Composition;
 }
 
-/** The words a Look composes with (decision 7.24). `headline` is guaranteed by
- * the server, but fall back to the caption anyway so a frame always composes.
- * The place name comes from the frame's location suggestion — the Looks that
- * show one (Magazine's byline, Scrapbook's tag) read it from here. */
+/** The reading a frame starts with, before its photo has been decoded: the
+ * default accent and no busy band anywhere, so every Look keeps its preferred
+ * placement. Replaced by the real reading in {@link StoryService.computeReadable}. */
+const NEUTRAL_ANALYSIS: PhotoAnalysis = {
+  accent: DEFAULT_ACCENT,
+  bands: { top: 0, middle: 0, bottom: 0 },
+};
+
+/** Where to sample the photo's luminance for a composition — the middle of the
+ * band its type hangs in. */
+function inkSampleYPct(composition: Composition): number {
+  return composition.anchor === 'bottom' ? 78 : 22;
+}
+
+/** The words a Look composes with (decision 7.24/7.25). `headline` is the
+ * frame's one piece of text. The place name comes from the frame's location
+ * suggestion — the Looks that show one (Magazine's byline, Scrapbook's tag) read
+ * it from here. */
 function contentOf(frame: Frame): FrameContent {
   return {
     kicker: frame.kicker,
-    headline: frame.headline?.trim() || frame.caption,
+    headline: frame.headline,
     emphasis: frame.emphasis,
     location: frame.suggestions?.find((s) => s.type === 'location')?.query,
   };
-}
-
-/** Build the editable extra-text state for a contract frame's `texts` — each
- * block starts at its AI zone with a safe (white + scrim) look, refined by
- * computeReadable(). */
-function toEditableTexts(frame: Frame): EditableTextBlock[] {
-  return (frame.texts ?? []).map((b) => ({
-    text: b.text,
-    font: b.font,
-    weight: b.weight,
-    case: b.case,
-    align: b.align,
-    size: b.size,
-    placement: zoneToPlacement(b.position),
-    legibility: true,
-    light: true,
-  }));
 }
 
 /** The user's in-app edits to one suggested "spark": where they dragged its dot
@@ -185,8 +147,8 @@ export class StoryService {
   readonly storyLine = this._storyLine.asReadonly();
   /** The optional tone chip, or null. */
   readonly tone = this._tone.asReadonly();
-  /** The finished frames, in narrative order, each with its editable refine state
-   * (empty until the story lands). */
+  /** The finished frames, in narrative order, each already composed under the
+   * story's Look (empty until the story lands). */
   readonly frames = this._frames.asReadonly();
   /** True when the model dropped a photo but still produced a story (4.3). */
   readonly partial = this._partial.asReadonly();
@@ -268,25 +230,13 @@ export class StoryService {
     this._phase.set('generating');
   }
 
-  /** Store the finished story and show the payoff. Each contract frame gains its
-   * editable refine state (default placement, legibility on). */
+  /** Store the finished story and show the payoff. Each contract frame composes
+   * immediately under the story's Look from a neutral reading of the photo, so
+   * there is never a moment with nothing to render; computeReadable() then
+   * recomposes it from the real pixels. */
   completeStory(frames: readonly Frame[], partial: boolean, look?: string): void {
     this._look.set(look);
-    this._frames.set(
-      reindex(
-        frames.map((frame) => ({
-          ...frame,
-          // Start the caption where the AI placed it (its style zone); the user
-          // can still drag. Legibility + colour start safe (white + scrim) and
-          // are refined by computeReadable() from the real pixels.
-          placement: zoneToPlacement((frame.style ?? DEFAULT_STYLE).position),
-          legibility: true,
-          light: true,
-          imageFilter: 'none',
-          extraTexts: toEditableTexts(frame),
-        })),
-      ),
-    );
+    this._frames.set(reindex(frames.map((frame) => this.toEditable(frame))));
     this._partial.set(partial);
     this._sparks.set(new Map()); // a new story → fresh suggestions, fresh spark edits
     this._phase.set('story');
@@ -294,185 +244,86 @@ export class StoryService {
   }
 
   /**
-   * For each frame, sample the photo under the caption and pick a legible text
-   * colour + whether a scrim is needed (decisions 7.10 — the device does this,
-   * not the model). Runs after the story is shown, so the payoff isn't blocked
-   * on decoding; frames update in place when each is ready.
+   * Read each frame's photo and rebuild what depends on the pixels (7.10 — the
+   * device does this, not the model): the story accent + band map, the
+   * composition those produce, the legible ink polarity, and the exposure match
+   * that pulls the set together. Runs after the story is shown, so the payoff
+   * isn't blocked on decoding; frames update in place when each is ready.
    */
   private async computeReadable(): Promise<void> {
     const files = new Map(this._photos().map((photo) => [photo.id, photo.file]));
-    const readable = new Map<
+    const read = new Map<
       string,
-      {
-        light: boolean;
-        scrim: boolean;
-        filter: string;
-        extras: Readable[];
-        composition?: Composition;
-        accent?: string;
-      }
+      { light: boolean; filter: string; analysis: PhotoAnalysis; composition: Composition }
     >();
     for (const frame of this._frames()) {
       const file = files.get(frame.photoId);
       if (!file) continue;
       try {
         const bitmap = await createImageBitmap(file);
-        // One decode does several jobs: legibility under each text block, the
-        // exposure match that pulls the whole set together (cohesion), and the
-        // two readings the Looks engine needs — the story accent and how busy
-        // each band of the photo is (7.24).
-        const accent = sampleAccent(bitmap);
-        const composition = composeFrame(this._look(), contentOf(frame), {
-          accent,
+        const analysis: PhotoAnalysis = {
+          accent: sampleAccent(bitmap),
           bands: sampleBands(bitmap),
-        });
-        readable.set(frame.photoId, {
-          ...pickReadable(sampleLuminance(bitmap, frame.placement)),
+        };
+        const composition = composeFrame(this._look(), contentOf(frame), analysis);
+        read.set(frame.photoId, {
+          light: pickReadable(sampleLuminance(bitmap, inkSampleYPct(composition))).light,
           filter: cohesionFilter(frameLuminance(bitmap)),
-          extras: frame.extraTexts.map((b) => pickReadable(sampleLuminance(bitmap, b.placement))),
+          analysis,
           composition,
-          accent,
         });
         bitmap.close();
       } catch {
-        // Keep the safe defaults (white text + scrim, no filter) on decode fail.
+        // Keep the neutral reading (and the composition it produced) on a decode
+        // failure — the frame still renders, just without the photo's own accent.
       }
     }
-    if (readable.size === 0) return;
+    if (read.size === 0) return;
     this._frames.update((frames) =>
       frames.map((frame) => {
-        const r = readable.get(frame.photoId);
-        if (!r) return frame;
-        return {
-          ...frame,
-          light: r.light,
-          legibility: r.scrim,
-          imageFilter: r.filter,
-          extraTexts: frame.extraTexts.map((b, i) =>
-            r.extras[i] ? { ...b, light: r.extras[i].light, legibility: r.extras[i].scrim } : b,
-          ),
-          composition: r.composition ?? frame.composition,
-          accent: r.accent ?? frame.accent,
-        };
+        const r = read.get(frame.photoId);
+        return r ? { ...frame, ...r } : frame;
       }),
     );
   }
 
   /** Refine: add a hand-picked photo as a new frame at the end, keeping the
-   * existing frames and their placements untouched (used by "Add photo", 2.5).
-   * The caption is set by the caller; order/placement/legibility are defaulted.
-   * A photoId already in the story is ignored. */
+   * existing frames untouched (used by "Add photo", 2.5). The words are set by
+   * the caller. A photoId already in the story is ignored. */
   appendFrame(frame: Frame): void {
     this._frames.update((frames) => {
       if (frames.some((f) => f.photoId === frame.photoId)) return frames;
       const nextOrder = frames.reduce((max, f) => Math.max(max, f.order), 0) + 1;
-      return [
-        ...frames,
-        {
-          ...frame,
-          order: nextOrder,
-          placement: zoneToPlacement((frame.style ?? DEFAULT_STYLE).position),
-          legibility: true,
-          light: true,
-          imageFilter: 'none',
-          extraTexts: toEditableTexts(frame),
-        },
-      ];
+      return [...frames, this.toEditable({ ...frame, order: nextOrder })];
     });
   }
 
-  /** Refine: rewrite a frame's caption (manual edit or per-caption regenerate). */
-  setCaption(photoId: string, caption: string): void {
-    this._frames.update((frames) =>
-      frames.map((frame) => (frame.photoId === photoId ? { ...frame, caption } : frame)),
-    );
-  }
-
-  /** Refine: move/resize a caption. Partial so a drag (x/y) and a resize (scale)
-   * each merge into the frame's placement (1.5). */
-  setPlacement(photoId: string, placement: Partial<FramePlacement>): void {
-    this._frames.update((frames) =>
-      frames.map((frame) =>
-        frame.photoId === photoId
-          ? { ...frame, placement: { ...frame.placement, ...placement } }
-          : frame,
-      ),
-    );
-  }
-
-  /** Refine: toggle a frame's legibility background (5.9). */
-  toggleLegibility(photoId: string): void {
-    this._frames.update((frames) =>
-      frames.map((frame) =>
-        frame.photoId === photoId ? { ...frame, legibility: !frame.legibility } : frame,
-      ),
-    );
-  }
-
-  /** Map one frame's extra blocks, applying `fn` to the block at `index`. */
-  private mapExtra(
-    photoId: string,
-    index: number,
-    fn: (block: EditableTextBlock) => EditableTextBlock,
-  ): void {
-    this._frames.update((frames) =>
-      frames.map((frame) =>
-        frame.photoId === photoId
-          ? { ...frame, extraTexts: frame.extraTexts.map((b, i) => (i === index ? fn(b) : b)) }
-          : frame,
-      ),
-    );
-  }
-
-  /** Refine: rewrite an extra text block's words. */
-  setExtraText(photoId: string, index: number, text: string): void {
-    this.mapExtra(photoId, index, (b) => ({ ...b, text }));
-  }
-
-  /** Refine: move/resize an extra text block (partial, like setPlacement). */
-  setExtraPlacement(photoId: string, index: number, placement: Partial<FramePlacement>): void {
-    this.mapExtra(photoId, index, (b) => ({ ...b, placement: { ...b.placement, ...placement } }));
-  }
-
-  /** Refine: toggle an extra text block's background. */
-  toggleExtraLegibility(photoId: string, index: number): void {
-    this.mapExtra(photoId, index, (b) => ({ ...b, legibility: !b.legibility }));
-  }
-
-  /** Refine: add a new, empty extra text block (capped at 2). Returns its index,
-   * or -1 if the frame is at the cap or missing — the caller opens the editor. */
-  addExtraText(photoId: string): number {
-    let newIndex = -1;
+  /** Refine: rewrite a frame's words (manual edit or per-frame regenerate), and
+   * recompose it so the change lands in the one thing that renders. The stored
+   * {@link EditableFrame.analysis} means this costs no photo decode. */
+  setHeadline(photoId: string, headline: string): void {
     this._frames.update((frames) =>
       frames.map((frame) => {
-        if (frame.photoId !== photoId || frame.extraTexts.length >= 2) return frame;
-        newIndex = frame.extraTexts.length;
-        const block: EditableTextBlock = {
-          text: '',
-          font: DEFAULT_STYLE.font,
-          weight: DEFAULT_STYLE.weight,
-          case: DEFAULT_STYLE.case,
-          align: DEFAULT_STYLE.align,
-          size: DEFAULT_STYLE.size,
-          placement: DEFAULT_PLACEMENT,
-          legibility: true,
-          light: true,
+        if (frame.photoId !== photoId) return frame;
+        const next = { ...frame, headline };
+        return {
+          ...next,
+          composition: composeFrame(this._look(), contentOf(next), next.analysis),
         };
-        return { ...frame, extraTexts: [...frame.extraTexts, block] };
       }),
     );
-    return newIndex;
   }
 
-  /** Refine: remove an extra text block (deleted, or left empty on close). */
-  removeExtraText(photoId: string, index: number): void {
-    this._frames.update((frames) =>
-      frames.map((frame) =>
-        frame.photoId === photoId
-          ? { ...frame, extraTexts: frame.extraTexts.filter((_, i) => i !== index) }
-          : frame,
-      ),
-    );
+  /** A contract frame plus its on-device state, composed under the story's Look
+   * from the neutral reading (the real one arrives with computeReadable). */
+  private toEditable(frame: Frame): EditableFrame {
+    return {
+      ...frame,
+      light: true,
+      imageFilter: 'none',
+      analysis: NEUTRAL_ANALYSIS,
+      composition: composeFrame(this._look(), contentOf(frame), NEUTRAL_ANALYSIS),
+    };
   }
 
   /** Merge a patch into one spark's state, immutably (creating the entry if new). */

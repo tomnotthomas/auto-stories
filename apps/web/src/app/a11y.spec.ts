@@ -20,9 +20,9 @@ function imageFile(name: string): File {
 }
 
 const FRAMES: Frame[] = [
-  { photoId: 'a', order: 1, caption: 'Everyone made it to the lake', headline: 'Everyone made it to the lake', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } },
-  { photoId: 'b', order: 2, caption: 'Then she blew out the candle', headline: 'Then she blew out the candle', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } },
-  { photoId: 'c', order: 3, caption: 'And every cousin cheered', headline: 'And every cousin cheered', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } },
+  { photoId: 'a', order: 1, headline: 'Everyone made it to the lake' },
+  { photoId: 'b', order: 2, headline: 'Then she blew out the candle' },
+  { photoId: 'c', order: 3, headline: 'And every cousin cheered' },
 ];
 
 describe('Accessibility (WCAG 2 A/AA)', () => {
@@ -72,7 +72,9 @@ describe('Accessibility (WCAG 2 A/AA)', () => {
         response: { frames: FRAMES, look: 'magazine-masthead' },
       }),
     };
-    const images: Pick<ImageService, 'toProxies'> = { toProxies: async () => [{ id: 'p1', b64: 'x' }] };
+    const images: Pick<ImageService, 'toProxies'> = {
+      toProxies: async () => [{ id: 'p1', b64: 'x' }],
+    };
     await TestBed.configureTestingModule({
       imports: [Generating],
       providers: [
@@ -89,14 +91,20 @@ describe('Accessibility (WCAG 2 A/AA)', () => {
 
   it('error screen has no violations', async () => {
     await TestBed.configureTestingModule({ imports: [ErrorScreen] }).compileComponents();
-    TestBed.inject(StoryService).failStory({ code: 'quota_exhausted', message: "We're at capacity." });
+    TestBed.inject(StoryService).failStory({
+      code: 'quota_exhausted',
+      message: "We're at capacity.",
+    });
     fixture = TestBed.createComponent(ErrorScreen);
     fixture.detectChanges();
     await expectNoAxeViolations(fixture.nativeElement);
   });
 
   describe('payoff / refine', () => {
-    async function renderStory(): Promise<{ fixture: ComponentFixture<Story>; harness: StoryHarness }> {
+    async function renderStory(): Promise<{
+      fixture: ComponentFixture<Story>;
+      harness: StoryHarness;
+    }> {
       await TestBed.configureTestingModule({ imports: [Story] }).compileComponents();
       TestBed.inject(StoryService).completeStory(FRAMES, true);
       const f = TestBed.createComponent(Story);
@@ -116,10 +124,10 @@ describe('Accessibility (WCAG 2 A/AA)', () => {
       await expectNoAxeViolations(f.nativeElement);
     });
 
-    it('caption editor has no violations', async () => {
+    it('text editor has no violations', async () => {
       const { fixture: f, harness } = await renderStory();
       await harness.clickRefine();
-      await harness.tapCaption();
+      await harness.tapText();
       await expectNoAxeViolations(f.nativeElement);
     });
 

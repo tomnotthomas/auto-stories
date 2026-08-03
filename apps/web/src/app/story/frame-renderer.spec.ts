@@ -1,13 +1,12 @@
 import { renderFrame } from './frame-renderer';
-import { composeFrame, type PhotoAnalysis } from './look';
-import { DEFAULT_STYLE } from './caption-style';
-import { DEFAULT_PLACEMENT, type EditableFrame } from './story.service';
+import { composeFrame, type Composition, type PhotoAnalysis } from './look';
+import type { EditableFrame } from './story.service';
 
 /**
- * Export regression (decision 7.24). Once Looks are the only renderer, a frame
- * that fails to compose or draw is a blank PNG — the user's whole story. These
- * tests drive `renderFrame` through both paths (a composed frame and the
- * caption fallback) and assert it produces an image without throwing.
+ * Export regression (decision 7.24/7.25). The composition is the only renderer,
+ * so a frame that fails to compose or draw is a blank PNG — the user's whole
+ * story. These tests drive `renderFrame` and assert it produces an image without
+ * throwing.
  *
  * jsdom has no canvas, so `OffscreenCanvas` and `createImageBitmap` are stubbed
  * here: this covers the wiring and the draw calls, not the encoded pixels. That
@@ -74,18 +73,15 @@ function stubCanvas(recorder: Recorder): void {
     Promise.resolve({ width: 1080, height: 1920, close: () => undefined });
 }
 
-function frame(over: Partial<EditableFrame> = {}): EditableFrame {
+function frame(composition: Composition, over: Partial<EditableFrame> = {}): EditableFrame {
   return {
     photoId: 'p1',
     order: 1,
-    caption: 'Where the mountain meets its mirror',
     headline: 'Where the mountain meets its mirror',
-    style: DEFAULT_STYLE,
-    placement: DEFAULT_PLACEMENT,
-    legibility: true,
     light: true,
     imageFilter: 'none',
-    extraTexts: [],
+    analysis: CALM,
+    composition,
     ...over,
   };
 }
@@ -103,18 +99,15 @@ describe('renderFrame', () => {
   it('exports a PNG for a composed frame', async () => {
     const composition = composeFrame(
       'magazine-masthead',
-      { kicker: 'The Ascent', headline: 'Where the mountain meets its mirror', emphasis: 'mountain' },
+      {
+        kicker: 'The Ascent',
+        headline: 'Where the mountain meets its mirror',
+        emphasis: 'mountain',
+      },
       CALM,
     );
 
-    const blob = await renderFrame(file, frame({ composition, accent: CALM.accent }));
-
-    expect(blob.type).toBe('image/png');
-    expect(recorder.fillTextCalls).toBeGreaterThan(0);
-  });
-
-  it('exports a PNG through the caption fallback when nothing composed', async () => {
-    const blob = await renderFrame(file, frame());
+    const blob = await renderFrame(file, frame(composition));
 
     expect(blob.type).toBe('image/png');
     expect(recorder.fillTextCalls).toBeGreaterThan(0);
@@ -123,32 +116,36 @@ describe('renderFrame', () => {
   it('exports a PNG for a Look that is not built yet, via the default Look', async () => {
     const composition = composeFrame('scrapbook', { headline: 'Everyone made it' }, CALM);
 
-    const blob = await renderFrame(file, frame({ composition }));
+    const blob = await renderFrame(file, frame(composition));
 
     expect(blob.type).toBe('image/png');
     expect(recorder.fillTextCalls).toBeGreaterThan(0);
   });
 
   it('exports a PNG when the photo is busy everywhere', async () => {
-    const composition = composeFrame('magazine-masthead', { headline: 'A hard frame' }, {
-      accent: CALM.accent,
-      bands: { top: 0.98, middle: 0.98, bottom: 0.98 },
-    });
+    const composition = composeFrame(
+      'magazine-masthead',
+      { headline: 'A hard frame' },
+      {
+        accent: CALM.accent,
+        bands: { top: 0.98, middle: 0.98, bottom: 0.98 },
+      },
+    );
 
-    const blob = await renderFrame(file, frame({ composition }));
+    const blob = await renderFrame(file, frame(composition));
 
     expect(blob.type).toBe('image/png');
     expect(recorder.fillTextCalls).toBeGreaterThan(0);
   });
 
-  it('exports a PNG when the frame has no accent sampled', async () => {
+  it('exports a PNG for an emphasised phrase (the accent mark)', async () => {
     const composition = composeFrame(
       'magazine-masthead',
       { headline: 'Everyone made it', emphasis: 'made it' },
       CALM,
     );
 
-    const blob = await renderFrame(file, frame({ composition, accent: undefined }));
+    const blob = await renderFrame(file, frame(composition));
 
     expect(blob.type).toBe('image/png');
   });
@@ -160,7 +157,7 @@ describe('renderFrame', () => {
       CALM,
     );
 
-    await renderFrame(file, frame({ composition }));
+    await renderFrame(file, frame(composition));
 
     expect(recorder.fillRectCalls).toBeGreaterThan(0);
   });

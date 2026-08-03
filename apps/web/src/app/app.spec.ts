@@ -66,7 +66,7 @@ describe('App', () => {
 
   it('shows the payoff once the story is ready', async () => {
     const { loader, story } = await setup();
-    story.completeStory([{ photoId: 'p1', order: 1, caption: 'hi', headline: 'hi', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } }], false);
+    story.completeStory([{ photoId: 'p1', order: 1, headline: 'hi' }], false);
     expect(await loader.getHarnessOrNull(StoryHarness)).not.toBeNull();
   });
 

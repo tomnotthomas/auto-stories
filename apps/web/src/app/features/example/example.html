@@ -30,7 +30,10 @@
     <header class="relative z-20 px-3 pt-11">
       <div class="flex gap-1">
         @for (frame of frames(); track frame.src) {
-          <span class="h-[3px] flex-1 rounded bg-white" [class.opacity-40]="$index > index()"></span>
+          <span
+            class="h-[3px] flex-1 rounded bg-white"
+            [class.opacity-40]="$index > index()"
+          ></span>
         }
       </div>
       <div class="flex items-center gap-2.5 p-3">
@@ -65,12 +68,12 @@
       }
       <button
         type="button"
-        (click)="editCaption()"
+        (click)="editHeadline()"
         class="press story-caption relative block w-full rounded-2xl border-[1.5px] border-dashed border-white/60 text-center font-bold leading-tight text-white"
         [class]="current().legibility ? 'bg-black/40 px-4 py-3' : 'px-4 py-3'"
         [style.fontSize.px]="fontSize()"
       >
-        {{ current().caption }}
+        {{ current().headline }}
         <mat-icon
           class="absolute -right-2.5 -top-2.5 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-[16px] text-on-primary shadow-lg"
           >edit</mat-icon
@@ -91,10 +94,10 @@
   @if (editing()) {
     <app-caption-editor
       [demo]="true"
-      [caption]="current().caption"
+      [headline]="current().headline"
       [placement]="current().placement"
       [legibility]="current().legibility"
-      (captionChange)="onCaption($event)"
+      (headlineChange)="onHeadline($event)"
       (placementChange)="onPlacement($event)"
       (legibilityToggle)="onLegibility()"
       (done)="closeEditor()"

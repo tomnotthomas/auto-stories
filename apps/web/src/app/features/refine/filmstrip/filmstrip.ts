@@ -40,7 +40,7 @@ export class RefineFilmstrip {
     return this.story.frames().map((frame) => ({
       photoId: frame.photoId,
       previewUrl: photos.find((p) => p.id === frame.photoId)?.previewUrl ?? null,
-      caption: frame.caption,
+      caption: frame.headline,
     }));
   });
   /** Dropping is allowed only while the story stays above the minimum length. */

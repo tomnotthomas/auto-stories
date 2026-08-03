@@ -9,7 +9,7 @@ import { LayoutViewHarness } from './layout-view/layout-view.harness';
 export class StoryHarness extends ComponentHarness {
   static hostSelector = 'app-story';
 
-  private readonly caption = this.locatorFor('.story-caption');
+  private readonly editText = this.locatorFor('[data-edit-text]');
   private readonly frameLayers = this.locatorForAll('[data-frame]');
   private readonly nextZone = this.locatorFor('button[aria-label="Next frame"]');
   private readonly prevZone = this.locatorFor('button[aria-label="Previous frame"]');
@@ -22,25 +22,30 @@ export class StoryHarness extends ComponentHarness {
   private readonly filmstrip = this.locatorForOptional(RefineFilmstripHarness);
   private readonly layoutView = this.locatorForOptional(LayoutViewHarness);
 
-  /** The caption of the frame currently shown. */
-  async getCaption(): Promise<string> {
-    return (await this.caption()).text();
+  /**
+   * The frame's words, as the composition renders them. A Look sets the words as
+   * the last block of type in its stack (an optional kicker comes first), so the
+   * headline is the last entry.
+   */
+  async getHeadline(): Promise<string> {
+    const texts = await (await this.requireLayoutView()).textContents();
+    return texts[texts.length - 1] ?? '';
   }
 
-  /** The Looks renderer for the current frame, when the frame composed one. */
+  /** Every block of type the composition renders, in order. */
+  async getComposedTexts(): Promise<string[]> {
+    return (await this.requireLayoutView()).textContents();
+  }
+
+  /** The Looks renderer for the current frame; null only while the editor is open. */
   async getLayoutView(): Promise<LayoutViewHarness | null> {
     return this.layoutView();
   }
 
-  /** The AI's extra placed text blocks shown on the current frame, in order. */
-  async extraTexts(): Promise<string[]> {
-    const els = await this.locatorForAll('[data-extra-text]')();
-    return Promise.all(els.map(async (el) => (await el.text()).trim()));
-  }
-
-  /** Refine: add a new extra text block to the current frame (opens its editor). */
-  async clickAddText(): Promise<void> {
-    await (await this.locatorFor(MatButtonHarness.with({ text: /Add a text/ }))()).click();
+  private async requireLayoutView(): Promise<LayoutViewHarness> {
+    const view = await this.layoutView();
+    if (!view) throw new Error('No composition is rendered on the current frame');
+    return view;
   }
 
   /** Hand off to Instagram (renders + posts). */
@@ -61,7 +66,9 @@ export class StoryHarness extends ComponentHarness {
 
   /** Confirm the hand-off from the card ("Save & open Instagram"). */
   async clickSaveAndOpen(): Promise<void> {
-    await (await this.locatorFor(MatButtonHarness.with({ text: /Save & open|Preparing/ }))()).click();
+    await (
+      await this.locatorFor(MatButtonHarness.with({ text: /Save & open|Preparing/ }))()
+    ).click();
   }
 
   /** Dismiss the hand-off card ("Not now"). */
@@ -107,9 +114,9 @@ export class StoryHarness extends ComponentHarness {
     await (await this.doneButton()).click();
   }
 
-  /** Tap the caption (refine mode) to open the editor. */
-  async tapCaption(): Promise<void> {
-    await (await this.caption()).click();
+  /** Tap the composition (refine mode) to open the text editor. */
+  async tapText(): Promise<void> {
+    await (await this.editText()).click();
   }
 
   /** Open the "Reorder & remove" management screen (refine mode). */
