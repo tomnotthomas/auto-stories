@@ -1,4 +1,4 @@
-import type { Composition, FrameContent, Look, PhotoAnalysis } from '../look';
+import type { DrawnComposition, FrameContent, Look, PhotoAnalysis } from '../look';
 import { splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
@@ -34,7 +34,7 @@ const EDGE_OFFSET_HPCT = 7;
 /** The top corner is the Look; the bottom is the fallback on a busy sky. */
 const PREFERRED_BANDS: readonly Band[] = ['top', 'bottom'];
 
-function compose(content: FrameContent, photo: PhotoAnalysis): Composition {
+function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
   const band = quietestBand(photo.bands, PREFERRED_BANDS);
   const anchor = band === 'bottom' ? 'bottom' : 'top';
 

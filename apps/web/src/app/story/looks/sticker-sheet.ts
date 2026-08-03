@@ -1,4 +1,4 @@
-import type { Composition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
+import type { DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
 import { splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
@@ -50,11 +50,11 @@ const LOCATION_TILT_DEG = -1.8;
 /** Stickers get dropped low on a story, over the photo's own dead space. */
 const PREFERRED_BANDS: readonly Band[] = ['bottom', 'top'];
 
-function compose(content: FrameContent, photo: PhotoAnalysis): Composition {
+function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
   const band = quietestBand(photo.bands, PREFERRED_BANDS);
   const anchor = band === 'top' ? 'top' : 'bottom';
 
-  const base: Omit<Composition, 'parts'> = {
+  const base: Omit<DrawnComposition, 'parts'> = {
     lookId: 'sticker-sheet',
     // Nothing in this Look paints in the sampled ink — every chip reverses out
     // of its own fill — so the polarity is left to the photo.

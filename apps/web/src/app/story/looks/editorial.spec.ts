@@ -1,5 +1,13 @@
 import { DEFAULT_ACCENT } from '../accent-color';
-import type { Composition, FrameContent, Look, PhotoAnalysis, TagPart, TextPart } from '../look';
+import type {
+  Composition,
+  FrameContent,
+  Look,
+  PhotoAnalysis,
+  TagPart,
+  TextPart,
+  HasParts,
+} from '../look';
 import { textParts } from '../look';
 import { BOLD_POSTER } from './bold-poster';
 import { BROADSHEET } from './broadsheet';
@@ -192,7 +200,7 @@ function runText(part: TextPart): string {
 }
 
 /** Where the headline sits in the part stack, so rules can be read either side. */
-function indexOfHeadline(composition: Composition, headline: string): number {
+function indexOfHeadline(composition: HasParts, headline: string): number {
   return composition.parts.findIndex(
     (part) => part.kind === 'text' && part.runs.map((run) => run.text).join('') === headline,
   );

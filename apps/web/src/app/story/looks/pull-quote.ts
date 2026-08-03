@@ -1,4 +1,4 @@
-import type { Composition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
+import type { DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
 import { splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
@@ -28,7 +28,7 @@ const EDGE_OFFSET_HPCT = 9;
 /** The middle band has no edge of its own, so it is measured from the top. */
 const MIDDLE_OFFSET_HPCT = 28;
 
-function compose(content: FrameContent, photo: PhotoAnalysis): Composition {
+function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
   const band = quietestBand(photo.bands, PREFERRED_BANDS);
   const anchor = band === 'bottom' ? 'bottom' : 'top';
   const offsetHPct = band === 'middle' ? MIDDLE_OFFSET_HPCT : EDGE_OFFSET_HPCT;

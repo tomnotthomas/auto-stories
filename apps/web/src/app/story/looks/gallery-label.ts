@@ -1,4 +1,4 @@
-import type { Composition, FrameContent, Look, Panel, Part, PhotoAnalysis } from '../look';
+import type { DrawnComposition, FrameContent, Look, Panel, Part, PhotoAnalysis } from '../look';
 import { splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
@@ -45,7 +45,7 @@ const CARD: Panel = {
 /** Bottom-left, the way a label hangs below a hung work; top is the fallback. */
 const PREFERRED_BANDS: readonly Band[] = ['bottom', 'top'];
 
-function compose(content: FrameContent, photo: PhotoAnalysis): Composition {
+function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
   const band = quietestBand(photo.bands, PREFERRED_BANDS);
   const anchor = band === 'top' ? 'top' : 'bottom';
 

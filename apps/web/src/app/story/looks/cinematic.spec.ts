@@ -1,5 +1,13 @@
 import { DEFAULT_ACCENT } from '../accent-color';
-import type { Composition, FrameContent, Look, PhotoAnalysis, RulePart, TextPart } from '../look';
+import type {
+  Composition,
+  FrameContent,
+  Look,
+  PhotoAnalysis,
+  RulePart,
+  TextPart,
+  HasParts,
+} from '../look';
 import { EDGE_CAPS } from './edge-caps';
 import { SUBTITLE } from './subtitle';
 import { TITLE_CARD } from './title-card';
@@ -194,12 +202,12 @@ describe('edge-caps', () => {
 });
 
 /** Every text part of a composition. */
-function textOf(composition: Composition): TextPart[] {
+function textOf(composition: HasParts): TextPart[] {
   return composition.parts.filter((part): part is TextPart => part.kind === 'text');
 }
 
 /** Every rule of a composition, in stack order. */
-function rulesOf(composition: Composition): RulePart[] {
+function rulesOf(composition: HasParts): RulePart[] {
   return composition.parts.filter((part): part is RulePart => part.kind === 'rule');
 }
 
@@ -209,7 +217,7 @@ function runText(part: TextPart): string {
 }
 
 /** All the words a composition renders, joined — order preserved. */
-function allText(composition: Composition): string {
+function allText(composition: HasParts): string {
   return composition.parts
     .map((part) => {
       if (part.kind === 'text') return part.runs.map((run) => run.text).join('');

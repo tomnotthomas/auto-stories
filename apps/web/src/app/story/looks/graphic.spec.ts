@@ -7,6 +7,7 @@ import {
   type PhotoAnalysis,
   type RulePart,
   type TextPart,
+  type HasParts,
 } from '../look';
 import { CAPTION_CARD } from './caption-card';
 import { CHAPTER } from './chapter';
@@ -245,12 +246,12 @@ describe('caption-card', () => {
 });
 
 /** The headline a composition ended up carrying — the last text part's words. */
-function headlineOf(composition: Composition): string {
+function headlineOf(composition: HasParts): string {
   const texts = textParts(composition);
   return texts.length === 0 ? '' : runText(texts[texts.length - 1]);
 }
 
-function rulesOf(composition: Composition): RulePart[] {
+function rulesOf(composition: HasParts): RulePart[] {
   return composition.parts.filter((part): part is RulePart => part.kind === 'rule');
 }
 

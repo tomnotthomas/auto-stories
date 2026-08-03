@@ -1,4 +1,4 @@
-import type { Composition, FrameContent, Look, PhotoAnalysis } from '../look';
+import type { DrawnComposition, FrameContent, Look, PhotoAnalysis } from '../look';
 import { splitEmphasis } from '../look';
 import type { Band } from '../quiet-zone';
 
@@ -35,7 +35,7 @@ const EDGE_OFFSET_HPCT = 7;
 /** Stated for the engine's benefit; placement is fixed (see the note above). */
 const PREFERRED_BANDS: readonly Band[] = ['bottom'];
 
-function compose(content: FrameContent, photo: PhotoAnalysis): Composition {
+function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
   // Silent: with no line there is nothing to subtitle, and a gradient across
   // the foot of an otherwise untouched photo is just a smudge (7.26).
   if (!content.headline.trim()) {

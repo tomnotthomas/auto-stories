@@ -1,6 +1,6 @@
 import { DEFAULT_ACCENT } from '../accent-color';
 import type { Composition, FrameContent, Look, PhotoAnalysis, TextPart } from '../look';
-import { textParts } from '../look';
+import { textParts, type HasParts } from '../look';
 import type { BandScores } from '../quiet-zone';
 import { CORNER_NOTE } from './corner-note';
 import { FOOTER_RULE } from './footer-rule';
@@ -346,12 +346,12 @@ function runText(part: TextPart): string {
 }
 
 /** Every word a composition sets, joined — order preserved. */
-function allText(composition: Composition): string {
+function allText(composition: HasParts): string {
   return textParts(composition).map(runText).join(' ');
 }
 
 /** The text part carrying `text`. Fails loudly rather than returning undefined. */
-function named(composition: Composition, text: string): TextPart {
+function named(composition: HasParts, text: string): TextPart {
   const part = textParts(composition).find((candidate) => runText(candidate) === text);
   if (!part) throw new Error(`no part sets “${text}”`);
   return part;

@@ -1,5 +1,13 @@
 import { DEFAULT_ACCENT } from '../accent-color';
-import type { Composition, FrameContent, Look, PhotoAnalysis, TagPart, TextPart } from '../look';
+import type {
+  Composition,
+  FrameContent,
+  Look,
+  PhotoAnalysis,
+  TagPart,
+  TextPart,
+  HasParts,
+} from '../look';
 import { INDEX_CARD } from './index-card';
 import { POSTCARD_BACK } from './postcard-back';
 import { SCRAPBOOK } from './scrapbook';
@@ -260,10 +268,10 @@ describe('postcard-back', () => {
   });
 });
 
-function texts(composition: Composition): TextPart[] {
+function texts(composition: HasParts): TextPart[] {
   return composition.parts.filter((part): part is TextPart => part.kind === 'text');
 }
 
-function tags(composition: Composition): TagPart[] {
+function tags(composition: HasParts): TagPart[] {
   return composition.parts.filter((part): part is TagPart => part.kind === 'tag');
 }

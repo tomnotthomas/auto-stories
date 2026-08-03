@@ -6,6 +6,7 @@ import {
   type Look,
   type PhotoAnalysis,
   type TagPart,
+  type HasParts,
 } from '../look';
 import { FADED_ALBUM } from './faded-album';
 import { FILM_POSTCARD } from './film-postcard';
@@ -283,6 +284,6 @@ function runText(part: { runs: readonly { text: string }[] }): string {
 }
 
 /** Every tag of a composition — the group's stamps. */
-function tagParts(composition: Composition): TagPart[] {
+function tagParts(composition: HasParts): TagPart[] {
   return composition.parts.filter((part): part is TagPart => part.kind === 'tag');
 }

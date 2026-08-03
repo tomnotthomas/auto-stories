@@ -1,4 +1,4 @@
-import type { Composition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
+import type { DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
 import { splitEmphasis } from '../look';
 import type { Band } from '../quiet-zone';
 
@@ -36,7 +36,7 @@ const INSTANT_LIFT = 'brightness(1.04) saturate(1.06) contrast(0.98)';
  */
 const PREFERRED_BANDS: readonly Band[] = ['bottom'];
 
-function compose(content: FrameContent, photo: PhotoAnalysis): Composition {
+function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
   // Silent: the photo speaks for itself (decision 7.26). With nothing written
   // the margin has no reason to exist — an empty white band across a photo
   // reads as a printing fault — so the paper goes with the words. The lift

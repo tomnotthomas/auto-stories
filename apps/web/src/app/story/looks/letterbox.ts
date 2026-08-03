@@ -1,4 +1,4 @@
-import type { Composition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
+import type { DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
 import { splitEmphasis } from '../look';
 import type { Band } from '../quiet-zone';
 
@@ -31,7 +31,7 @@ const BAR_PAD_HPCT = 8;
  */
 const PREFERRED_BANDS: readonly Band[] = ['bottom'];
 
-function compose(content: FrameContent, photo: PhotoAnalysis): Composition {
+function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
   // Silent: the photo speaks for itself (decision 7.26). A letterbox bar with no
   // subtitle in it is a black stripe across someone's photo — the worst thing
   // this Look could draw — so with no headline it draws nothing.
