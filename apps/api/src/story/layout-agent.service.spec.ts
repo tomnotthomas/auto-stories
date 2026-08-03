@@ -52,6 +52,7 @@ const layoutResponse = (...elements: Record<string, unknown>[]) => ({
 
 async function makeService(
   generateContent: jest.Mock,
+  opts: { critique?: boolean } = {},
 ): Promise<LayoutAgentService> {
   const moduleRef = await Test.createTestingModule({
     providers: [
@@ -59,7 +60,14 @@ async function makeService(
       { provide: GENAI, useValue: { models: { generateContent } } },
       {
         provide: ConfigService,
-        useValue: { get: (_k: string, d: unknown) => d },
+        useValue: {
+          get: (k: string, d: unknown) =>
+            k === 'LAYOUT_CRITIQUE_ENABLED'
+              ? opts.critique
+                ? 'true'
+                : undefined
+              : d,
+        },
       },
     ],
   }).compile();
@@ -150,5 +158,63 @@ describe('LayoutAgentService.composeLayouts', () => {
     const out = await service.composeLayouts([frame('a', 1)], photos, opts);
 
     expect(out[0].layout).toBeUndefined();
+  });
+
+  describe('self-critique (LAYOUT_CRITIQUE_ENABLED)', () => {
+    it('does not run the critique by default — one call per frame', async () => {
+      const generateContent = jest
+        .fn()
+        .mockResolvedValue(layoutResponse(elementJson()));
+      const service = await makeService(generateContent);
+
+      await service.composeLayouts([frame('a', 1)], photos, opts);
+
+      expect(generateContent).toHaveBeenCalledTimes(1);
+    });
+
+    it('replaces the first pass with the improved layout when enabled', async () => {
+      const generateContent = jest
+        .fn()
+        .mockResolvedValueOnce(
+          layoutResponse(elementJson({ anchor: 'top-left' })),
+        ) // propose
+        .mockResolvedValueOnce(
+          layoutResponse(elementJson({ anchor: 'bottom-right' })),
+        ); // critique
+      const service = await makeService(generateContent, { critique: true });
+
+      const out = await service.composeLayouts([frame('a', 1)], photos, opts);
+
+      expect(generateContent).toHaveBeenCalledTimes(2);
+      expect(out[0].layout?.elements[0].anchor).toBe('bottom-right');
+    });
+
+    it('keeps the first pass when the critique call fails', async () => {
+      const generateContent = jest
+        .fn()
+        .mockResolvedValueOnce(
+          layoutResponse(elementJson({ anchor: 'top-left' })),
+        )
+        .mockRejectedValueOnce(new Error('critique exploded'));
+      const service = await makeService(generateContent, { critique: true });
+
+      const out = await service.composeLayouts([frame('a', 1)], photos, opts);
+
+      expect(out[0].layout?.elements[0].anchor).toBe('top-left');
+    });
+
+    it('keeps the first pass when the critique returns nothing usable', async () => {
+      const generateContent = jest
+        .fn()
+        .mockResolvedValueOnce(
+          layoutResponse(elementJson({ anchor: 'top-left' })),
+        )
+        .mockResolvedValueOnce({ text: JSON.stringify({ elements: [] }) });
+      const service = await makeService(generateContent, { critique: true });
+
+      const out = await service.composeLayouts([frame('a', 1)], photos, opts);
+
+      expect(out[0].layout?.elements[0].anchor).toBe('top-left');
+    });
   });
 });
