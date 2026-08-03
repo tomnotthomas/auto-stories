@@ -42,6 +42,8 @@ export const LAYOUT_RESPONSE_SCHEMA: Schema = {
             ],
           },
           stack: { type: Type.BOOLEAN },
+          accent: { type: Type.BOOLEAN },
+          underline: { type: Type.BOOLEAN },
         },
         required: [
           'role',

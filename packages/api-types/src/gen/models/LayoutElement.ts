@@ -90,4 +90,14 @@ export type LayoutElement = {
      * @type boolean | undefined
     */
     stack?: boolean;
+    /**
+     * @description Render this element in the story\'s accent colour (a designer\'s one pop of colour) instead of the computed white/dark. The client derives the actual hue from the photo and guarantees legibility (7.10); the model only marks the intent. Use on at most one element per frame.
+     * @type boolean | undefined
+    */
+    accent?: boolean;
+    /**
+     * @description Draw a hand-drawn underline in the accent colour beneath this element (a designer\'s scribbled mark). Sparingly — at most one per frame.
+     * @type boolean | undefined
+    */
+    underline?: boolean;
 };

@@ -39,6 +39,9 @@ describe('buildLayoutPrompt', () => {
     // Restraint (usually one element) and no frame-number chrome.
     expect(prompt).toMatch(/one element|restrained/);
     expect(prompt).toMatch(/frame number|no chrome|"01"/);
+    // One pop of colour + an optional hand underline (the "painted" touch).
+    expect(prompt).toContain('accent');
+    expect(prompt).toContain('underline');
   });
 
   it('honours a given atmosphere, else asks the model to infer it', () => {

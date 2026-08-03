@@ -59,7 +59,7 @@ export function buildLayoutPrompt(input: LayoutBriefInput): string {
     '- Rewrite the meaning in a FIRST-PERSON, specific, slightly imperfect voice ("mum cried up here", not "Zermatt"). Keep it short.',
     '- At most ONE handwritten (caveat) element, as the personal signature — a date, a name, an aside. Everything else is set type. One human gesture, not a scrapbook.',
     '- Keep every element fully inside a safe margin (x and y roughly 6–94).',
-    '- Do NOT choose colour or a background — the app computes legible colour and any scrim from the photo. Compose only type and placement.',
+    "- Do NOT pick a colour value — the app computes legible colour from the photo. But like a designer, you MAY add ONE pop of colour: set `accent: true` on a single element (a word, or a short line) so it takes the story's accent colour, and optionally `underline: true` on one element for a hand-drawn line in that colour. Use each at most once per frame, or not at all. Compose only type, placement, and these two flags.",
     atmosphereLine,
     avoidLine,
     toneLine,

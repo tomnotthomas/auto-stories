@@ -288,6 +288,19 @@ describe('normalizeLayout', () => {
     ).toBeUndefined();
   });
 
+  it('keeps the optional accent + underline flags only when boolean', () => {
+    const el0 = normalizeLayout({
+      elements: [el({ accent: true, underline: true })],
+    })?.elements[0];
+    expect(el0?.accent).toBe(true);
+    expect(el0?.underline).toBe(true);
+    const el1 = normalizeLayout({
+      elements: [el({ accent: 'yes', underline: 1 })],
+    })?.elements[0];
+    expect(el1?.accent).toBeUndefined();
+    expect(el1?.underline).toBeUndefined();
+  });
+
   it('drops frame-index chrome labels like "01" or "1 / 5"', () => {
     const layout = normalizeLayout({
       elements: [

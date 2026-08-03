@@ -200,6 +200,8 @@ export function normalizeLayout(raw: unknown): Layout | undefined {
       anchor: pick(ANCHORS, e['anchor'], 'center'),
     };
     if (typeof e['stack'] === 'boolean') element.stack = e['stack'];
+    if (typeof e['accent'] === 'boolean') element.accent = e['accent'];
+    if (typeof e['underline'] === 'boolean') element.underline = e['underline'];
     out.push(element);
   }
   return out.length ? { elements: out } : undefined;
