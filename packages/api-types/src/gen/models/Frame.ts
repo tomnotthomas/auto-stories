@@ -3,12 +3,10 @@
 * Do not edit manually.
 */
 
-import type { Style } from "./Style.js";
 import type { Suggestion } from "./Suggestion.js";
-import type { TextBlock } from "./TextBlock.js";
 
 /**
- * @description One chosen photo in narrative order, with its caption and style.
+ * @description One chosen photo in narrative order, with the words that go on it. The story\'s Look decides how those words are set and where they sit (decision 7.24); the model supplies no type, position or size.
 */
 export type Frame = {
     /**
@@ -23,33 +21,13 @@ export type Frame = {
     */
     order: number;
     /**
-     * @description Caption grounded in the story line and what\'s visible.
-     * @type string
-    */
-    caption: string;
-    /**
-     * @description How the caption is styled on the frame. The model picks each value from the fixed sets below; the client computes text colour and scrim for readability (not the model, which only saw a downscaled proxy).
-     * @type object | undefined
-    */
-    style?: Style;
-    /**
-     * @description Placed caption blocks (0–2). The editorial layer: a frame may carry a small line and a bigger line, each with its own text, style, and spot. When the model omits this, the client falls back to the single `caption` + `style`.
-     * @type array | undefined
-    */
-    texts?: TextBlock[];
-    /**
-     * @description Optional Instagram add-ons for this frame (0-2). Metadata only — the app shows them as in-app \"sparks\"; nothing is baked into the exported image.
-     * @type array | undefined
-    */
-    suggestions?: Suggestion[];
-    /**
      * @description Optional short line above the headline (decision 7.24). Each Look decides whether to show it and how to set it — Magazine renders it as a spaced all-caps eyebrow, Quiet Editorial as a letter-spaced kicker, Minimal drops it entirely.
      * @minLength 1
      * @type string | undefined
     */
     kicker?: string;
     /**
-     * @description The frame\'s main line (decision 7.24). Short — the Looks set it large. Always present: the server falls back to `caption` when the model omits it, so a frame can always compose.
+     * @description The frame\'s words — the one piece of text on the photo (decision 7.25). Short: the design sets it large and the words fit the band, rather than the band growing to fit the words.
      * @minLength 1
      * @type string
     */
@@ -60,4 +38,9 @@ export type Frame = {
      * @type string | undefined
     */
     emphasis?: string;
+    /**
+     * @description Optional Instagram add-ons for this frame (0-2). Metadata only — the app shows them as in-app \"sparks\"; nothing is baked into the exported image.
+     * @type array | undefined
+    */
+    suggestions?: Suggestion[];
 };
