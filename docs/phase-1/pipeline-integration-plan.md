@@ -173,43 +173,103 @@ being able to dismiss the actions at all.
 ## B. Resolve the exact venue for places you can buy something
 
 **Wanted:** for a restaurant, café, bar, shop, shopping centre, casino — anywhere
-with a transaction — the app should name the *actual* venue rather than the model
-guessing a plausible place name.
+with a transaction — name the *actual* venue instead of the model guessing a
+plausible one. Two deliberately separate stages: the vision pass only decides
+"there is a buyable venue here"; a **separate lookup** finds the real name.
 
-**Two stages, deliberately separate:**
-1. The **vision pass** only decides "there is a buyable venue here, and it looks
-   like a `restaurant` / `cafe` / `bar` / `shop`". It does not guess the name.
-2. A **separate lookup** resolves the real venue from the photo's EXIF GPS plus
-   that category — nearby POIs by coordinate, nearest first.
+A landmark needs no lookup — the model already knows the Eiffel Tower. This is
+for the long tail of ordinary cafés and shops, which is exactly where a guess is
+worthless and a real name is worth copying into Instagram.
 
-A landmark or a famous building needs no lookup: the model already knows it. The
-lookup is for the long tail of ordinary commercial places, which is exactly where
-a guess is worthless and a real name is worth copying into Instagram.
+**Out of scope: events.** A concert is a place *and a date*, which is a different
+lookup against a different kind of source.
 
-**Out of scope: events.** A concert needs a date as well as a place, which is a
-different kind of lookup against a different kind of source.
+### The original design does not work, and here is the evidence
 
-### It hangs on EXIF GPS
-No coordinate, no lookup. EXIF is routinely absent — iOS can strip location on
-share, screenshots and re-encodes lose it, some browsers strip on file pick. So
-the ladder is: **EXIF present → resolve the real venue; absent → the model's
-guess, as today.** Degrading, not failing.
+The plan was: read the photo's EXIF GPS, query venues within ~100 m. **EXIF GPS
+does not survive a mobile web upload**, on either platform, by design:
+
+- **iOS** — WebKit bug 257534, *"Uploading photos on iOS strips Exif GPS location
+  data"*, resolved **CONFIGURATION CHANGED**: stripping since iOS 16.4 is
+  intentional. From iOS 17 the photo picker offers the user a per-upload location
+  toggle, which we can neither trigger nor detect.
+- **Android** — scoped storage hides location by default; unredacted EXIF needs
+  `ACCESS_MEDIA_LOCATION` + `setRequireOriginal()`, which a web page cannot do.
+
+Non-GPS EXIF (timestamps, camera settings) does survive; location specifically
+does not. Since this product is built around the mobile photo picker, a
+coordinate-first design would work only on desktop uploads.
+
+### What replaces it: resolve the model's reading, not its coordinates
+
+The model already emits a `query` — the exact text to search in Instagram —
+and today **nothing checks it**, so a plausible invention ships as fact.
+
+1. **Vision pass** flags a buyable venue and produces its best reading of what and
+   where (it has the photo and the user's own story line, which often names the
+   place or the neighbourhood).
+2. **Lookup** resolves that against a real places database. Keep the canonical
+   name only when something actually matches; otherwise drop the suggestion
+   rather than pass a guess off as a place.
+
+This keeps both stages and the whole point — *a name that exists* — without
+depending on data the platform will not give us.
+
+**Optional accuracy boost:** if the user opts into `navigator.geolocation`, bias
+the search to their area. That is a real improvement for a story made at or near
+the place, and it degrades to an unbiased text search otherwise. Enrichment, not
+a dependency.
+
+### The API — Overpass, with Photon as the shape-matched alternative
+
+Confirmed from each provider's own documentation:
+
+| Provider | Free tier | Card | Key | Caching |
+| --- | --- | --- | --- | --- |
+| **Overpass (OSM)** | **10,000 queries/day** | no | **none** | allowed (ODbL) |
+| **Photon (OSM)** | "reasonable limit", no number published | no | **none** | allowed (ODbL) |
+| Geoapify | 3,000 credits/day, 5 req/s | no | yes | attribution required |
+| Google Places | 5,000/month | **required** | yes | **banned** except place ID |
+| Foursquare | 500/month (its own pages disagree) | unconfirmed | yes | — |
+| Mapbox | 50,000/month | unconfirmed | yes | **temporary use only** |
+
+**Overpass**, verified live and keyless, returns named venues with the full tag
+set (`amenity`, `cuisine`, `shop`, `brand`, `opening_hours`) and handles
+buildings-as-ways, so a shopping centre or casino resolves where point-only
+providers miss it.
+
+Three reasons beyond the quota:
+- **No caching ban.** ODbL lets the venue name be stored in a saved story. Google
+  forbids storing anything but the place ID; Mapbox forbids it outright — which
+  disqualifies both for a product that persists stories.
+- **Free and paid are the same code.** Outgrow the public instance and you
+  self-host Overpass or Photon (Apache-2.0). No migration, no vendor.
+- **Richest signal for the handshake** — the model's category hint can be matched
+  against real OSM tags rather than an opaque provider taxonomy.
+
+Practical: descriptive `User-Agent` (both block anonymous traffic), retry to the
+other service on 429, cache on rounded coordinates + category, and show
+`© OpenStreetMap contributors` once in the credits.
 
 ### Location sharing is opt-in
-Reading a photo's coordinates and sending them to a third party is a different
-privacy posture from anything the app does now — today nothing about *where* the
-user was leaves our stack. So it is a choice the user makes, not a default:
+Whatever the source, asking for the user's position is a different privacy
+posture from anything the app does today — nothing about *where* they were
+currently leaves our stack.
 
-- A short, plain notice at the point it pays off, offering the trade in the
-  user's terms: share the photos' location and get the **real names** of the
-  places, ready to copy into Instagram; decline and everything else works exactly
-  as it does now.
+- Offer the trade in their terms: share location and get the **real names** of
+  places, ready to copy into Instagram; decline and everything else is unchanged.
 - One decision per story, remembered, reversible.
-- Say plainly what leaves the device: the coordinates, not the photo.
-- Declining must cost nothing except the venue names — no nagging, no degraded
-  story.
+- Say plainly that coordinates leave the device, not the photo.
+- Declining costs only the names. No nagging, no worse story.
+- Round coordinates to ~4 decimals (≈11 m — ample for a venue query) and never
+  log them next to a user id.
 
-### API constraint
-Free, or a very high free threshold. That is the deciding factor, ahead of data
-quality. Under research; every free-tier figure must be confirmed from the
-provider's own page, since these numbers go stale and get repeated wrongly.
+### Unconfirmed, and worth testing before committing
+- The iOS 17+ picker's location toggle **default state**. Needs a real device.
+- Android Chrome's specific `<input type=file>` behaviour — platform redaction is
+  confirmed, Chrome's handling is not.
+- Photon has no published rate limit at all.
+- What share of OSM venues carry a `name` tag. OSM has ~1.6M `amenity=restaurant`
+  objects; an indicative third-party sample found OSM had **fewer** venues than a
+  commercial set but a **higher** hit rate on the ones it had (72% vs 60%
+  confirmed to exist). Coverage is dense in urban Europe, patchier elsewhere.
