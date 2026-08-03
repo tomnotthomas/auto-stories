@@ -5,7 +5,7 @@ import { ApiError } from '@google/genai';
 import type { GenerateRequest } from '@auto-stories/api-types';
 import { StoryGeneratorService } from './story-generator.service';
 import { GENAI } from './story.constants';
-import { DEFAULT_LOOK, DEFAULT_STYLE } from './caption-style';
+import { DEFAULT_LOOK } from './caption-style';
 
 // The service logs unexpected causes on purpose; keep them out of test output.
 beforeAll(() => {
@@ -48,9 +48,9 @@ describe('StoryGeneratorService', () => {
     const generateContent = jest.fn().mockResolvedValue(
       jsonResponse(
         [
-          { photoId: 'p2', order: 1, caption: 'hook' },
-          { photoId: 'p1', order: 2, caption: 'build' },
-          { photoId: 'p3', order: 3, caption: 'payoff' },
+          { photoId: 'p2', order: 1, headline: 'hook' },
+          { photoId: 'p1', order: 2, headline: 'build' },
+          { photoId: 'p3', order: 3, headline: 'payoff' },
         ],
         'scrapbook',
       ),
@@ -61,33 +61,9 @@ describe('StoryGeneratorService', () => {
 
     expect(result).toEqual({
       frames: [
-        {
-          photoId: 'p2',
-          order: 1,
-          caption: 'hook',
-          headline: 'hook',
-          style: DEFAULT_STYLE,
-          texts: [],
-          suggestions: [],
-        },
-        {
-          photoId: 'p1',
-          order: 2,
-          caption: 'build',
-          headline: 'build',
-          style: DEFAULT_STYLE,
-          texts: [],
-          suggestions: [],
-        },
-        {
-          photoId: 'p3',
-          order: 3,
-          caption: 'payoff',
-          headline: 'payoff',
-          style: DEFAULT_STYLE,
-          texts: [],
-          suggestions: [],
-        },
+        { photoId: 'p2', order: 1, headline: 'hook', suggestions: [] },
+        { photoId: 'p1', order: 2, headline: 'build', suggestions: [] },
+        { photoId: 'p3', order: 3, headline: 'payoff', suggestions: [] },
       ],
       look: 'scrapbook',
       partial: false,
@@ -98,7 +74,7 @@ describe('StoryGeneratorService', () => {
     const generateContent = jest
       .fn()
       .mockResolvedValue(
-        jsonResponse([{ photoId: 'p1', order: 1, caption: 'x' }]),
+        jsonResponse([{ photoId: 'p1', order: 1, headline: 'x' }]),
       );
     const service = await makeService(generateContent);
 
@@ -111,7 +87,7 @@ describe('StoryGeneratorService', () => {
     const generateContent = jest
       .fn()
       .mockResolvedValue(
-        jsonResponse([{ photoId: 'p1', order: 1, caption: 'x' }], 'polaroid'),
+        jsonResponse([{ photoId: 'p1', order: 1, headline: 'x' }], 'polaroid'),
       );
     const service = await makeService(generateContent);
 
@@ -125,8 +101,8 @@ describe('StoryGeneratorService', () => {
     const generateContent = jest.fn().mockResolvedValue(
       jsonResponse(
         [
-          { photoId: 'p1', order: 1, caption: 'a' },
-          { photoId: 'p2', order: 2, caption: 'b' },
+          { photoId: 'p1', order: 1, headline: 'a' },
+          { photoId: 'p2', order: 2, headline: 'b' },
         ],
         'minimal',
       ),
@@ -142,7 +118,7 @@ describe('StoryGeneratorService', () => {
     const generateContent = jest
       .fn()
       .mockResolvedValue(
-        jsonResponse([{ photoId: 'p1', order: 1, caption: 'x' }]),
+        jsonResponse([{ photoId: 'p1', order: 1, headline: 'x' }]),
       );
     const service = await makeService(generateContent);
 
@@ -160,8 +136,8 @@ describe('StoryGeneratorService', () => {
   it('does not flag partial when the model curates a subset', async () => {
     const generateContent = jest.fn().mockResolvedValue(
       jsonResponse([
-        { photoId: 'p1', order: 1, caption: 'a' },
-        { photoId: 'p3', order: 2, caption: 'b' },
+        { photoId: 'p1', order: 1, headline: 'a' },
+        { photoId: 'p3', order: 2, headline: 'b' },
       ]),
     );
     const service = await makeService(generateContent);
@@ -176,7 +152,7 @@ describe('StoryGeneratorService', () => {
     const generateContent = jest
       .fn()
       .mockResolvedValue(
-        jsonResponse([{ photoId: 'p1', order: 1, caption: 'x' }]),
+        jsonResponse([{ photoId: 'p1', order: 1, headline: 'x' }]),
       );
     const service = await makeService(generateContent);
 
@@ -192,13 +168,30 @@ describe('StoryGeneratorService', () => {
     const generateContent = jest
       .fn()
       .mockResolvedValue(
-        jsonResponse([{ photoId: 'ghost', order: 1, caption: 'x' }]),
+        jsonResponse([{ photoId: 'ghost', order: 1, headline: 'x' }]),
       );
     const service = await makeService(generateContent);
 
     await expect(service.generate(makeRequest(3))).rejects.toMatchObject({
       code: 'empty_result',
     });
+  });
+
+  // The headline is the frame's only text (7.25) — a frame without one cannot
+  // be composed, so it is dropped rather than shipped blank.
+  it('drops a frame the model left without a headline', async () => {
+    const generateContent = jest.fn().mockResolvedValue(
+      jsonResponse([
+        { photoId: 'p1', order: 1, headline: 'a' },
+        { photoId: 'p2', order: 2 },
+        { photoId: 'p3', order: 3, headline: '   ' },
+      ]),
+    );
+    const service = await makeService(generateContent);
+
+    const result = await service.generate(makeRequest(3));
+
+    expect(result.frames.map((f) => f.photoId)).toEqual(['p1']);
   });
 
   it('rejects with empty_result when the model returns non-JSON', async () => {
@@ -229,9 +222,9 @@ describe('StoryGeneratorService', () => {
       .mockResolvedValueOnce({ promptFeedback: { blockReason: 'SAFETY' } })
       .mockResolvedValueOnce(
         jsonResponse([
-          { photoId: 'p1', order: 1, caption: 'a' },
-          { photoId: 'p2', order: 2, caption: 'b' },
-          { photoId: 'p3', order: 3, caption: 'c' },
+          { photoId: 'p1', order: 1, headline: 'a' },
+          { photoId: 'p2', order: 2, headline: 'b' },
+          { photoId: 'p3', order: 3, headline: 'c' },
         ]),
       );
     const service = await makeService(generateContent);

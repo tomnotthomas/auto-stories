@@ -34,25 +34,48 @@ describe('buildPrompt', () => {
     expect(prompt).toMatch(/location|gif|poll|music/);
   });
 
-  it('tells the model to vary caption length per photo, not a uniform terseness', () => {
+  it('tells the model to vary headline length per photo, not a uniform terseness', () => {
     const prompt = buildPrompt(story).toLowerCase();
     // A self-explanatory photo still breathes…
     expect(prompt).toContain('breathe');
     expect(prompt).toContain('vary');
     // …but a frame that needs context earns a fuller line.
     expect(prompt).toMatch(/fuller line|short sentence/);
-    // The captions across the story should have rhythm, not the same few words.
+    // The headlines across the story should have rhythm, not the same few words.
     expect(prompt).toMatch(/rhythm|never a uniform/);
+    // The judgement is about the headline now — there is no second text field.
+    expect(prompt).toContain('headline');
   });
 
   it('tells the model not to overload a photo with competing elements', () => {
     expect(buildPrompt(story).toLowerCase()).toMatch(/overload|competes/);
   });
 
-  it('offers up to two placed text blocks as an editorial option', () => {
-    const prompt = buildPrompt(story);
-    expect(prompt).toContain('texts');
-    expect(prompt.toLowerCase()).toMatch(/up to 2|two/);
+  // Decision 7.25 / 7.24: one text per frame, and the Look owns all of its type.
+  it('never asks the model for a font, a letterbox or extra text blocks', () => {
+    const prompt = buildPrompt(story).toLowerCase();
+    for (const banned of [
+      'texts',
+      'font',
+      'letterbox',
+      'playfair',
+      'space-mono',
+      'caveat',
+    ]) {
+      expect(prompt).not.toContain(banned);
+    }
+  });
+
+  // Suggestions still carry an anchor zone; the frame's own text never does, so
+  // the only other line allowed to say "position" is the one forbidding it.
+  it('only ever asks for a position on a suggestion, never on the words', () => {
+    const positioned = buildPrompt(story)
+      .toLowerCase()
+      .split('\n')
+      .filter((line) => line.includes('position'));
+    const asked = positioned.filter((line) => !line.includes('do not choose'));
+    expect(asked).toHaveLength(1);
+    expect(asked[0]).toContain('suggestions');
   });
 
   it('keeps distinct moments and only drops weak or duplicate photos', () => {
@@ -64,9 +87,9 @@ describe('buildPrompt', () => {
   it('asks for the frames shape the schema enforces', () => {
     const prompt = buildPrompt(story);
     expect(prompt).toContain('photoId');
-    expect(prompt).toContain('caption');
     expect(prompt).toContain('look');
     expect(prompt).toContain('headline');
+    expect(prompt).toContain('order');
   });
 
   it('names all six Looks so the choice is informed', () => {

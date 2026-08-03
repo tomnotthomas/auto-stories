@@ -77,7 +77,7 @@ async function main(): Promise<void> {
           `selected ${frames.length}/${photos.length} in ${seconds}s${partial ? ' (partial)' : ''}`,
         );
         for (const frame of [...frames].sort((a, b) => a.order - b.order)) {
-          console.log(`  ${frame.order}. [${frame.photoId}]  ${frame.caption}`);
+          console.log(`  ${frame.order}. [${frame.photoId}]  ${frame.headline}`);
         }
         console.log(
           'Rubric — strongest hook first? sensible order? specific (not generic) captions? near-dupes/blurry dropped?',
