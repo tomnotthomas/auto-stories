@@ -20,6 +20,13 @@ export type GenerateRequest = {
     */
     tone?: Tone;
     /**
+     * @description Optional mood the user sets for the story\'s art direction (decision 7.21); when omitted, the layout agent infers it from the photos. A short word or phrase like \"tender\" or \"hectic joy\".
+     * @minLength 1
+     * @maxLength 60
+     * @type string | undefined
+    */
+    atmosphere?: string;
+    /**
      * @description 3–30 downscaled photos — a real dump the model selects from, not a pre-filtered handful.
      * @type array
     */

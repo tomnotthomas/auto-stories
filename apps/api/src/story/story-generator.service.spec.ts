@@ -298,9 +298,18 @@ describe('StoryGeneratorService', () => {
       composeLayouts,
     });
 
-    const result = await service.generate(makeRequest(3));
+    const result = await service.generate({
+      ...makeRequest(3),
+      atmosphere: 'tender',
+    });
 
     expect(composeLayouts).toHaveBeenCalledTimes(1);
+    // The user-set atmosphere is threaded to the agent (decision 7.21).
+    expect(composeLayouts).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({ atmosphere: 'tender' }),
+    );
     expect(result.frames.every((f) => f.layout !== undefined)).toBe(true);
   });
 });

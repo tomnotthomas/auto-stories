@@ -91,6 +91,7 @@ export class StoryGeneratorService {
         ? await this.layoutAgent.composeLayouts(frames, photos, {
             story: request.story,
             tone: request.tone,
+            atmosphere: request.atmosphere,
           })
         : frames;
 
