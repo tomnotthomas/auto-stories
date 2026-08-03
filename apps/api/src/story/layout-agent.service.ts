@@ -1,10 +1,11 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { GoogleGenAI, Part } from '@google/genai';
-import type { Frame, Photo, Tone } from '@auto-stories/api-types';
+import type { Frame, Layout, Photo, Tone } from '@auto-stories/api-types';
 
 import { normalizeLayout } from './caption-style';
 import { buildLayoutPrompt } from './layout-prompt.builder';
+import { buildCritiquePrompt } from './layout-critique.builder';
 import { LAYOUT_RESPONSE_SCHEMA } from './layout.schema';
 import {
   DEFAULT_MODEL,
@@ -39,6 +40,9 @@ export class LayoutAgentService {
   private readonly logger = new Logger(LayoutAgentService.name);
   private readonly model: string;
   private readonly timeoutMs: number;
+  /** One self-critique/revise pass per frame (7.21). Off by default — it doubles
+   * the model calls, and its benefit needs live tuning. */
+  private readonly critiqueEnabled: boolean;
 
   constructor(
     @Inject(GENAI) private readonly genai: GoogleGenAI,
@@ -49,6 +53,8 @@ export class LayoutAgentService {
       'GENERATION_TIMEOUT_MS',
       DEFAULT_TIMEOUT_MS,
     );
+    this.critiqueEnabled =
+      config.get<string>('LAYOUT_CRITIQUE_ENABLED') === 'true';
   }
 
   /** Attach an art-directed `layout` to each frame, in order. Best-effort per
@@ -78,16 +84,35 @@ export class LayoutAgentService {
           frameCount: frames.length,
           avoidAnchors: recentAnchors.slice(-2),
         });
-        const layout = normalizeLayout(await this.callLayout(prompt, photo));
-        if (layout) {
-          out.push({ ...frame, layout });
-          const lead =
-            layout.elements.find((e) => e.role === 'title') ??
-            layout.elements[0];
-          if (lead) recentAnchors.push(lead.anchor);
-        } else {
+        const proposed = normalizeLayout(await this.callLayout(prompt, photo));
+        if (!proposed) {
           out.push(frame);
+          continue;
         }
+        // One self-critique/revise pass (7.21), best-effort: a failed or empty
+        // critique keeps the first pass rather than losing it.
+        let layout = proposed;
+        if (this.critiqueEnabled) {
+          try {
+            const refined = await this.refine(
+              proposed,
+              frame.caption,
+              opts,
+              photo,
+            );
+            if (refined) layout = refined;
+          } catch (err) {
+            this.logger.warn(
+              `Layout critique failed for ${frame.photoId}; keeping the first pass. ${
+                err instanceof Error ? err.message : String(err)
+              }`,
+            );
+          }
+        }
+        out.push({ ...frame, layout });
+        const lead =
+          layout.elements.find((e) => e.role === 'title') ?? layout.elements[0];
+        if (lead) recentAnchors.push(lead.anchor);
       } catch (err) {
         this.logger.warn(
           `Layout agent failed for ${frame.photoId}; keeping the legacy caption. ${
@@ -98,6 +123,24 @@ export class LayoutAgentService {
       }
     }
     return out;
+  }
+
+  /** The self-critique pass: ask the model to improve the proposed layout, looking
+   * at the photo again. Returns the improved layout, or undefined to keep the first
+   * pass. */
+  private async refine(
+    proposed: Layout,
+    caption: string,
+    opts: ComposeOptions,
+    photo: Photo,
+  ): Promise<Layout | undefined> {
+    const prompt = buildCritiquePrompt({
+      story: opts.story,
+      caption,
+      atmosphere: opts.atmosphere,
+      proposed,
+    });
+    return normalizeLayout(await this.callLayout(prompt, photo));
   }
 
   /** One model call: the art-direction brief plus this frame's photo → raw JSON. */
