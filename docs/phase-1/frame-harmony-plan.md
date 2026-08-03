@@ -199,8 +199,49 @@ both passes run one frame at a time:
 - Keep the existing per-frame `try/catch`: one frame failing must not take the
   story down, which is already the behaviour and must survive the change.
 
+## Slice 0 (do this FIRST) — build the other five Looks
+
+Live review: a Halloween-with-the-family story rendered corporate, cold and
+in-your-face, and the type dominated the picture.
+
+**Cause, from the code and two live generations:** the model's Look choice is
+fine — "loud chaotic bachelor party" chose `bold-poster`, "grandmother's 90th,
+everyone crying and laughing" chose `film-postcard`. But `look.ts` implements
+only Magazine:
+
+```ts
+const REGISTRY = { [MAGAZINE.id]: MAGAZINE };
+lookFor(id) => (id && REGISTRY[id]) || REGISTRY[DEFAULT_LOOK_ID];  // everything → Magazine
+```
+
+So **every story renders as Magazine Masthead** — the board calls it "the most
+overtly designed" of the six, and it sets the largest type in the set (headline
+at 9.4% of frame width). Neither the warmth (Scrapbook, Film Postcard) nor the
+restraint (Minimal, Quiet Editorial) is reachable.
+
+This is the P1→P2 gap, and it outranks slices 2–5: harmonious placement of a
+Look nobody wanted is worth less than having the right Look. Build the remaining
+five (Looks-engine plan P2), then resume the pipeline slices.
+
+It also partly answers "the font is too much in the forefront": it is not that
+type is inherently too loud, it is that the loudest of the six is being applied
+to every story. Slice 3's density then handles the rest.
+
+## Slice 6 — let the action bar fold away
+
+The three buttons (Post to Instagram / Refine story / Start over) cover the
+bottom of every frame and cannot be dismissed, so the picture can never be seen
+on its own.
+
+- Fold them away so the frame is unobstructed, with an obvious, cheap way back.
+- Note the interaction with the `safeBottomPx` inset added in P1: the preview
+  currently reserves 160px for this bar. When the bar folds, that reservation
+  should go with it, or a folded bar leaves the composition floating oddly high.
+
 ## Sequencing
-1 → 2 → 3, then 4 only if needed. Slices 1 and 2 both touch the contract, so they
+**0 first** — every story currently wears the loudest of the six Looks, which
+outranks everything below it. Then 1 → 2 → 3, then 4 only if needed. Slice 6 is
+independent and small. Slices 1 and 2 both touch the contract, so they
 land as one contract change or strictly in that order, so the deployed contract
 never half-migrates.
 
