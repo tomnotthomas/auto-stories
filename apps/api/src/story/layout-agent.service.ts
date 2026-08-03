@@ -25,15 +25,14 @@ export interface ComposeOptions {
 /**
  * The layout agent (decision 7.21): a dedicated art-direction pass that runs
  * AFTER the story is assembled. For each frame it asks the model — looking at the
- * actual photo — to compose bespoke typography (a {@link Frame.layout}), validates
- * it with `normalizeLayout`, and threads the recent lead anchors forward so no two
- * frames repeat a composition. A frame whose call fails simply keeps no layout and
- * falls back to the caption/style render — never a hard failure.
+ * actual photo — to compose bespoke typography (a {@link Frame.layout}), validated
+ * by `normalizeLayout`. The per-frame passes run IN PARALLEL (a sequential loop
+ * timed the whole story out); each is best-effort, so a failed frame falls back to
+ * the caption/style render and never breaks the story.
  *
- * SCAFFOLD: the orchestration here is unit-tested with a mocked model, but the
- * VISUAL quality of the output depends entirely on the live model and must be
- * tuned on a machine with a GOOGLE_CLOUD_API_KEY (see buildLayoutPrompt). It is
- * gated OFF by default (LAYOUT_AGENT_ENABLED) so nothing ships unverified.
+ * The output's VISUAL quality depends on the live model and the brief
+ * (buildLayoutPrompt), tuned against real photos. The self-critique/revise pass is
+ * opt-in (LAYOUT_CRITIQUE_ENABLED) because it doubles the model calls.
  */
 @Injectable()
 export class LayoutAgentService {
@@ -57,72 +56,76 @@ export class LayoutAgentService {
       config.get<string>('LAYOUT_CRITIQUE_ENABLED') === 'true';
   }
 
-  /** Attach an art-directed `layout` to each frame, in order. Best-effort per
-   * frame: a failure leaves that frame untouched (legacy caption render). */
+  /** Attach an art-directed `layout` to each frame. Runs the per-frame passes
+   * IN PARALLEL — a sequential loop over 5–10 model calls blew the client's
+   * generation budget and timed the whole story out. Order is preserved; each
+   * frame is best-effort (a failure leaves that frame's caption render). */
   async composeLayouts(
     frames: Frame[],
     photos: readonly Photo[],
     opts: ComposeOptions,
   ): Promise<Frame[]> {
     const photoById = new Map(photos.map((photo) => [photo.id, photo]));
-    const out: Frame[] = [];
-    const recentAnchors: string[] = [];
+    return Promise.all(
+      frames.map((frame) =>
+        this.composeOne(
+          frame,
+          photoById.get(frame.photoId),
+          frames.length,
+          opts,
+        ),
+      ),
+    );
+  }
 
-    for (const frame of frames) {
-      const photo = photoById.get(frame.photoId);
-      if (!photo) {
-        out.push(frame);
-        continue;
-      }
-      try {
-        const prompt = buildLayoutPrompt({
-          story: opts.story,
-          caption: frame.caption,
-          atmosphere: opts.atmosphere,
-          tone: opts.tone,
-          frameNo: frame.order,
-          frameCount: frames.length,
-          avoidAnchors: recentAnchors.slice(-2),
-        });
-        const proposed = normalizeLayout(await this.callLayout(prompt, photo));
-        if (!proposed) {
-          out.push(frame);
-          continue;
+  /** Art-direct one frame, best-effort: returns the frame with a `layout`, or the
+   * frame untouched if it has no photo / the model fails / returns nothing usable. */
+  private async composeOne(
+    frame: Frame,
+    photo: Photo | undefined,
+    frameCount: number,
+    opts: ComposeOptions,
+  ): Promise<Frame> {
+    if (!photo) return frame;
+    try {
+      const prompt = buildLayoutPrompt({
+        story: opts.story,
+        caption: frame.caption,
+        atmosphere: opts.atmosphere,
+        tone: opts.tone,
+        frameNo: frame.order,
+        frameCount,
+      });
+      const proposed = normalizeLayout(await this.callLayout(prompt, photo));
+      if (!proposed) return frame;
+      // One self-critique/revise pass (7.21), best-effort: a failed or empty
+      // critique keeps the first pass rather than losing it.
+      if (this.critiqueEnabled) {
+        try {
+          const refined = await this.refine(
+            proposed,
+            frame.caption,
+            opts,
+            photo,
+          );
+          if (refined) return { ...frame, layout: refined };
+        } catch (err) {
+          this.logger.warn(
+            `Layout critique failed for ${frame.photoId}; keeping the first pass. ${
+              err instanceof Error ? err.message : String(err)
+            }`,
+          );
         }
-        // One self-critique/revise pass (7.21), best-effort: a failed or empty
-        // critique keeps the first pass rather than losing it.
-        let layout = proposed;
-        if (this.critiqueEnabled) {
-          try {
-            const refined = await this.refine(
-              proposed,
-              frame.caption,
-              opts,
-              photo,
-            );
-            if (refined) layout = refined;
-          } catch (err) {
-            this.logger.warn(
-              `Layout critique failed for ${frame.photoId}; keeping the first pass. ${
-                err instanceof Error ? err.message : String(err)
-              }`,
-            );
-          }
-        }
-        out.push({ ...frame, layout });
-        const lead =
-          layout.elements.find((e) => e.role === 'title') ?? layout.elements[0];
-        if (lead) recentAnchors.push(lead.anchor);
-      } catch (err) {
-        this.logger.warn(
-          `Layout agent failed for ${frame.photoId}; keeping the legacy caption. ${
-            err instanceof Error ? err.message : String(err)
-          }`,
-        );
-        out.push(frame);
       }
+      return { ...frame, layout: proposed };
+    } catch (err) {
+      this.logger.warn(
+        `Layout agent failed for ${frame.photoId}; keeping the legacy caption. ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+      return frame;
     }
-    return out;
   }
 
   /** The self-critique pass: ask the model to improve the proposed layout, looking
