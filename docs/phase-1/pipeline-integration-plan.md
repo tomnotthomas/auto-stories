@@ -127,39 +127,48 @@ regenerate; it is only the render condition and a drag handler that are missing.
 
 # Follow-ups from the live review
 
-## A. Folding must not move the composition
+## A. Swipe the actions away, and never move the composition
 
 **Reported:** folding the action bar slides a bottom-anchored headline down by
-~144px. The frame should not recompose because chrome came and went.
+~144px. The frame must not recompose because chrome came and went. And the
+gesture should be a **swipe**, not a button.
 
-**Cause:** the preview reserves space for the bar (`safeBottomPx`) and anchors
-the composition above it, so the reservation changing moves the type.
+**The layout, for the record** (I got this wrong first time and proposed
+restructuring the frame around it):
 
-**The tempting fix is wrong.** Holding the reservation constant stops the
-movement but bakes in a worse lie: the composition would sit ~208px off the
-bottom in the preview while the export puts it at 8% — about 68px at preview
-scale. The type would never be shown where it actually lands.
+```html
+<img class="absolute inset-0 h-full w-full object-cover">   <!-- full-bleed photo -->
+<div class="absolute inset-x-4 bottom-6 z-20 …">            <!-- actions: pure overlay -->
+```
 
-**The real cause is that the preview is not the export's shape.** The frame is
-full-bleed on a ~390×844 screen (about 1:2.16); the export is 9:16. `safeBottomPx`
-is a patch over that mismatch, not a feature.
+There is no bar *area*. The photo fills the screen and the three actions float on
+top of it over the existing bottom gradient. Nothing sits behind them and nothing
+is reserved for them in the page layout.
 
-### Options
+**So the movement has one cause and one fix.** `safeBottomPx` was made to depend
+on whether the actions are shown. It must not. The offset the composition hangs
+at is **constant** — it keeps the type clear of where the actions *can* appear —
+and dismissing them changes nothing but the overlay's presence.
 
-| | What it does | Cost |
-| --- | --- | --- |
-| **1. Constant reservation** | Reserve the unfolded height always; only the buttons come and go | One line. Nothing moves. But the preview keeps showing the type ~140px higher than the export does — it hides the bug rather than fixing it |
-| **2. True 9:16 preview frame** | Render the frame at the export's real aspect ratio, sized to fit above the bar, and keep that box **fixed** whether the bar is shown or not. Folding reveals background around the frame; the frame never resizes | Removes `safeBottomPx` entirely, makes preview == export exact, and nothing can move. Costs full-bleed: there are bands above/below on a tall phone |
-| **3. Scale the frame on fold** | Grow the frame into the freed space | Rejected — this moves the composition *more*, which is the complaint |
+There is a separate, pre-existing fidelity gap worth noting but NOT fixing here:
+the preview is a full-bleed `object-cover` crop of a ~1:2.16 screen while the
+export is 9:16, so the two crop the photograph differently. That is its own
+problem, it is not what was reported, and restructuring the frame to solve it
+would cost the full-bleed look deliberately chosen for the story view.
 
-**Recommendation: 2.** It is the only one where the type is drawn where it will
-actually be exported, and "nothing moves" then follows for free rather than being
-enforced. The lost full-bleed is real, but a phone is taller than 9:16 anyway, so
-the frame is already being cropped — option 2 makes that visible instead of
-hiding it behind a crop the user cannot see.
+### The gesture
+- **Swipe down** on the action cluster to dismiss it.
+- **Swipe up** from the bottom edge to bring it back — the same place it left
+  from, which is what makes it findable without a permanent control on the photo.
+- A first-run hint, once, like the existing paging hint: the return gesture is
+  the one thing a user cannot discover by accident.
+- Keep the tap zones off the bottom strip while the actions are hidden, so a
+  swipe-up is not swallowed by paging.
 
-Take 1 only if full-bleed is judged more important than preview fidelity; it is a
-one-line change and is trivially reversible.
+This replaces the labelled toggle built in the first pass. The toggle was chosen
+to guarantee a visible way back, which was sound reasoning, but it costs ~48px of
+permanent chrome on the photo — and a photo-first view is the whole point of
+being able to dismiss the actions at all.
 
 ## B. Resolve the exact venue for places you can buy something
 
