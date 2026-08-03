@@ -1,5 +1,5 @@
-import type { DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
-import { splitEmphasis } from '../look';
+import type { Density, DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
+import { resolveDensity, splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
 /**
@@ -31,27 +31,34 @@ const EDGE_OFFSET_HPCT = 9;
 /** Centred is the point, so the middle band is what this Look actually wants. */
 const PREFERRED_BANDS: readonly Band[] = ['middle', 'bottom', 'top'];
 
-/**
- * How big the stencil is set, by how much there is to set. At 13.5% of the
- * frame's width roughly seven capitals fit on a line, which is what makes a
- * three-word headline look printed — and what would push a twelve-word one off
- * the top of the frame. So the size steps down with the word count instead:
- * still the largest type in the catalogue at every step, but always inside the
- * frame. The steps are coarse on purpose — a continuous fit would give every
- * frame in a story a different headline size and lose the set.
- */
-const SIZE_STEPS: readonly { readonly upTo: number; readonly fontSizeWPct: number }[] = [
-  { upTo: 22, fontSizeWPct: 13.5 },
-  { upTo: 40, fontSizeWPct: 10.5 },
-  { upTo: 70, fontSizeWPct: 8 },
-  { upTo: Infinity, fontSizeWPct: 6.4 },
-];
-
-/** The step a headline of this length is set at. */
-function sizeFor(headline: string): number {
-  const step = SIZE_STEPS.find((candidate) => headline.trim().length <= candidate.upTo);
-  return (step ?? SIZE_STEPS[SIZE_STEPS.length - 1]).fontSizeWPct;
+/** How the stencil is set at one density. */
+interface Rung {
+  readonly fontSizeWPct: number;
+  readonly lineHeight: number;
 }
+
+/**
+ * What this Look sets at each density (7.26). At 13.5% of the frame's width
+ * roughly seven capitals fit on a line, which is what makes a `beat` look
+ * printed — and what would push a `thought` off the top of the frame. So each
+ * rung gets its own setting: still the largest type in the catalogue at every
+ * one, but always inside the frame. Leading opens as the size comes down,
+ * because locked-up caps at 0.94 are a graphic and three lines of them are text.
+ *
+ * This replaces a ramp that guessed from the headline's character count. Density
+ * is the model saying what it meant, which is a better thing to size to than how
+ * long the sentence happened to run.
+ */
+const LINE: Rung = { fontSizeWPct: 9.6, lineHeight: 0.94 };
+const HEADLINE: Record<Density, Rung> = {
+  // A frame that states `silent` and then writes words has words, and words are
+  // always drawn; a truly wordless frame returns before this is read.
+  silent: LINE,
+  beat: { fontSizeWPct: 13.5, lineHeight: 0.9 },
+  line: LINE,
+  thought: { fontSizeWPct: 6.4, lineHeight: 1.06 },
+  question: LINE,
+};
 
 function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
   const band = quietestBand(photo.bands, PREFERRED_BANDS);
@@ -77,6 +84,7 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
     };
   }
 
+  const density = resolveDensity(content);
   const parts: Part[] = [];
 
   // The print run line — small, wide-tracked, in the accent. This is the Look's
@@ -107,8 +115,8 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
     runs: splitEmphasis(content.headline, content.emphasis),
     fontFamily: BRICOLAGE,
     fontWeight: 800,
-    fontSizeWPct: sizeFor(content.headline),
-    lineHeight: 0.94,
+    fontSizeWPct: HEADLINE[density].fontSizeWPct,
+    lineHeight: HEADLINE[density].lineHeight,
     letterSpacingEm: 0.02,
     textTransform: 'uppercase',
     textAlign: 'center',

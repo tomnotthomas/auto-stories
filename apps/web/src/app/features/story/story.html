@@ -183,10 +183,14 @@
            whether they are drawn or not, so dismissing them never moves the
            frame. Swipe them down to hand the whole frame back to the photo. -->
       <div class="absolute inset-x-4 bottom-6 z-20 flex flex-col gap-2">
-        @if (actionsShown()) {
+        @if (actionsMounted()) {
+          <!-- The panel follows the finger: the drag writes a transform straight
+               to this element (nothing else moves), and the settle after the
+               release is a transition, so a reversal retargets it. -->
           <div
+            #actionsPanel
             data-actions
-            class="sheet-enter flex w-full flex-col gap-2"
+            class="sheet-enter flex w-full touch-none flex-col gap-2"
             (pointerdown)="onActionsSwipeStart($event)"
           >
             <button
@@ -223,7 +227,7 @@
       @if (!actionsShown()) {
         <div
           data-swipe-restore
-          class="absolute inset-x-0 bottom-0 z-10 flex h-20 items-end justify-center pb-6"
+          class="absolute inset-x-0 bottom-0 z-10 flex h-20 touch-none items-end justify-center pb-6"
           (pointerdown)="onEdgeSwipeStart($event)"
         >
           @if (!restoreHintSeen()) {

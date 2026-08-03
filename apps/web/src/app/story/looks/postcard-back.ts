@@ -1,5 +1,5 @@
-import type { DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
-import { splitEmphasis } from '../look';
+import type { Density, DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
+import { resolveDensity, splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
 /**
@@ -30,6 +30,30 @@ const POSTMARK_TILT_DEG = -6.5;
 /** A message is written under the stamp, so the stack hangs off the bottom. */
 const PREFERRED_BANDS: readonly Band[] = ['bottom', 'top'];
 
+/** How the message is written at one density. */
+interface Rung {
+  readonly fontSizeWPct: number;
+  readonly lineHeight: number;
+}
+
+/**
+ * What this Look sets at each density (7.26). A postcard is the one Look in the
+ * set that a `thought` genuinely suits — the back of a card is where people write
+ * several lines — so the drop is to a real message hand, leaded like one, rather
+ * than to something apologetic. A `beat` is the other extreme: three words across
+ * the card, the way a card gets written when the sender is in a hurry.
+ */
+const LINE: Rung = { fontSizeWPct: 6, lineHeight: 1.34 };
+const HEADLINE: Record<Density, Rung> = {
+  // A frame that states `silent` and then writes words has words, and words are
+  // always drawn; a truly wordless frame returns before this is read.
+  silent: LINE,
+  beat: { fontSizeWPct: 7.8, lineHeight: 1.24 },
+  line: LINE,
+  thought: { fontSizeWPct: 4.1, lineHeight: 1.48 },
+  question: LINE,
+};
+
 function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
   const band = quietestBand(photo.bands, PREFERRED_BANDS);
   const anchor = band === 'top' ? 'top' : 'bottom';
@@ -48,6 +72,7 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
   // it is a sticker on someone's picture.
   if (!content.headline.trim()) return { ...base, scrim: null, parts: [] };
 
+  const density = resolveDensity(content);
   const parts: Part[] = [];
 
   // The postmark carries the place — a postmark names where it was franked. If
@@ -112,8 +137,8 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
     runs: splitEmphasis(content.headline, content.emphasis),
     fontFamily: SHANTELL,
     fontWeight: 400,
-    fontSizeWPct: 6,
-    lineHeight: 1.34,
+    fontSizeWPct: HEADLINE[density].fontSizeWPct,
+    lineHeight: HEADLINE[density].lineHeight,
     letterSpacingEm: 0,
     textTransform: 'none',
     textAlign: 'left',

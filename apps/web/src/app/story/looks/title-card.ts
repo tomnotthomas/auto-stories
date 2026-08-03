@@ -1,5 +1,5 @@
-import type { DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
-import { splitEmphasis } from '../look';
+import type { Density, DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
+import { resolveDensity, splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
 /**
@@ -33,6 +33,35 @@ const EDGE_OFFSET_HPCT = 14;
 /** Built for the middle; the edges are the fallback when the subject is there. */
 const PREFERRED_BANDS: readonly Band[] = ['middle', 'bottom', 'top'];
 
+/**
+ * How the title is set at one density. Tracking is part of the rung here and is
+ * the more important half of it: caps opened to 0.26em are what makes a short
+ * title a card, and the same tracking across several lines is what makes a long
+ * one unreadable. The bracketed line keeps its character at every rung; the
+ * measure and the leading are what change.
+ */
+interface Rung {
+  readonly fontSizeWPct: number;
+  readonly lineHeight: number;
+  readonly letterSpacingEm: number;
+}
+
+/**
+ * What this Look sets at each density (7.26). A title card is written for a
+ * `beat` — that is what a film puts between two rules — so the ramp is steep,
+ * and the bracket does the work the type gives up at the lower rungs.
+ */
+const LINE: Rung = { fontSizeWPct: 5, lineHeight: 1.45, letterSpacingEm: 0.26 };
+const HEADLINE: Record<Density, Rung> = {
+  // A frame that states `silent` and then writes words has words, and words are
+  // always drawn; a truly wordless frame returns before this is read.
+  silent: LINE,
+  beat: { fontSizeWPct: 6.8, lineHeight: 1.35, letterSpacingEm: 0.34 },
+  line: LINE,
+  thought: { fontSizeWPct: 3.4, lineHeight: 1.55, letterSpacingEm: 0.14 },
+  question: LINE,
+};
+
 function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
   const band = quietestBand(photo.bands, PREFERRED_BANDS);
   // Middle and top both hang from the top edge; only the distance differs.
@@ -55,6 +84,7 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
     };
   }
 
+  const density = resolveDensity(content);
   const parts: Part[] = [];
 
   // The "presents" line: the same face, half the size, sitting above the top
@@ -94,9 +124,9 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
     runs: splitEmphasis(content.headline, content.emphasis),
     fontFamily: BRICOLAGE,
     fontWeight: 400,
-    fontSizeWPct: 5,
-    lineHeight: 1.45,
-    letterSpacingEm: 0.26,
+    fontSizeWPct: HEADLINE[density].fontSizeWPct,
+    lineHeight: HEADLINE[density].lineHeight,
+    letterSpacingEm: HEADLINE[density].letterSpacingEm,
     textTransform: 'uppercase',
     textAlign: 'center',
     color: 'ink',

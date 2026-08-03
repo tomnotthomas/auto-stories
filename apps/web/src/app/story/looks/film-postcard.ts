@@ -1,5 +1,5 @@
-import type { DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
-import { splitEmphasis } from '../look';
+import type { Density, DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
+import { resolveDensity, splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
 /**
@@ -31,6 +31,29 @@ const WARM_PRINT = 'saturate(1.08) sepia(0.18) contrast(1.04)';
 
 /** A postcard is written along the bottom; the top is its fallback. */
 const PREFERRED_BANDS: readonly Band[] = ['bottom', 'top'];
+
+/** How the line is set at one density. */
+interface Rung {
+  readonly fontSizeWPct: number;
+  readonly lineHeight: number;
+}
+
+/**
+ * What this Look sets at each density (7.26). A postcard is written on the back
+ * in whatever space is left: a greeting takes the whole card, a message is
+ * written smaller and closer so it fits. The `thought` rung is that message —
+ * still centred Fraunces inside the print margin, just no longer a greeting.
+ */
+const LINE: Rung = { fontSizeWPct: 6.4, lineHeight: 1.16 };
+const HEADLINE: Record<Density, Rung> = {
+  // A frame that states `silent` and then writes words has words, and words are
+  // always drawn; a truly wordless frame returns before this is read.
+  silent: LINE,
+  beat: { fontSizeWPct: 8.4, lineHeight: 1.08 },
+  line: LINE,
+  thought: { fontSizeWPct: 4.1, lineHeight: 1.42 },
+  question: LINE,
+};
 
 function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
   const band = quietestBand(photo.bands, PREFERRED_BANDS);
@@ -79,13 +102,14 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
 
   // The line itself. Regular weight, generous leading, no mark — a keepsake is
   // read, not sold.
+  const rung = HEADLINE[resolveDensity(content)];
   parts.push({
     kind: 'text',
     runs: splitEmphasis(content.headline, content.emphasis),
     fontFamily: FRAUNCES,
     fontWeight: 400,
-    fontSizeWPct: 6.4,
-    lineHeight: 1.16,
+    fontSizeWPct: rung.fontSizeWPct,
+    lineHeight: rung.lineHeight,
     letterSpacingEm: 0.005,
     textTransform: 'none',
     textAlign: 'center',

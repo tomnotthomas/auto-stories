@@ -1,5 +1,5 @@
-import type { DrawnComposition, FrameContent, Look, PhotoAnalysis, Run } from '../look';
-import { splitEmphasis } from '../look';
+import type { Density, DrawnComposition, FrameContent, Look, PhotoAnalysis, Run } from '../look';
+import { resolveDensity, splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
 /**
@@ -28,6 +28,33 @@ const EDGE_OFFSET_HPCT = 3.5;
 /** The foot of the frame; the head is the fallback when the foot is busy. */
 const PREFERRED_BANDS: readonly Band[] = ['bottom', 'top'];
 
+/** How the spine is set at one density. */
+interface Rung {
+  readonly fontSizeWPct: number;
+  readonly lineHeight: number;
+  /** The tracking, which is most of what makes this Look read as a spine. */
+  readonly letterSpacingEm: number;
+}
+
+/**
+ * What this Look sets at each density (7.26). Tracking is the Look, and tracking
+ * is exactly what a long line cannot afford: spaced this wide, a `thought` would
+ * wrap into a grey field of letters with no words left in it. So the ramp pulls
+ * the tracking in as the words lengthen — wide and airy for a `beat` that spans
+ * the frame on one line, close and small for a `thought` set as a block of caps
+ * along the edge.
+ */
+const LINE: Rung = { fontSizeWPct: 2.2, lineHeight: 1.3, letterSpacingEm: 0.44 };
+const HEADLINE: Record<Density, Rung> = {
+  // A frame that states `silent` and then writes words has words, and words are
+  // always drawn; a truly wordless frame returns before this is read.
+  silent: LINE,
+  beat: { fontSizeWPct: 2.6, lineHeight: 1.3, letterSpacingEm: 0.5 },
+  line: LINE,
+  thought: { fontSizeWPct: 1.7, lineHeight: 1.55, letterSpacingEm: 0.18 },
+  question: LINE,
+};
+
 function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
   const band = quietestBand(photo.bands, PREFERRED_BANDS);
   const anchor = band === 'top' ? 'top' : 'bottom';
@@ -49,6 +76,7 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
   }
 
   const location = content.location?.trim();
+  const rung = HEADLINE[resolveDensity(content)];
 
   return {
     lookId: 'edge-caps',
@@ -71,9 +99,9 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
         runs: spineRuns(content, location),
         fontFamily: BRICOLAGE,
         fontWeight: 600,
-        fontSizeWPct: 2.2,
-        lineHeight: 1.3,
-        letterSpacingEm: 0.44,
+        fontSizeWPct: rung.fontSizeWPct,
+        lineHeight: rung.lineHeight,
+        letterSpacingEm: rung.letterSpacingEm,
         textTransform: 'uppercase',
         textAlign: 'center',
         color: 'ink',

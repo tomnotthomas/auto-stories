@@ -1,5 +1,5 @@
-import type { DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
-import { splitEmphasis } from '../look';
+import type { Density, DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
+import { resolveDensity, splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
 /**
@@ -38,9 +38,29 @@ const MIN_CHARS_PER_CHIP = 16;
  */
 const CHAR_EM = 0.52;
 const CHIP_PAD_EM = 1.24;
-const MAX_CHIP_WPCT = 6.4;
 /** Holds the longest headline the density brief allows (~46 characters). */
 const MIN_CHIP_WPCT = 3.2;
+
+/**
+ * What this Look can set at each density (7.26) — a *ceiling* rather than a
+ * size, because a chip is the one part the renderer never wraps: it has to fit
+ * the column or it runs off the frame. So the fit solver below still has the
+ * last word, and density decides how big a chip is allowed to get when it fits.
+ *
+ * That split is what stops a `beat` and a `thought` landing in the same slot on
+ * short words: two words at 6.4% is a sticker, the same two words in a frame the
+ * creator marked as a thought are part of a passage and are set smaller.
+ *
+ * `silent` never reaches here — the guard in `compose` returns first — and takes
+ * the smallest setting so a frame that contradicts itself errs small.
+ */
+const MAX_CHIP_WPCT: Record<Density, number> = {
+  silent: 4,
+  beat: 6.4,
+  line: 5.2,
+  thought: 4,
+  question: 5.2,
+};
 
 /** The knock each chip gets, cycled down the stack. */
 const CHIP_TILTS = [-2.4, 1.6, -1.1];
@@ -74,7 +94,7 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
 
   const lines = chipLines(content);
   const widest = lines.reduce((most, line) => Math.max(most, line.length), 0);
-  const fontSizeWPct = chipSizeWPct(widest);
+  const fontSizeWPct = chipSizeWPct(widest, resolveDensity(content));
 
   const parts: Part[] = [];
 
@@ -169,11 +189,15 @@ function chipLines(content: FrameContent): string[] {
   return [...chunks.slice(0, MAX_CHIPS - 1), chunks.slice(MAX_CHIPS - 1).join(' ')];
 }
 
-/** The largest size at which a chip of `chars` characters still fits the column. */
-function chipSizeWPct(chars: number): number {
-  if (chars <= 0) return MAX_CHIP_WPCT;
+/**
+ * The largest size at which a chip of `chars` characters still fits the column,
+ * never above the ceiling this density allows.
+ */
+function chipSizeWPct(chars: number, density: Density): number {
+  const ceiling = MAX_CHIP_WPCT[density];
+  if (chars <= 0) return ceiling;
   const fits = COLUMN_WPCT / (CHAR_EM * chars + CHIP_PAD_EM);
-  return Math.round(Math.min(MAX_CHIP_WPCT, Math.max(MIN_CHIP_WPCT, fits)) * 100) / 100;
+  return Math.round(Math.min(ceiling, Math.max(MIN_CHIP_WPCT, fits)) * 100) / 100;
 }
 
 export const STICKER_SHEET: Look = {

@@ -1,5 +1,5 @@
-import type { DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
-import { splitEmphasis } from '../look';
+import type { Density, DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
+import { resolveDensity, splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
 /**
@@ -27,6 +27,30 @@ const EDGE_OFFSET_HPCT = 9;
 
 /** Copy sits at the foot of the page; the top is the fallback. */
 const PREFERRED_BANDS: readonly Band[] = ['bottom', 'top'];
+
+/** How the copy is set at one density. */
+interface Rung {
+  readonly fontSizeWPct: number;
+  readonly lineHeight: number;
+}
+
+/**
+ * What this Look sets at each density (7.26). Wire copy has one shape and two
+ * sizes: the flash and the story. A `beat` is the flash — a few words at the
+ * size an agency puts on the wire first — and a `thought` is the story that
+ * follows it, set at the size copy is actually read at, with the leading opened
+ * so several lines under a dateline still read as one paragraph.
+ */
+const LINE: Rung = { fontSizeWPct: 7, lineHeight: 1.18 };
+const HEADLINE: Record<Density, Rung> = {
+  // A frame that states `silent` and then writes words has words, and words are
+  // always drawn; a truly wordless frame returns before this is read.
+  silent: LINE,
+  beat: { fontSizeWPct: 9.2, lineHeight: 1.06 },
+  line: LINE,
+  thought: { fontSizeWPct: 4.4, lineHeight: 1.38 },
+  question: LINE,
+};
 
 function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
   const band = quietestBand(photo.bands, PREFERRED_BANDS);
@@ -73,13 +97,14 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
 
   // The story, running on directly under the dateline — the gap is deliberately
   // tight, so the two read as one paragraph broken over a line.
+  const rung = HEADLINE[resolveDensity(content)];
   parts.push({
     kind: 'text',
     runs: splitEmphasis(content.headline, content.emphasis),
     fontFamily: FRAUNCES,
     fontWeight: 400,
-    fontSizeWPct: 7,
-    lineHeight: 1.18,
+    fontSizeWPct: rung.fontSizeWPct,
+    lineHeight: rung.lineHeight,
     letterSpacingEm: -0.005,
     textTransform: 'none',
     textAlign: 'left',

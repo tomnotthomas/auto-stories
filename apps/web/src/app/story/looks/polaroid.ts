@@ -1,5 +1,5 @@
-import type { DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
-import { splitEmphasis } from '../look';
+import type { Density, DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
+import { resolveDensity, splitEmphasis } from '../look';
 import type { Band } from '../quiet-zone';
 
 /**
@@ -36,6 +36,30 @@ const INSTANT_LIFT = 'brightness(1.04) saturate(1.06) contrast(0.98)';
  */
 const PREFERRED_BANDS: readonly Band[] = ['bottom'];
 
+/** How the caption is written at one density. */
+interface Rung {
+  readonly fontSizeWPct: number;
+  readonly lineHeight: number;
+}
+
+/**
+ * What this Look sets at each density (7.26). The margin grows with the words —
+ * the panel is drawn around the ink — so the ramp is not about overflow but about
+ * how much of the photograph the paper is allowed to take. At the `line` size a
+ * `thought` would push the margin up over a third of the print, which is a
+ * caption card with a picture attached rather than a Polaroid.
+ */
+const LINE: Rung = { fontSizeWPct: 4.8, lineHeight: 1.28 };
+const CAPTION: Record<Density, Rung> = {
+  // A frame that states `silent` and then writes words has words, and words are
+  // always drawn; a truly wordless frame returns before this is read.
+  silent: LINE,
+  beat: { fontSizeWPct: 6.4, lineHeight: 1.2 },
+  line: LINE,
+  thought: { fontSizeWPct: 3.3, lineHeight: 1.44 },
+  question: LINE,
+};
+
 function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
   // Silent: the photo speaks for itself (decision 7.26). With nothing written
   // the margin has no reason to exist — an empty white band across a photo
@@ -60,14 +84,15 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
   // A print margin holds one hand-written thought. The kicker is dropped rather
   // than stacked into it — three lines of handwriting in a white band is a
   // caption block, not a Polaroid.
+  const rung = CAPTION[resolveDensity(content)];
   const parts: Part[] = [
     {
       kind: 'text',
       runs: splitEmphasis(content.headline, content.emphasis),
       fontFamily: SHANTELL,
       fontWeight: 400,
-      fontSizeWPct: 4.8,
-      lineHeight: 1.28,
+      fontSizeWPct: rung.fontSizeWPct,
+      lineHeight: rung.lineHeight,
       letterSpacingEm: 0,
       textTransform: 'none',
       textAlign: 'center',

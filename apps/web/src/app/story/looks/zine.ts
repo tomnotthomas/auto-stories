@@ -1,5 +1,5 @@
-import type { DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
-import { splitEmphasis } from '../look';
+import type { Density, DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
+import { resolveDensity, splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
 /**
@@ -32,6 +32,31 @@ const PAGE_TILT_DEG = 1.8;
 /** A cover shouts from the top; the bottom is the fallback. */
 const PREFERRED_BANDS: readonly Band[] = ['top', 'bottom'];
 
+/** How the shout is set at one density. */
+interface Rung {
+  readonly fontSizeWPct: number;
+  readonly lineHeight: number;
+}
+
+/**
+ * What this Look sets at each density (7.26). A zine cover shouts, so the `beat`
+ * rung carries the biggest type in the catalogue. It still shouts at a `thought`
+ * — the weight, the tilt and the bar do that, not the point size — but caps set
+ * at 10.6% and run to three lines cover the photocopied photo entirely, which is
+ * the one thing a cover cannot do. The locked-up leading opens with it: a block
+ * of caps at 0.92 is a graphic, and several lines of them are unreadable.
+ */
+const LINE: Rung = { fontSizeWPct: 10.6, lineHeight: 0.92 };
+const HEADLINE: Record<Density, Rung> = {
+  // A frame that states `silent` and then writes words has words, and words are
+  // always drawn; a truly wordless frame returns before this is read.
+  silent: LINE,
+  beat: { fontSizeWPct: 13.6, lineHeight: 0.88 },
+  line: LINE,
+  thought: { fontSizeWPct: 6.4, lineHeight: 1.06 },
+  question: LINE,
+};
+
 function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
   const band = quietestBand(photo.bands, PREFERRED_BANDS);
   const anchor = band === 'top' ? 'top' : 'bottom';
@@ -52,6 +77,7 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
     };
   }
 
+  const density = resolveDensity(content);
   const parts: Part[] = [];
 
   // Wide-tracked caps in the accent — the strip of type across the top of a
@@ -91,8 +117,8 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
     runs: splitEmphasis(content.headline, content.emphasis),
     fontFamily: BRICOLAGE,
     fontWeight: 800,
-    fontSizeWPct: 10.6,
-    lineHeight: 0.92,
+    fontSizeWPct: HEADLINE[density].fontSizeWPct,
+    lineHeight: HEADLINE[density].lineHeight,
     letterSpacingEm: -0.025,
     textTransform: 'uppercase',
     textAlign: 'left',

@@ -1,5 +1,5 @@
-import type { DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
-import { splitEmphasis } from '../look';
+import type { Density, DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
+import { resolveDensity, splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
 /**
@@ -29,6 +29,32 @@ const PAIR_GAP_HPCT = 0.24;
 
 /** A masthead sits at the top of the page; the foot is its fallback. */
 const PREFERRED_BANDS: readonly Band[] = ['top', 'bottom'];
+
+/** How the headline is set at one density. */
+interface Rung {
+  readonly fontSizeWPct: number;
+  readonly lineHeight: number;
+  readonly fontWeight: number;
+}
+
+/**
+ * What this Look sets at each density (7.26). A front page has two registers
+ * already — the banner headline and the standfirst under it — so the rungs are
+ * that same pair: a `beat` is the banner, a `thought` is the standfirst, set at
+ * reading size inside the same double rules.
+ */
+const LINE: Rung = { fontSizeWPct: 8.8, lineHeight: 1.02, fontWeight: 700 };
+const HEADLINE: Record<Density, Rung> = {
+  // A frame that states `silent` and then writes words has words, and words are
+  // always drawn; a truly wordless frame returns before this is read.
+  silent: LINE,
+  beat: { fontSizeWPct: 11.5, lineHeight: 0.98, fontWeight: 700 },
+  line: LINE,
+  thought: { fontSizeWPct: 5.4, lineHeight: 1.24, fontWeight: 700 },
+  // A question is set in the book weight, not the front-page weight: the page
+  // asks rather than declares, and the rules around it carry the structure.
+  question: { fontSizeWPct: 8.4, lineHeight: 1.06, fontWeight: 400 },
+};
 
 function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
   const band = quietestBand(photo.bands, PREFERRED_BANDS);
@@ -76,13 +102,14 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
   parts.push(rule(HEAVY_HPCT, kicker ? 2.4 : 0, 0.9));
   parts.push(rule(HAIRLINE_HPCT, PAIR_GAP_HPCT, 0.7));
 
+  const rung = HEADLINE[resolveDensity(content)];
   parts.push({
     kind: 'text',
     runs: splitEmphasis(content.headline, content.emphasis),
     fontFamily: FRAUNCES,
-    fontWeight: 700,
-    fontSizeWPct: 8.8,
-    lineHeight: 1.02,
+    fontWeight: rung.fontWeight,
+    fontSizeWPct: rung.fontSizeWPct,
+    lineHeight: rung.lineHeight,
     letterSpacingEm: -0.012,
     textTransform: 'none',
     textAlign: 'center',

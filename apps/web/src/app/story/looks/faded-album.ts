@@ -1,5 +1,5 @@
-import type { DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
-import { splitEmphasis } from '../look';
+import type { Density, DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
+import { resolveDensity, splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
 /**
@@ -25,6 +25,30 @@ const FADED = 'saturate(0.72) contrast(0.9) brightness(1.06) sepia(0.12)';
 
 /** An album caption sits under the picture; the top is its fallback. */
 const PREFERRED_BANDS: readonly Band[] = ['bottom', 'top'];
+
+/** How the caption is set at one density. */
+interface Rung {
+  readonly fontSizeWPct: number;
+  readonly lineHeight: number;
+}
+
+/**
+ * What this Look sets at each density (7.26). An album page carries two kinds of
+ * writing: the few words under a picture, and the longer note somebody added
+ * later. A `beat` and a `line` are the first; a `thought` is the second, set
+ * small and widely leaded above the ruled line so it reads as handwriting that
+ * ran on rather than as a caption that got too big.
+ */
+const LINE: Rung = { fontSizeWPct: 5.8, lineHeight: 1.3 };
+const HEADLINE: Record<Density, Rung> = {
+  // A frame that states `silent` and then writes words has words, and words are
+  // always drawn; a truly wordless frame returns before this is read.
+  silent: LINE,
+  beat: { fontSizeWPct: 7.6, lineHeight: 1.18 },
+  line: LINE,
+  thought: { fontSizeWPct: 3.7, lineHeight: 1.5 },
+  question: LINE,
+};
 
 function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
   const band = quietestBand(photo.bands, PREFERRED_BANDS);
@@ -69,13 +93,14 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
     });
   }
 
+  const rung = HEADLINE[resolveDensity(content)];
   parts.push({
     kind: 'text',
     runs: splitEmphasis(content.headline, content.emphasis),
     fontFamily: FRAUNCES,
     fontWeight: 400,
-    fontSizeWPct: 5.8,
-    lineHeight: 1.3,
+    fontSizeWPct: rung.fontSizeWPct,
+    lineHeight: rung.lineHeight,
     letterSpacingEm: 0.008,
     textTransform: 'none',
     textAlign: 'center',

@@ -1,5 +1,5 @@
-import type { DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
-import { splitEmphasis } from '../look';
+import type { Density, DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
+import { resolveDensity, splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
 /**
@@ -32,6 +32,30 @@ const PANEL_PAD_HPCT = 3.2;
 
 /** A card gets put down low on the picture. */
 const PREFERRED_BANDS: readonly Band[] = ['bottom', 'top'];
+
+/** How the entry is set at one density. */
+interface Rung {
+  readonly fontSizeWPct: number;
+  readonly lineHeight: number;
+}
+
+/**
+ * What this Look sets at each density (7.26). The card is a fixed thing: what
+ * changes is the hand writing on it. A `beat` is written large across the ruled
+ * line, a `thought` is the same hand filling the card — smaller, and leaded like
+ * ruled paper, because a card that had to grow to hold its words would stop
+ * being something laid on the photo.
+ */
+const LINE: Rung = { fontSizeWPct: 6.2, lineHeight: 1.32 };
+const HEADLINE: Record<Density, Rung> = {
+  // A frame that states `silent` and then writes words has words, and words are
+  // always drawn; a truly wordless frame returns before this is read.
+  silent: LINE,
+  beat: { fontSizeWPct: 8, lineHeight: 1.2 },
+  line: LINE,
+  thought: { fontSizeWPct: 4, lineHeight: 1.5 },
+  question: LINE,
+};
 
 function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
   const band = quietestBand(photo.bands, PREFERRED_BANDS);
@@ -89,13 +113,14 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
   // thing on the frame, and this is the Look chosen when the photo should win.
   // The emphasis is still split into its own run so the renderer sees the same
   // shape here as everywhere else.
+  const rung = HEADLINE[resolveDensity(content)];
   parts.push({
     kind: 'text',
     runs: splitEmphasis(content.headline, content.emphasis),
     fontFamily: SHANTELL,
     fontWeight: 400,
-    fontSizeWPct: 6.2,
-    lineHeight: 1.32,
+    fontSizeWPct: rung.fontSizeWPct,
+    lineHeight: rung.lineHeight,
     letterSpacingEm: 0,
     textTransform: 'none',
     textAlign: 'left',

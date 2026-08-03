@@ -1,5 +1,5 @@
-import type { DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
-import { splitEmphasis } from '../look';
+import type { Density, DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
+import { resolveDensity, splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
 /**
@@ -24,6 +24,29 @@ const EDGE_OFFSET_HPCT = 11;
 
 /** The card sits low; the top is the fallback when the bottom is busy. */
 const PREFERRED_BANDS: readonly Band[] = ['bottom', 'top'];
+
+/** How the line is set at one density. */
+interface Rung {
+  readonly fontSizeWPct: number;
+  readonly lineHeight: number;
+}
+
+/**
+ * What this Look sets at each density (7.26). The card is small at every rung —
+ * it is a caption chip, and a chip that grew into a poster would be a different
+ * Look — so the ramp is narrow at the top and drops properly at the bottom: a
+ * `thought` is a note written on the card, several lines at reading size.
+ */
+const LINE: Rung = { fontSizeWPct: 4.2, lineHeight: 1.3 };
+const HEADLINE: Record<Density, Rung> = {
+  // A frame that states `silent` and then writes words has words, and words are
+  // always drawn; a truly wordless frame returns before this is read.
+  silent: LINE,
+  beat: { fontSizeWPct: 6.4, lineHeight: 1.15 },
+  line: LINE,
+  thought: { fontSizeWPct: 2.9, lineHeight: 1.45 },
+  question: LINE,
+};
 
 function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
   const band = quietestBand(photo.bands, PREFERRED_BANDS);
@@ -67,13 +90,15 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
   }
 
   // The line itself.
+  const density = resolveDensity(content);
+  const rung = HEADLINE[density];
   parts.push({
     kind: 'text',
     runs: splitEmphasis(content.headline, content.emphasis),
     fontFamily: SYSTEM_SANS,
     fontWeight: 400,
-    fontSizeWPct: 4.2,
-    lineHeight: 1.3,
+    fontSizeWPct: rung.fontSizeWPct,
+    lineHeight: rung.lineHeight,
     letterSpacingEm: 0,
     textTransform: 'none',
     textAlign: 'center',
@@ -81,7 +106,11 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
     gapHPct: kicker ? 1.4 : 0,
     // A marker swipe: on paper it reads as a line someone went back and picked
     // out, which suits a card of notes. The other marks want a display face.
-    mark: 'highlighter',
+    //
+    // Never on a question (7.26): a swipe through a word of a question reads as
+    // somebody marking the answer, which is the one thing the card is not
+    // saying.
+    ...(density === 'question' ? {} : { mark: 'highlighter' as const }),
   });
 
   return {

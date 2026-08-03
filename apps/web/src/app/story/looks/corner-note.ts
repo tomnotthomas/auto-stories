@@ -1,5 +1,5 @@
-import type { DrawnComposition, FrameContent, Look, PhotoAnalysis } from '../look';
-import { splitEmphasis } from '../look';
+import type { Density, DrawnComposition, FrameContent, Look, PhotoAnalysis } from '../look';
+import { resolveDensity, splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
 /**
@@ -34,6 +34,31 @@ const EDGE_OFFSET_HPCT = 7;
 /** The top corner is the Look; the bottom is the fallback on a busy sky. */
 const PREFERRED_BANDS: readonly Band[] = ['top', 'bottom'];
 
+/** How the note is set at one density. */
+interface Rung {
+  readonly fontSizeWPct: number;
+  readonly lineHeight: number;
+}
+
+/**
+ * What this Look sets at each density (7.26). Every rung is small — the whole
+ * Look is that the words stay out of the picture's way, so a `beat` is a note
+ * written a little firmer, not a headline. The `thought` rung is where the ramp
+ * does its work: several lines of mono stacked in the corner, set smaller and
+ * leaded further apart so the block reads as a paragraph and not as a caption
+ * that outgrew its corner.
+ */
+const LINE: Rung = { fontSizeWPct: 2.9, lineHeight: 1.5 };
+const HEADLINE: Record<Density, Rung> = {
+  // A frame that states `silent` and then writes words has words, and words are
+  // always drawn; a truly wordless frame returns before this is read.
+  silent: LINE,
+  beat: { fontSizeWPct: 3.3, lineHeight: 1.4 },
+  line: LINE,
+  thought: { fontSizeWPct: 2.1, lineHeight: 1.65 },
+  question: LINE,
+};
+
 function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
   const band = quietestBand(photo.bands, PREFERRED_BANDS);
   const anchor = band === 'bottom' ? 'bottom' : 'top';
@@ -59,6 +84,7 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
   // rather than promoted to a second line: what makes this Look work is that
   // there is only ever one thing on the photo. Runs are still split so an
   // emphasis is carried correctly, even though nothing marks it.
+  const rung = HEADLINE[resolveDensity(content)];
   return {
     ...base,
     parts: [
@@ -67,8 +93,8 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
         runs: splitEmphasis(content.headline, content.emphasis),
         fontFamily: MONO,
         fontWeight: 400,
-        fontSizeWPct: 2.9,
-        lineHeight: 1.5,
+        fontSizeWPct: rung.fontSizeWPct,
+        lineHeight: rung.lineHeight,
         letterSpacingEm: 0.02,
         textTransform: 'none',
         textAlign: 'right',

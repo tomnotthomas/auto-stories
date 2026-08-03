@@ -146,6 +146,16 @@ describe.each(HANDMADE.map((look) => [look.id, look] as const))('%s', (id, look)
   it('asks for the bands it wants, best first', () => {
     expect(look.prefer.length).toBeGreaterThan(0);
   });
+
+  // 7.26: `thought` has to land in a visibly different slot from the rungs above
+  // it, or the model collapses the two. Same words either side, so the only
+  // thing that can move the type is the density the creator stated.
+  it('sets a thought visibly smaller than a beat', () => {
+    const beat = displayWPct(look.compose({ ...CONTENT, density: 'beat' }, CALM));
+    const thought = displayWPct(look.compose({ ...CONTENT, density: 'thought' }, CALM));
+
+    expect(thought).toBeLessThan(beat * 0.8);
+  });
 });
 
 describe('scrapbook', () => {
@@ -199,14 +209,28 @@ describe('sticker-sheet', () => {
   });
 
   it('shrinks the type rather than overflowing on a long headline', () => {
-    const short = STICKER_SHEET.compose({ headline: 'Sunday' }, CALM);
+    // A chip is never wrapped by the renderer, so it has to fit the column at
+    // whatever size it is set. Density only sets the ceiling; the fit still
+    // lowers the type from there, so both frames are stated at the rung that
+    // allows the largest chip and the width is the only thing left to move it.
+    const short = STICKER_SHEET.compose({ headline: 'Sunday', density: 'beat' }, CALM);
     const long = STICKER_SHEET.compose(
-      { headline: 'A headline long enough to run past three lines of type on any frame at all' },
+      {
+        headline: 'A headline long enough to run past three lines of type on any frame at all',
+        density: 'beat',
+      },
       CALM,
     );
 
     expect(tags(long)[0].fontSizeWPct).toBeLessThan(tags(short)[0].fontSizeWPct);
     expect(tags(long).length).toBeLessThanOrEqual(3 + 2);
+  });
+
+  it('caps the chip at what the density allows, even when the words would fit bigger', () => {
+    const beat = STICKER_SHEET.compose({ headline: 'Sunday', density: 'beat' }, CALM);
+    const thought = STICKER_SHEET.compose({ headline: 'Sunday', density: 'thought' }, CALM);
+
+    expect(tags(thought)[0].fontSizeWPct).toBeLessThan(tags(beat)[0].fontSizeWPct);
   });
 
   it('is still a sheet of chips with no location', () => {
@@ -300,6 +324,17 @@ function texts(composition: HasParts): TextPart[] {
 
 function tags(composition: HasParts): TagPart[] {
   return composition.parts.filter((part): part is TagPart => part.kind === 'tag');
+}
+
+/**
+ * The largest type in the frame, whatever kind of part carries it — Sticker
+ * Sheet sets its headline in tags and the rest of the group in text, so a test
+ * about the headline's size should not have to know which.
+ */
+function displayWPct(composition: HasParts): number {
+  return Math.max(
+    ...composition.parts.map((part) => (part.kind === 'rule' ? 0 : part.fontSizeWPct)),
+  );
 }
 
 /** Every word a composition draws — text runs, tags and rows alike. */

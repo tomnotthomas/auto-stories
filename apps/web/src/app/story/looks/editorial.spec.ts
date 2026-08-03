@@ -1,6 +1,7 @@
 import { DEFAULT_ACCENT } from '../accent-color';
 import type {
   Composition,
+  Density,
   FrameContent,
   Look,
   PhotoAnalysis,
@@ -8,7 +9,7 @@ import type {
   TextPart,
   HasParts,
 } from '../look';
-import { textParts } from '../look';
+import { DENSITIES, textParts } from '../look';
 import { BOLD_POSTER } from './bold-poster';
 import { BROADSHEET } from './broadsheet';
 import { CONTENTS_PAGE } from './contents-page';
@@ -139,6 +140,63 @@ describe.each(LOOKS.map((look) => [look.id, look] as [string, Look]))('%s', (_id
   });
 });
 
+/** Every Look in this file: the ramp is a contract, not a per-Look flourish. */
+const RAMPED: readonly Look[] = [BROADSHEET, CONTENTS_PAGE, PULL_QUOTE, BOLD_POSTER, MAGAZINE];
+
+/** The same words at every rung, so only the stated density differs (7.26). */
+const PROBE = 'Where the mountain meets its mirror';
+
+describe.each(RAMPED.map((look) => [look.id, look] as const))('%s density', (_id, look) => {
+  it('sets a thought in a visibly different slot from a beat', () => {
+    // 7.26's named failure: `thought` collapsing into `line` (or into `beat`).
+    // Same words both times — the size difference is the density, nothing else.
+    expect(headlineFor(look, 'thought').fontSizeWPct).toBeLessThan(
+      headlineFor(look, 'beat').fontSizeWPct * 0.75,
+    );
+  });
+
+  it('steps the headline down from beat to line to thought', () => {
+    const beat = headlineFor(look, 'beat').fontSizeWPct;
+    const line = headlineFor(look, 'line').fontSizeWPct;
+    const thought = headlineFor(look, 'thought').fontSizeWPct;
+
+    expect(beat).toBeGreaterThan(line);
+    expect(line).toBeGreaterThan(thought);
+  });
+
+  it('still sets the words at every rung the model can state', () => {
+    // Including `silent`: a frame that says silent and then writes words has
+    // words, and words are always drawn.
+    for (const density of DENSITIES) {
+      expect(everyWord(look.compose({ ...CONTENT, density }, PHOTO))).toContain(CONTENT.headline);
+    }
+  });
+});
+
+/**
+ * The Looks that take part of the step in the leading as well as the size, so a
+ * `thought` reads as running text rather than as a shrunken headline. Not a
+ * contract on every Look: a design may hold its leading and put the whole step
+ * into the size instead.
+ */
+const LEADED: readonly Look[] = [BROADSHEET, CONTENTS_PAGE, BOLD_POSTER, MAGAZINE];
+
+describe.each(LEADED.map((look) => [look.id, look] as const))('%s leading', (_id, look) => {
+  it('opens the leading for a thought', () => {
+    expect(headlineFor(look, 'thought').lineHeight).toBeGreaterThan(
+      headlineFor(look, 'line').lineHeight,
+    );
+  });
+});
+
+/** The headline part this Look composes at one density. */
+function headlineFor(look: Look, density: Density): TextPart {
+  const composition = look.compose({ headline: PROBE, density }, PHOTO);
+  const part = textParts(composition).find((candidate) => runText(candidate) === PROBE);
+  if (!part) throw new Error(`${look.id} sets no headline at density “${density}”`);
+  return part;
+}
+
 describe('broadsheet', () => {
   it('sets a double rule above and below the headline', () => {
     const composition = BROADSHEET.compose(CONTENT, PHOTO);
@@ -155,6 +213,13 @@ describe('broadsheet', () => {
     const composition = BROADSHEET.compose({ headline: CONTENT.headline }, PHOTO);
 
     expect(composition.parts.filter((part) => part.kind === 'rule')).toHaveLength(4);
+  });
+
+  it('asks a question in the book weight, not the front-page weight', () => {
+    // 7.26: a question invites a reply, so the page asks rather than declares.
+    expect(headlineFor(BROADSHEET, 'question').fontWeight).toBeLessThan(
+      headlineFor(BROADSHEET, 'line').fontWeight,
+    );
   });
 });
 
@@ -174,6 +239,13 @@ describe('contents-page', () => {
 
     expect(runText(withKicker)).toBe('T');
     expect(runText(without)).toBe('R');
+  });
+
+  it('marks a question with a question mark instead of an initial', () => {
+    // 7.26: the marker is the entry's sign. An entry that asks is signed “?”.
+    const asked = textParts(CONTENTS_PAGE.compose({ ...CONTENT, density: 'question' }, PHOTO))[0];
+
+    expect(runText(asked)).toBe('?');
   });
 });
 

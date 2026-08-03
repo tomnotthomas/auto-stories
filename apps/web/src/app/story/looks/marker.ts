@@ -1,5 +1,13 @@
-import type { DrawnComposition, FrameContent, Look, Part, PhotoAnalysis, Run } from '../look';
-import { splitEmphasis } from '../look';
+import type {
+  Density,
+  DrawnComposition,
+  FrameContent,
+  Look,
+  Part,
+  PhotoAnalysis,
+  Run,
+} from '../look';
+import { resolveDensity, splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
 /**
@@ -26,6 +34,30 @@ const TILT_DEG = -1.4;
 /** Marker writes low on the picture; the top is its fallback. */
 const PREFERRED_BANDS: readonly Band[] = ['bottom', 'top'];
 
+/** How the writing is set at one density. */
+interface Rung {
+  readonly fontSizeWPct: number;
+  readonly lineHeight: number;
+}
+
+/**
+ * What this Look sets at each density (7.26). Handwriting has a natural size:
+ * too big and it stops reading as a hand, too small and the swipe of highlighter
+ * loses the word underneath. A `beat` gets the full-page scrawl; a `thought` is
+ * written at note size and leaded further apart, the way a longer passage
+ * actually gets written by hand.
+ */
+const LINE: Rung = { fontSizeWPct: 7.2, lineHeight: 1.32 };
+const HEADLINE: Record<Density, Rung> = {
+  // A frame that states `silent` and then writes words has words, and words are
+  // always drawn; a truly wordless frame returns before this is read.
+  silent: LINE,
+  beat: { fontSizeWPct: 9.6, lineHeight: 1.24 },
+  line: LINE,
+  thought: { fontSizeWPct: 4.6, lineHeight: 1.46 },
+  question: LINE,
+};
+
 function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
   const band = quietestBand(photo.bands, PREFERRED_BANDS);
   const anchor = band === 'top' ? 'top' : 'bottom';
@@ -46,6 +78,7 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
     };
   }
 
+  const density = resolveDensity(content);
   const parts: Part[] = [];
 
   const kicker = content.kicker?.trim();
@@ -74,10 +107,10 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
     runs,
     fontFamily: SHANTELL,
     fontWeight: 700,
-    fontSizeWPct: 7.2,
+    fontSizeWPct: HEADLINE[density].fontSizeWPct,
     // Shantell's ascenders and descenders are long, and the swipe sits inside
     // the line box, so the leading is looser than a grotesque would need.
-    lineHeight: 1.32,
+    lineHeight: HEADLINE[density].lineHeight,
     letterSpacingEm: 0,
     textTransform: 'none',
     textAlign: 'left',

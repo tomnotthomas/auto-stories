@@ -1,5 +1,5 @@
-import type { DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
-import { splitEmphasis } from '../look';
+import type { Density, DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
+import { resolveDensity, splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
 /**
@@ -36,6 +36,29 @@ const HOME_MOVIE = 'sepia(0.42) saturate(0.9) contrast(1.06) brightness(0.98)';
 /** A readout belongs at the head of the picture; the foot is its fallback. */
 const PREFERRED_BANDS: readonly Band[] = ['top', 'bottom'];
 
+/** How the card is typed at one density. */
+interface Rung {
+  readonly fontSizeWPct: number;
+  readonly lineHeight: number;
+}
+
+/**
+ * What this Look sets at each density (7.26). This Look is a readout, not a
+ * headline, so the whole ramp sits low — a `beat` here is still smaller than a
+ * `thought` in the loud group. Mono caps are wide, so the drop at `thought` is
+ * what keeps a passage from filling the viewfinder it is supposed to sit inside.
+ */
+const LINE: Rung = { fontSizeWPct: 3.6, lineHeight: 1.4 };
+const HEADLINE: Record<Density, Rung> = {
+  // A frame that states `silent` and then writes words has words, and words are
+  // always drawn; a truly wordless frame returns before this is read.
+  silent: LINE,
+  beat: { fontSizeWPct: 5, lineHeight: 1.3 },
+  line: LINE,
+  thought: { fontSizeWPct: 2.6, lineHeight: 1.54 },
+  question: LINE,
+};
+
 function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
   const band = quietestBand(photo.bands, PREFERRED_BANDS);
   const anchor = band === 'top' ? 'top' : 'bottom';
@@ -59,6 +82,7 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
     };
   }
 
+  const density = resolveDensity(content);
   const parts: Part[] = [];
 
   // The timecode. Nothing is invented: it sets whatever short label the frame
@@ -91,8 +115,8 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
     runs: splitEmphasis(content.headline, content.emphasis),
     fontFamily: MONO,
     fontWeight: 400,
-    fontSizeWPct: 3.6,
-    lineHeight: 1.4,
+    fontSizeWPct: HEADLINE[density].fontSizeWPct,
+    lineHeight: HEADLINE[density].lineHeight,
     letterSpacingEm: 0.02,
     textTransform: 'uppercase',
     textAlign: 'left',

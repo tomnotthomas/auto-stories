@@ -1,5 +1,5 @@
-import type { DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
-import { splitEmphasis } from '../look';
+import type { Density, DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
+import { resolveDensity, splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
 /**
@@ -21,11 +21,38 @@ const BRICOLAGE = '"Bricolage Grotesque", system-ui, -apple-system, "Segoe UI", 
 const COLUMN_INSET_WPCT = 10;
 /** Deep, so the opener hangs well clear of the edge. */
 const EDGE_OFFSET_HPCT = 13;
-/** The drop between the chapter marker and the headline — the Look's signature. */
-const CHAPTER_DROP_HPCT = 5.5;
 
 /** A chapter opens at the top of the page; the bottom is the fallback. */
 const PREFERRED_BANDS: readonly Band[] = ['top', 'bottom'];
+
+/** How the opener is set at one density. */
+interface Rung {
+  readonly fontSizeWPct: number;
+  readonly lineHeight: number;
+  /**
+   * The drop between the chapter marker and the headline — the Look's
+   * signature. It shortens as the headline lengthens: the drop is there to give
+   * a few words room, and a paragraph brings its own.
+   */
+  readonly dropHPct: number;
+}
+
+/**
+ * What this Look sets at each density (7.26). The space is the design, so the
+ * ramp moves the drop as well as the type: a `beat` gets the deepest fall onto
+ * the largest words, a `thought` a shorter fall onto book-sized running text —
+ * the first page of a chapter rather than its title.
+ */
+const LINE: Rung = { fontSizeWPct: 8.4, lineHeight: 1.12, dropHPct: 5.5 };
+const HEADLINE: Record<Density, Rung> = {
+  // A frame that states `silent` and then writes words has words, and words are
+  // always drawn; a truly wordless frame returns before this is read.
+  silent: LINE,
+  beat: { fontSizeWPct: 11, lineHeight: 1, dropHPct: 6.5 },
+  line: LINE,
+  thought: { fontSizeWPct: 5.2, lineHeight: 1.34, dropHPct: 4.2 },
+  question: LINE,
+};
 
 function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
   const band = quietestBand(photo.bands, PREFERRED_BANDS);
@@ -84,18 +111,19 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
 
   // The headline, after the drop. Fraunces at book weight rather than Magazine's
   // display weight: this is the first line of a chapter, not a cover line.
+  const rung = HEADLINE[resolveDensity(content)];
   parts.push({
     kind: 'text',
     runs: splitEmphasis(content.headline, content.emphasis),
     fontFamily: FRAUNCES,
     fontWeight: 400,
-    fontSizeWPct: 8.4,
-    lineHeight: 1.12,
+    fontSizeWPct: rung.fontSizeWPct,
+    lineHeight: rung.lineHeight,
     letterSpacingEm: -0.01,
     textTransform: 'none',
     textAlign: 'left',
     color: 'ink',
-    gapHPct: CHAPTER_DROP_HPCT,
+    gapHPct: rung.dropHPct,
     mark: 'accent-underline',
   });
 

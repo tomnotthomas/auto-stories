@@ -1,5 +1,13 @@
-import type { DrawnComposition, FrameContent, Look, Part, PhotoAnalysis, TextPart } from '../look';
-import { splitEmphasis } from '../look';
+import type {
+  Density,
+  DrawnComposition,
+  FrameContent,
+  Look,
+  Part,
+  PhotoAnalysis,
+  TextPart,
+} from '../look';
+import { resolveDensity, splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
 /**
@@ -23,6 +31,32 @@ const COLUMN_INSET_WPCT = 5;
 const EDGE_OFFSET_HPCT = 7;
 
 const PREFERRED_BANDS: readonly Band[] = ['bottom', 'top'];
+
+/** How the headline is set at one density. */
+interface Rung {
+  readonly fontSizeWPct: number;
+  readonly lineHeight: number;
+}
+
+/**
+ * What this Look sets at each density (7.26). A poster is loud at every rung —
+ * even the smallest step here is caps at 800 weight, larger than most Looks'
+ * headline — but a `thought` set at poster size would be ten lines of shouting
+ * that runs off the frame, so it comes down to a size that can hold a paragraph
+ * and still read as a poster.
+ */
+const LINE: Rung = { fontSizeWPct: 11.5, lineHeight: 0.94 };
+const HEADLINE: Record<Density, Rung> = {
+  // A frame that states `silent` and then writes words has words, and words are
+  // always drawn; a truly wordless frame returns before this is read.
+  silent: LINE,
+  // Three words at album-cover scale — the size this Look was drawn for.
+  beat: { fontSizeWPct: 16.5, lineHeight: 0.88 },
+  line: LINE,
+  thought: { fontSizeWPct: 6.2, lineHeight: 1.08 },
+  // A question is a statement's length, and a poster asks it just as loudly.
+  question: LINE,
+};
 
 function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
   const band = quietestBand(photo.bands, PREFERRED_BANDS);
@@ -69,13 +103,14 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
   // second-guess — so the Look decides here.
   const runs = splitEmphasis(content.headline, content.emphasis);
   const marked = runs.some((run) => run.emphasised);
+  const rung = HEADLINE[resolveDensity(content)];
   const headline: TextPart = {
     kind: 'text',
     runs,
     fontFamily: BRICOLAGE,
     fontWeight: 800,
-    fontSizeWPct: 15,
-    lineHeight: 0.9,
+    fontSizeWPct: rung.fontSizeWPct,
+    lineHeight: rung.lineHeight,
     letterSpacingEm: -0.03,
     textTransform: 'uppercase',
     textAlign: 'left',

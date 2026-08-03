@@ -1,8 +1,9 @@
 import { DEFAULT_ACCENT } from '../accent-color';
-import type { Composition, FrameContent, Look, PhotoAnalysis, TextPart } from '../look';
-import { textParts, type HasParts } from '../look';
+import type { Composition, Density, FrameContent, Look, PhotoAnalysis, TextPart } from '../look';
+import { DENSITIES, textParts, type HasParts } from '../look';
 import type { BandScores } from '../quiet-zone';
 import { CORNER_NOTE } from './corner-note';
+import { EDGE_CAPS } from './edge-caps';
 import { FOOTER_RULE } from './footer-rule';
 import { GALLERY_LABEL } from './gallery-label';
 import { MINIMAL } from './minimal';
@@ -175,6 +176,73 @@ describe.each(RESTRAINED.map((look) => [look.id, look] as const))('%s', (id, loo
   });
 });
 
+/**
+ * Every Look in this file, plus Edge Caps — a quiet Look whose other behaviour
+ * is covered in `cinematic.spec.ts` and whose ramp belongs with these.
+ */
+const RAMPED: readonly Look[] = [
+  QUIET_EDITORIAL,
+  MINIMAL,
+  GALLERY_LABEL,
+  CORNER_NOTE,
+  FOOTER_RULE,
+  EDGE_CAPS,
+];
+
+/** The same words at every rung, so only the stated density differs (7.26). */
+const PROBE = 'Where the mountain meets its mirror';
+
+describe.each(RAMPED.map((look) => [look.id, look] as const))('%s density', (_id, look) => {
+  it('sets a thought in a visibly different slot from a beat', () => {
+    // 7.26's named failure: `thought` collapsing into `line` (or into `beat`).
+    // Same words both times — the size difference is the density, nothing else.
+    expect(headlineFor(look, 'thought').fontSizeWPct).toBeLessThan(
+      headlineFor(look, 'beat').fontSizeWPct * 0.75,
+    );
+  });
+
+  it('steps the headline down from beat to line to thought', () => {
+    const beat = headlineFor(look, 'beat').fontSizeWPct;
+    const line = headlineFor(look, 'line').fontSizeWPct;
+    const thought = headlineFor(look, 'thought').fontSizeWPct;
+
+    expect(beat).toBeGreaterThan(line);
+    expect(line).toBeGreaterThan(thought);
+  });
+
+  it('still sets the words at every rung the model can state', () => {
+    // Including `silent`: a frame that says silent and then writes words has
+    // words, and words are always drawn.
+    for (const density of DENSITIES) {
+      expect(everyWord(look.compose({ ...CONTENT, density }, PHOTO))).toContain(CONTENT.headline);
+    }
+  });
+});
+
+/**
+ * The Looks that take part of the step in the leading as well as the size, so a
+ * `thought` reads as running text rather than as a shrunken headline. Not a
+ * contract on every Look: a design may hold its leading and put the whole step
+ * into the size instead.
+ */
+const LEADED: readonly Look[] = [GALLERY_LABEL, CORNER_NOTE, FOOTER_RULE, EDGE_CAPS];
+
+describe.each(LEADED.map((look) => [look.id, look] as const))('%s leading', (_id, look) => {
+  it('opens the leading for a thought', () => {
+    expect(headlineFor(look, 'thought').lineHeight).toBeGreaterThan(
+      headlineFor(look, 'line').lineHeight,
+    );
+  });
+});
+
+/** The headline part this Look composes at one density. */
+function headlineFor(look: Look, density: Density): TextPart {
+  const composition = look.compose({ headline: PROBE, density }, PHOTO);
+  const part = textParts(composition).find((candidate) => runText(candidate) === PROBE);
+  if (!part) throw new Error(`${look.id} sets no headline at density “${density}”`);
+  return part;
+}
+
 describe('quiet-editorial', () => {
   it('sets the headline in Fraunces at a modest size', () => {
     const headline = named(QUIET_EDITORIAL.compose(CONTENT, PHOTO), CONTENT.headline);
@@ -322,6 +390,22 @@ describe('corner-note', () => {
   it('stays one part even with a kicker and a place to spend', () => {
     expect(CORNER_NOTE.compose(CONTENT, PHOTO).parts).toHaveLength(1);
     expect(allText(CORNER_NOTE.compose(CONTENT, PHOTO))).toBe(CONTENT.headline);
+  });
+
+  it('stays a note at every density — density changes the fit, not the voice', () => {
+    for (const density of DENSITIES) {
+      expect(headlineFor(CORNER_NOTE, density).fontSizeWPct).toBeLessThan(3.5);
+    }
+  });
+});
+
+describe('edge-caps', () => {
+  it('pulls the tracking in for a thought, which has to wrap', () => {
+    // The spine is one tracked-out line. Wrapped over several lines that
+    // tracking reads as a smear, so a thought is set closer.
+    expect(headlineFor(EDGE_CAPS, 'thought').letterSpacingEm).toBeLessThan(
+      headlineFor(EDGE_CAPS, 'line').letterSpacingEm,
+    );
   });
 });
 

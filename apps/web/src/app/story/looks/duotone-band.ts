@@ -1,5 +1,5 @@
-import type { DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
-import { splitEmphasis } from '../look';
+import type { Density, DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
+import { resolveDensity, splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
 /**
@@ -25,6 +25,30 @@ const BAND_PAD_HPCT = 8;
 
 /** A band belongs on an edge; the bottom first, the top when the bottom is busy. */
 const PREFERRED_BANDS: readonly Band[] = ['bottom', 'top'];
+
+/** How the words in the band are set at one density. */
+interface Rung {
+  readonly fontSizeWPct: number;
+  readonly lineHeight: number;
+}
+
+/**
+ * What this Look sets at each density (7.26). The band takes its depth from the
+ * words inside it, so the ramp is really a ramp of how much of the photo the
+ * colour covers: a `beat` fills a shallow band with three heavy words, while a
+ * `thought` at that size would flood half the frame in accent — so it steps down
+ * to a size that keeps the band a band.
+ */
+const LINE: Rung = { fontSizeWPct: 8.2, lineHeight: 1.04 };
+const HEADLINE: Record<Density, Rung> = {
+  // A frame that states `silent` and then writes words has words, and words are
+  // always drawn; a truly wordless frame returns before this is read.
+  silent: LINE,
+  beat: { fontSizeWPct: 10.8, lineHeight: 0.98 },
+  line: LINE,
+  thought: { fontSizeWPct: 5, lineHeight: 1.26 },
+  question: LINE,
+};
 
 function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
   const band = quietestBand(photo.bands, PREFERRED_BANDS);
@@ -76,13 +100,14 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
   // behind the words is already that accent — an accent bar on an accent slab is
   // invisible. The band IS this Look's emphasis, so emphasis stays unmarked here
   // rather than being drawn in a colour that cannot be seen (7.23: one graphic).
+  const rung = HEADLINE[resolveDensity(content)];
   parts.push({
     kind: 'text',
     runs: splitEmphasis(content.headline, content.emphasis),
     fontFamily: BRICOLAGE,
     fontWeight: 700,
-    fontSizeWPct: 8.2,
-    lineHeight: 1.04,
+    fontSizeWPct: rung.fontSizeWPct,
+    lineHeight: rung.lineHeight,
     letterSpacingEm: -0.012,
     textTransform: 'none',
     textAlign: 'left',

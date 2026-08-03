@@ -156,6 +156,16 @@ describe.each(LOOKS.map((look) => [look.id, look] as const))('%s', (id, look) =>
   it('is deterministic', () => {
     expect(look.compose(CONTENT, CALM)).toEqual(look.compose(CONTENT, CALM));
   });
+
+  // 7.26: `thought` has to land in a visibly different slot from the rungs above
+  // it, or the model collapses the two. Same words either side, so the only
+  // thing that can move the type is the density the creator stated.
+  it('sets a thought visibly smaller than a beat', () => {
+    const beat = displayWPct(look.compose({ ...CONTENT, density: 'beat' }, CALM));
+    const thought = displayWPct(look.compose({ ...CONTENT, density: 'thought' }, CALM));
+
+    expect(thought).toBeLessThan(beat * 0.8);
+  });
 });
 
 describe('split-block', () => {
@@ -194,20 +204,27 @@ describe('ticker', () => {
 });
 
 describe('ticker', () => {
-  it('shrinks its type as the headline grows, so the bar stays thin', () => {
-    // The bar IS the Look. Without this a ~70-character headline wraps to four
-    // lines and the ticker becomes a caption block.
-    const short = TICKER.compose({ headline: 'We went higher' }, CALM);
-    const long = TICKER.compose(
-      { headline: 'Everyone made it to the lake before the cake even arrived and stayed all day' },
-      CALM,
+  it('steps its type down rung by rung, so the bar stays thin', () => {
+    // The bar IS the Look, and it grows with the words: at one size a thought
+    // wraps to four lines and the ticker becomes a caption block. This used to
+    // be guessed from the headline's character count; the density is the
+    // creator saying how much the frame carries, which is the better thing to
+    // size to — a deliberately short thought is still set as a thought (7.26).
+    const sizes = (['beat', 'line', 'thought'] as const).map(
+      (density) => headlinePart(TICKER.compose({ ...CONTENT, density }, CALM).parts)?.fontSizeWPct,
     );
-    const size = (c: ReturnType<typeof TICKER.compose>): number => {
-      const text = c.parts.find((part) => part.kind === 'text' && part.fontSizeWPct > 2.5);
-      return text && text.kind === 'text' ? text.fontSizeWPct : 0;
-    };
 
-    expect(size(long)).toBeLessThan(size(short));
+    expect(sizes[0]).toBeGreaterThan(sizes[1]!);
+    expect(sizes[1]).toBeGreaterThan(sizes[2]!);
+  });
+
+  it('sizes to the stated density rather than to the headline’s length', () => {
+    const stated = TICKER.compose({ headline: LONG_HEADLINE, density: 'beat' }, CALM);
+    const inferred = TICKER.compose({ headline: LONG_HEADLINE }, CALM);
+
+    expect(headlinePart(stated.parts)?.fontSizeWPct).toBeGreaterThan(
+      headlinePart(inferred.parts)!.fontSizeWPct,
+    );
   });
 });
 
@@ -222,11 +239,15 @@ describe('stencil-caps', () => {
     expect(STENCIL_CAPS.compose(CONTENT, CALM).panel).toBeUndefined();
   });
 
-  it('steps the type down as the headline gets longer', () => {
-    // Type this big fits about seven capitals to a line, so a headline the
-    // model wrote long would otherwise run off the top of the frame.
-    const sizes = ['Roof', 'Everyone made it to the roof', LONG_HEADLINE].map(
-      (headline) => headlinePart(STENCIL_CAPS.compose({ headline }, CALM).parts)?.fontSizeWPct ?? 0,
+  it('steps the type down rung by rung', () => {
+    // Type this big fits about seven capitals to a line, so a thought set at the
+    // beat size runs off the top of the frame. This used to be guessed from the
+    // headline's character count; it now follows the density the creator stated,
+    // so the same words are set differently when they are meant differently
+    // (7.26).
+    const sizes = (['beat', 'line', 'thought'] as const).map(
+      (density) =>
+        headlinePart(STENCIL_CAPS.compose({ ...CONTENT, density }, CALM).parts)?.fontSizeWPct ?? 0,
     );
 
     expect(sizes[0]).toBeGreaterThan(sizes[1]);
@@ -234,7 +255,10 @@ describe('stencil-caps', () => {
   });
 
   it('keeps the headline the largest type in the frame, even stepped down', () => {
-    const composition = STENCIL_CAPS.compose({ ...CONTENT, headline: LONG_HEADLINE }, CALM);
+    const composition = STENCIL_CAPS.compose(
+      { ...CONTENT, headline: LONG_HEADLINE, density: 'thought' },
+      CALM,
+    );
     const headline = headlinePart(composition.parts);
 
     for (const part of textParts(composition)) {
@@ -275,6 +299,17 @@ function everyWord(composition: HasParts): string {
       return '';
     })
     .join(' ');
+}
+
+/**
+ * The largest type in the frame, whatever kind of part carries it. Every Look
+ * here sets its headline largest, so this is the headline's size without a test
+ * having to know which part a given Look reaches for.
+ */
+function displayWPct(composition: HasParts): number {
+  return Math.max(
+    ...composition.parts.map((part) => (part.kind === 'rule' ? 0 : part.fontSizeWPct)),
+  );
 }
 
 /** The composed headline, runs rejoined — what the reader actually sees. */

@@ -125,6 +125,16 @@ describe.each(LOOKS)('%s', (id, look) => {
   it('is deterministic', () => {
     expect(look.compose(CONTENT, CALM)).toEqual(look.compose(CONTENT, CALM));
   });
+
+  // 7.26: `thought` has to land in a visibly different slot from the rungs above
+  // it, or the model collapses the two. Same words either side, so the only
+  // thing that can move the type is the density the creator stated.
+  it('sets a thought visibly smaller than a beat', () => {
+    const beat = displayWPct(look.compose({ ...CONTENT, density: 'beat' }, CALM));
+    const thought = displayWPct(look.compose({ ...CONTENT, density: 'thought' }, CALM));
+
+    expect(thought).toBeLessThan(beat * 0.8);
+  });
 });
 
 describe('typewriter', () => {
@@ -202,6 +212,31 @@ describe('subtitle', () => {
 
     expect(composition.anchor).toBe('bottom');
   });
+
+  it('sets a question larger than the same line stated as a statement', () => {
+    // A subtitle has no furniture to signal with, so size is the only thing it
+    // can say a question with (7.26). It still holds the bottom and stays one
+    // bare part — the difference is that the line asks to be answered.
+    const question = SUBTITLE.compose({ ...CONTENT, density: 'question' }, CALM);
+    const statement = SUBTITLE.compose({ ...CONTENT, density: 'line' }, CALM);
+
+    expect(textOf(question)[0].fontSizeWPct).toBeGreaterThan(textOf(statement)[0].fontSizeWPct);
+    expect(question.parts).toHaveLength(1);
+  });
+
+  it('reaches its wash further up for a question, which holds the eye longer', () => {
+    const question = SUBTITLE.compose({ ...CONTENT, density: 'question' }, CALM);
+    const statement = SUBTITLE.compose({ ...CONTENT, density: 'line' }, CALM);
+
+    expect(question.scrim?.extentHPct).toBeGreaterThan(statement.scrim!.extentHPct);
+  });
+
+  it('reads a question off the words when the model states no density', () => {
+    const asked = SUBTITLE.compose({ headline: 'Who booked this place?' }, CALM);
+    const told = SUBTITLE.compose({ headline: 'Someone booked this place' }, CALM);
+
+    expect(textOf(asked)[0].fontSizeWPct).toBeGreaterThan(textOf(told)[0].fontSizeWPct);
+  });
 });
 
 describe('edge-caps', () => {
@@ -230,6 +265,17 @@ describe('edge-caps', () => {
 /** Every text part of a composition. */
 function textOf(composition: HasParts): TextPart[] {
   return composition.parts.filter((part): part is TextPart => part.kind === 'text');
+}
+
+/**
+ * The largest type in the frame, whatever kind of part carries it — the size a
+ * reader reads as the headline, without a test having to know which part a given
+ * Look reaches for.
+ */
+function displayWPct(composition: HasParts): number {
+  return Math.max(
+    ...composition.parts.map((part) => (part.kind === 'rule' ? 0 : part.fontSizeWPct)),
+  );
 }
 
 /** Every rule of a composition, in stack order. */

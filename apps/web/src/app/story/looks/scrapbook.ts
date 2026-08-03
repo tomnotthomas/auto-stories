@@ -1,5 +1,5 @@
-import type { DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
-import { splitEmphasis } from '../look';
+import type { Density, DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
+import { resolveDensity, splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
 /**
@@ -36,6 +36,30 @@ const TAPE_TILT_DEG = 2.6;
 /** A journal page is written from the bottom of the photo up. */
 const PREFERRED_BANDS: readonly Band[] = ['bottom', 'top'];
 
+/** How the entry is written at one density. */
+interface Rung {
+  readonly fontSizeWPct: number;
+  readonly lineHeight: number;
+}
+
+/**
+ * What this Look sets at each density (7.26). A journal entry is written at the
+ * size the thought needs: three words go across the page, a paragraph is written
+ * small enough to fit under the photo it belongs to, and leaded further apart
+ * because that is how a hand writes several lines. The drawn underline scales
+ * with the type, so the gesture stays proportional at every rung.
+ */
+const LINE: Rung = { fontSizeWPct: 8.2, lineHeight: 1.14 };
+const HEADLINE: Record<Density, Rung> = {
+  // A frame that states `silent` and then writes words has words, and words are
+  // always drawn; a truly wordless frame returns before this is read.
+  silent: LINE,
+  beat: { fontSizeWPct: 10.8, lineHeight: 1.06 },
+  line: LINE,
+  thought: { fontSizeWPct: 5.4, lineHeight: 1.32 },
+  question: LINE,
+};
+
 function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
   const band = quietestBand(photo.bands, PREFERRED_BANDS);
   const anchor = band === 'top' ? 'top' : 'bottom';
@@ -57,6 +81,7 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
     };
   }
 
+  const density = resolveDensity(content);
   const parts: Part[] = [];
 
   // The margin note above the entry. Set in the accent so the page has one
@@ -86,8 +111,8 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
     runs: splitEmphasis(content.headline, content.emphasis),
     fontFamily: SHANTELL,
     fontWeight: 700,
-    fontSizeWPct: 8.2,
-    lineHeight: 1.14,
+    fontSizeWPct: HEADLINE[density].fontSizeWPct,
+    lineHeight: HEADLINE[density].lineHeight,
     letterSpacingEm: -0.005,
     textTransform: 'none',
     textAlign: 'left',

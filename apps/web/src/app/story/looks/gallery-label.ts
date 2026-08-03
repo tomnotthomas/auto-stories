@@ -1,5 +1,13 @@
-import type { DrawnComposition, FrameContent, Look, Panel, Part, PhotoAnalysis } from '../look';
-import { splitEmphasis } from '../look';
+import type {
+  Density,
+  DrawnComposition,
+  FrameContent,
+  Look,
+  Panel,
+  Part,
+  PhotoAnalysis,
+} from '../look';
+import { resolveDensity, splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
 /**
@@ -44,6 +52,30 @@ const CARD: Panel = {
 
 /** Bottom-left, the way a label hangs below a hung work; top is the fallback. */
 const PREFERRED_BANDS: readonly Band[] = ['bottom', 'top'];
+
+/** How the title is set at one density. */
+interface Rung {
+  readonly fontSizeWPct: number;
+  readonly lineHeight: number;
+}
+
+/**
+ * What this Look sets at each density (7.26). A wall label is read from a foot
+ * away, so nothing here is ever large — the whole ramp stays under the size at
+ * which the card would start competing with the work. A `thought` is the
+ * paragraph of interpretation a gallery prints below the title: smaller than
+ * the title, leaded like a block of body copy.
+ */
+const LINE: Rung = { fontSizeWPct: 3.4, lineHeight: 1.28 };
+const HEADLINE: Record<Density, Rung> = {
+  // A frame that states `silent` and then writes words has words, and words are
+  // always drawn; a truly wordless frame returns before this is read.
+  silent: LINE,
+  beat: { fontSizeWPct: 3.9, lineHeight: 1.2 },
+  line: LINE,
+  thought: { fontSizeWPct: 2.5, lineHeight: 1.45 },
+  question: LINE,
+};
 
 function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
   const band = quietestBand(photo.bands, PREFERRED_BANDS);
@@ -91,13 +123,14 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
 
   // The title. Still tiny — a label is read up close, not across the room — but
   // set in the book weight against the two capitals lines around it.
+  const rung = HEADLINE[resolveDensity(content)];
   parts.push({
     kind: 'text',
     runs: splitEmphasis(content.headline, content.emphasis),
     fontFamily: FRAUNCES,
     fontWeight: 400,
-    fontSizeWPct: 3.4,
-    lineHeight: 1.28,
+    fontSizeWPct: rung.fontSizeWPct,
+    lineHeight: rung.lineHeight,
     letterSpacingEm: 0,
     textTransform: 'none',
     textAlign: 'left',

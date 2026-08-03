@@ -1,11 +1,14 @@
 import { DEFAULT_ACCENT } from '../accent-color';
 import {
+  DENSITIES,
   textParts,
   type Composition,
+  type Density,
   type FrameContent,
   type Look,
   type PhotoAnalysis,
   type TagPart,
+  type TextPart,
   type HasParts,
 } from '../look';
 import { FADED_ALBUM } from './faded-album';
@@ -164,6 +167,63 @@ describe.each(WARM_LOOKS.map((look) => [look.id, look] as const))('%s', (id, loo
     });
   });
 });
+
+/** Every Look in this file: the ramp is a contract, not a per-Look flourish. */
+const RAMPED: readonly Look[] = [FILM_POSTCARD, POLAROID, SUPER_8, FADED_ALBUM];
+
+/** The same words at every rung, so only the stated density differs (7.26). */
+const PROBE = 'The road out of the valley and back again';
+
+describe.each(RAMPED.map((look) => [look.id, look] as const))('%s density', (_id, look) => {
+  it('sets a thought in a visibly different slot from a beat', () => {
+    // 7.26's named failure: `thought` collapsing into `line` (or into `beat`).
+    // Same words both times — the size difference is the density, nothing else.
+    expect(headlineFor(look, 'thought').fontSizeWPct).toBeLessThan(
+      headlineFor(look, 'beat').fontSizeWPct * 0.75,
+    );
+  });
+
+  it('steps the headline down from beat to line to thought', () => {
+    const beat = headlineFor(look, 'beat').fontSizeWPct;
+    const line = headlineFor(look, 'line').fontSizeWPct;
+    const thought = headlineFor(look, 'thought').fontSizeWPct;
+
+    expect(beat).toBeGreaterThan(line);
+    expect(line).toBeGreaterThan(thought);
+  });
+
+  it('still sets the words at every rung the model can state', () => {
+    // Including `silent`: a frame that says silent and then writes words has
+    // words, and words are always drawn.
+    for (const density of DENSITIES) {
+      expect(everyWord(look.compose({ ...CONTENT, density }, CALM))).toContain(CONTENT.headline);
+    }
+  });
+});
+
+/**
+ * The Looks that take part of the step in the leading as well as the size, so a
+ * `thought` reads as running text rather than as a shrunken headline. Not a
+ * contract on every Look: a design may hold its leading and put the whole step
+ * into the size instead.
+ */
+const LEADED: readonly Look[] = [FILM_POSTCARD, FADED_ALBUM];
+
+describe.each(LEADED.map((look) => [look.id, look] as const))('%s leading', (_id, look) => {
+  it('opens the leading for a thought', () => {
+    expect(headlineFor(look, 'thought').lineHeight).toBeGreaterThan(
+      headlineFor(look, 'line').lineHeight,
+    );
+  });
+});
+
+/** The headline part this Look composes at one density. */
+function headlineFor(look: Look, density: Density): TextPart {
+  const composition = look.compose({ headline: PROBE, density }, CALM);
+  const part = textParts(composition).find((candidate) => runText(candidate) === PROBE);
+  if (!part) throw new Error(`${look.id} sets no headline at density “${density}”`);
+  return part;
+}
 
 describe('film-postcard', () => {
   it('prints a border on the photo', () => {

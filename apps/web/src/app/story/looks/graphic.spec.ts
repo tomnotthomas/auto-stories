@@ -1,7 +1,9 @@
 import { DEFAULT_ACCENT } from '../accent-color';
 import {
+  DENSITIES,
   textParts,
   type Composition,
+  type Density,
   type FrameContent,
   type Look,
   type PhotoAnalysis,
@@ -13,6 +15,7 @@ import { CAPTION_CARD } from './caption-card';
 import { CHAPTER } from './chapter';
 import { DATELINE } from './dateline';
 import { DUOTONE_BAND } from './duotone-band';
+import { INDEX_CARD } from './index-card';
 import { LETTERBOX } from './letterbox';
 
 /**
@@ -156,6 +159,80 @@ describe.each(LOOKS.map((look) => [look.id, look] as const))('%s', (id, look) =>
   });
 });
 
+/**
+ * Every Look in this file, plus Index Card — a card Look like Caption Card,
+ * covered for its other behaviour in `handmade.spec.ts`.
+ */
+const RAMPED: readonly Look[] = [
+  DUOTONE_BAND,
+  LETTERBOX,
+  CHAPTER,
+  DATELINE,
+  CAPTION_CARD,
+  INDEX_CARD,
+];
+
+/** The same words at every rung, so only the stated density differs (7.26). */
+const PROBE = 'Where the mountain meets its mirror';
+
+describe.each(RAMPED.map((look) => [look.id, look] as const))('%s density', (_id, look) => {
+  it('sets a thought in a visibly different slot from a beat', () => {
+    // 7.26's named failure: `thought` collapsing into `line` (or into `beat`).
+    // Same words both times — the size difference is the density, nothing else.
+    expect(headlineFor(look, 'thought').fontSizeWPct).toBeLessThan(
+      headlineFor(look, 'beat').fontSizeWPct * 0.75,
+    );
+  });
+
+  it('steps the headline down from beat to line to thought', () => {
+    const beat = headlineFor(look, 'beat').fontSizeWPct;
+    const line = headlineFor(look, 'line').fontSizeWPct;
+    const thought = headlineFor(look, 'thought').fontSizeWPct;
+
+    expect(beat).toBeGreaterThan(line);
+    expect(line).toBeGreaterThan(thought);
+  });
+
+  it('still sets the words at every rung the model can state', () => {
+    // Including `silent`: a frame that says silent and then writes words has
+    // words, and words are always drawn.
+    for (const density of DENSITIES) {
+      expect(everyWord(look.compose({ ...CONTENT, density }, PHOTO))).toContain(CONTENT.headline);
+    }
+  });
+});
+
+/**
+ * The Looks that take part of the step in the leading as well as the size, so a
+ * `thought` reads as running text rather than as a shrunken headline. Not a
+ * contract on every Look: a design may hold its leading and put the whole step
+ * into the size instead.
+ */
+const LEADED: readonly Look[] = [
+  DUOTONE_BAND,
+  LETTERBOX,
+  CHAPTER,
+  DATELINE,
+  CAPTION_CARD,
+  INDEX_CARD,
+];
+
+describe.each(LEADED.map((look) => [look.id, look] as const))('%s leading', (_id, look) => {
+  it('opens the leading for a thought', () => {
+    expect(headlineFor(look, 'thought').lineHeight).toBeGreaterThan(
+      headlineFor(look, 'line').lineHeight,
+    );
+  });
+});
+
+/** The headline part this Look composes at one density. */
+function headlineFor(look: Look, density: Density): TextPart {
+  const composition = look.compose({ headline: PROBE, density }, PHOTO);
+  const part = textParts(composition).find((candidate) => runText(candidate) === PROBE);
+  if (!part) throw new Error(`${look.id} sets no headline at density “${density}”`);
+  return part;
+}
+
 describe('duotone-band', () => {
   it('lays a translucent band of the story accent, edge to edge', () => {
     const { panel } = DUOTONE_BAND.compose(CONTENT, PHOTO);
@@ -201,6 +278,11 @@ describe('letterbox', () => {
     // An opaque bar owns every pixel behind the words, so there is nothing to
     // move away from — the horizon it cuts stays put across the whole story.
     expect(LETTERBOX.compose(CONTENT, BUSY_PHOTO).anchor).toBe('bottom');
+  });
+
+  it('leaves a question unmarked — the line asks, no word is picked out', () => {
+    expect(headlineFor(LETTERBOX, 'question').mark).toBeUndefined();
+    expect(headlineFor(LETTERBOX, 'line').mark).toBe('accent-underline');
   });
 });
 
@@ -268,6 +350,11 @@ describe('caption-card', () => {
     expect(composition.ink).toBe('dark');
     expect(composition.scrim).toBeNull();
     expect(textParts(composition).every((part) => part.color === 'ink')).toBe(true);
+  });
+
+  it('does not highlight a question — a swipe would mark an answer', () => {
+    expect(headlineFor(CAPTION_CARD, 'question').mark).toBeUndefined();
+    expect(headlineFor(CAPTION_CARD, 'line').mark).toBe('highlighter');
   });
 });
 

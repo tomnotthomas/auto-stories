@@ -1,5 +1,5 @@
-import type { DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
-import { splitEmphasis } from '../look';
+import type { Density, DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
+import { resolveDensity, splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
 /**
@@ -25,6 +25,31 @@ const EDGE_OFFSET_HPCT = 7;
 
 /** Under the picture; the top is the fallback when the base is busy. */
 const PREFERRED_BANDS: readonly Band[] = ['bottom', 'top'];
+
+/** How the caption is set at one density. */
+interface Rung {
+  readonly fontSizeWPct: number;
+  readonly lineHeight: number;
+  /** Small capitals want tracking; several lines of them want much less. */
+  readonly letterSpacingEm: number;
+}
+
+/**
+ * What this Look sets at each density (7.26). This is a plate caption, so it is
+ * small at every rung and the ramp is about how many lines can sit under the
+ * hairline without unbalancing it. Tracking comes down with the size: spaced
+ * capitals are legible for a phrase and unreadable for a paragraph.
+ */
+const LINE: Rung = { fontSizeWPct: 3.6, lineHeight: 1.4, letterSpacingEm: 0.12 };
+const HEADLINE: Record<Density, Rung> = {
+  // A frame that states `silent` and then writes words has words, and words are
+  // always drawn; a truly wordless frame returns before this is read.
+  silent: LINE,
+  beat: { fontSizeWPct: 4.4, lineHeight: 1.3, letterSpacingEm: 0.16 },
+  line: LINE,
+  thought: { fontSizeWPct: 2.5, lineHeight: 1.55, letterSpacingEm: 0.06 },
+  question: LINE,
+};
 
 function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
   const band = quietestBand(photo.bands, PREFERRED_BANDS);
@@ -82,14 +107,15 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
   // The caption. Small capitals are approximated the way type is set for print
   // at this size: a small size, generous tracking, uppercase. Runs are split
   // even though nothing marks them, so an emphasis is carried correctly.
+  const rung = HEADLINE[resolveDensity(content)];
   parts.push({
     kind: 'text',
     runs: splitEmphasis(content.headline, content.emphasis),
     fontFamily: SYSTEM_SANS,
     fontWeight: 400,
-    fontSizeWPct: 3.6,
-    lineHeight: 1.4,
-    letterSpacingEm: 0.12,
+    fontSizeWPct: rung.fontSizeWPct,
+    lineHeight: rung.lineHeight,
+    letterSpacingEm: rung.letterSpacingEm,
     textTransform: 'uppercase',
     textAlign: 'center',
     color: 'ink',

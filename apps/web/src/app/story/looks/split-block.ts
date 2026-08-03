@@ -1,5 +1,5 @@
-import type { DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
-import { splitEmphasis } from '../look';
+import type { Density, DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
+import { resolveDensity, splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
 /**
@@ -36,6 +36,31 @@ const EDGE_OFFSET_HPCT = PAD_HPCT;
 /** Split Block wants the bottom third; the top is the same idea, inverted. */
 const PREFERRED_BANDS: readonly Band[] = ['bottom', 'top'];
 
+/** How the title is set at one density. */
+interface Rung {
+  readonly fontSizeWPct: number;
+  readonly lineHeight: number;
+}
+
+/**
+ * What this Look sets at each density (7.26). The slab grows with the words, so
+ * nothing overflows — but a sleeve title set at 8.8% and run to thirty-five
+ * words eats half the photograph. Each rung therefore has its own setting, and
+ * the block only ever grows to hold the words the rung is written to. A sleeve
+ * title locks its lines up at 1.02; a `thought` is read, not seen, so it gets
+ * the leading running text needs.
+ */
+const LINE: Rung = { fontSizeWPct: 8.8, lineHeight: 1.02 };
+const HEADLINE: Record<Density, Rung> = {
+  // A frame that states `silent` and then writes words has words, and words are
+  // always drawn; a truly wordless frame returns before this is read.
+  silent: LINE,
+  beat: { fontSizeWPct: 11.6, lineHeight: 0.96 },
+  line: LINE,
+  thought: { fontSizeWPct: 5.8, lineHeight: 1.2 },
+  question: LINE,
+};
+
 function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
   const band = quietestBand(photo.bands, PREFERRED_BANDS);
   const anchor = band === 'top' ? 'top' : 'bottom';
@@ -57,6 +82,7 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
     };
   }
 
+  const density = resolveDensity(content);
   const parts: Part[] = [];
 
   // The sleeve's catalogue line: small, tracked, sitting above the title inside
@@ -87,8 +113,8 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
     runs: splitEmphasis(content.headline, content.emphasis),
     fontFamily: BRICOLAGE,
     fontWeight: 700,
-    fontSizeWPct: 8.8,
-    lineHeight: 1.02,
+    fontSizeWPct: HEADLINE[density].fontSizeWPct,
+    lineHeight: HEADLINE[density].lineHeight,
     letterSpacingEm: -0.025,
     textTransform: 'none',
     textAlign: 'left',

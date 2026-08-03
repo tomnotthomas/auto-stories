@@ -1,5 +1,5 @@
-import type { DrawnComposition, FrameContent, Look, PhotoAnalysis } from '../look';
-import { splitEmphasis } from '../look';
+import type { Density, DrawnComposition, FrameContent, Look, PhotoAnalysis } from '../look';
+import { resolveDensity, splitEmphasis } from '../look';
 import type { Band } from '../quiet-zone';
 
 /**
@@ -35,6 +35,41 @@ const EDGE_OFFSET_HPCT = 7;
 /** Stated for the engine's benefit; placement is fixed (see the note above). */
 const PREFERRED_BANDS: readonly Band[] = ['bottom'];
 
+/** How the line is set at one density. */
+interface Rung {
+  readonly fontSizeWPct: number;
+  readonly lineHeight: number;
+}
+
+/**
+ * What this Look sets at each density (7.26). A subtitle stays small — that is
+ * the Look — so the whole ramp lives in the bottom half of the catalogue's
+ * range; density changes the fit, not the character.
+ *
+ * `question` is the one rung set *larger* than its neighbours. A subtitle has no
+ * furniture to signal with — one text part and nothing else, which is what makes
+ * it a subtitle — so the only thing this Look can say with is size, and a line
+ * that expects an answer is worth holding the eye a beat longer than one that
+ * expects to be read past.
+ */
+const LINE: Rung = { fontSizeWPct: 3.8, lineHeight: 1.35 };
+const HEADLINE: Record<Density, Rung> = {
+  // A frame that states `silent` and then writes words has words, and words are
+  // always drawn; a truly wordless frame returns before this is read.
+  silent: LINE,
+  beat: { fontSizeWPct: 5, lineHeight: 1.25 },
+  line: LINE,
+  thought: { fontSizeWPct: 2.9, lineHeight: 1.5 },
+  question: { fontSizeWPct: 4.6, lineHeight: 1.35 },
+};
+
+/**
+ * A question holds longer on screen, so the wash under it reaches further. The
+ * statement rungs keep the short, soft gradient the Look was drawn with.
+ */
+const QUESTION_SCRIM = { from: 'bottom', extentHPct: 34, strength: 0.7 } as const;
+const STATEMENT_SCRIM = { from: 'bottom', extentHPct: 26, strength: 0.62 } as const;
+
 function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
   // Silent: with no line there is nothing to subtitle, and a gradient across
   // the foot of an otherwise untouched photo is just a smudge (7.26).
@@ -52,6 +87,8 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
     };
   }
 
+  const density = resolveDensity(content);
+
   return {
     lookId: 'subtitle',
     // The scrim is the Look's only device, so the polarity is settled here
@@ -63,7 +100,7 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
     offsetHPct: EDGE_OFFSET_HPCT,
     // Short and soft — it has one or two lines of small type to carry, so it
     // stops well before it starts reading as a bar across the picture.
-    scrim: { from: 'bottom', extentHPct: 26, strength: 0.62 },
+    scrim: density === 'question' ? QUESTION_SCRIM : STATEMENT_SCRIM,
     accent: photo.accent,
     parts: [
       {
@@ -74,8 +111,8 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
         runs: splitEmphasis(content.headline, content.emphasis),
         fontFamily: SYSTEM_SANS,
         fontWeight: 400,
-        fontSizeWPct: 3.8,
-        lineHeight: 1.35,
+        fontSizeWPct: HEADLINE[density].fontSizeWPct,
+        lineHeight: HEADLINE[density].lineHeight,
         letterSpacingEm: 0,
         textTransform: 'none',
         textAlign: 'center',

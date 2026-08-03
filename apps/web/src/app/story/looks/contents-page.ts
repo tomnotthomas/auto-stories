@@ -1,5 +1,5 @@
-import type { DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
-import { splitEmphasis } from '../look';
+import type { Density, DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
+import { resolveDensity, splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
 /**
@@ -32,6 +32,33 @@ const EDGE_OFFSET_HPCT = 10;
 /** An index opens a page, so this Look hangs off the top. */
 const PREFERRED_BANDS: readonly Band[] = ['top', 'bottom'];
 
+/** How the entry is set at one density. */
+interface Rung {
+  readonly fontSizeWPct: number;
+  readonly lineHeight: number;
+}
+
+/**
+ * What this Look sets at each density (7.26). The marker keeps its size at every
+ * rung — it is the design, and an index that shrank its own numeral would stop
+ * being one — so the ramp is entirely in the entry beside it, from a title-sized
+ * `beat` down to a `thought` set as the blurb a contents page runs under a
+ * title.
+ */
+const LINE: Rung = { fontSizeWPct: 6.2, lineHeight: 1.14 };
+const HEADLINE: Record<Density, Rung> = {
+  // A frame that states `silent` and then writes words has words, and words are
+  // always drawn; a truly wordless frame returns before this is read.
+  silent: LINE,
+  beat: { fontSizeWPct: 8.2, lineHeight: 1.04 },
+  line: LINE,
+  thought: { fontSizeWPct: 4, lineHeight: 1.34 },
+  question: LINE,
+};
+
+/** The sign an entry that asks is filed under (7.26). */
+const QUESTION_MARKER = '?';
+
 function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
   const band = quietestBand(photo.bands, PREFERRED_BANDS);
   const anchor = band === 'top' ? 'top' : 'bottom';
@@ -52,11 +79,12 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
   }
 
   const parts: Part[] = [];
+  const density = resolveDensity(content);
 
   // The marker: the one thing painted in the accent, and the only part set big.
   parts.push({
     kind: 'text',
-    runs: [{ text: marker(content) }],
+    runs: [{ text: marker(content, density) }],
     fontFamily: BRICOLAGE,
     fontWeight: 800,
     fontSizeWPct: 26,
@@ -79,13 +107,14 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
 
   // The entry itself, set small against the marker — a contents line is read
   // after the number, not before it.
+  const rung = HEADLINE[density];
   parts.push({
     kind: 'text',
     runs: splitEmphasis(content.headline, content.emphasis),
     fontFamily: FRAUNCES,
     fontWeight: 400,
-    fontSizeWPct: 6.2,
-    lineHeight: 1.14,
+    fontSizeWPct: rung.fontSizeWPct,
+    lineHeight: rung.lineHeight,
     letterSpacingEm: -0.005,
     textTransform: 'none',
     textAlign: 'left',
@@ -146,8 +175,14 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
  * The oversized character. The kicker names the section, so its initial is the
  * marker; a frame with no kicker falls back to the headline's. Split by code
  * point, not by index, so an emoji or an accented letter survives intact.
+ *
+ * An entry that asks is signed `?` instead (7.26). A contents page files each
+ * entry under a mark, and the mark for a question is the one every reader
+ * already knows — so the density is visible before a word of the entry is read.
  */
-function marker(content: FrameContent): string {
+function marker(content: FrameContent, density: Density): string {
+  if (density === 'question') return QUESTION_MARKER;
+
   const source = content.kicker?.trim() || content.headline.trim();
   return [...source][0]?.toUpperCase() ?? '';
 }
