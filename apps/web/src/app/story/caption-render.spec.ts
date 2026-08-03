@@ -18,9 +18,9 @@ describe('caption-render style mapping', () => {
   });
 
   it('leads the serif and handwriting slots with the bundled faces', () => {
-    // playfair → self-hosted Fraunces; caveat → self-hosted Caveat.
+    // playfair → self-hosted Fraunces; caveat → self-hosted Shantell Sans.
     expect(fontFamily('playfair').startsWith('"Fraunces"')).toBe(true);
-    expect(fontFamily('caveat').startsWith('"Caveat"')).toBe(true);
+    expect(fontFamily('caveat').startsWith('"Shantell Sans"')).toBe(true);
   });
 
   it('leads the default caption font with the bundled display face', () => {

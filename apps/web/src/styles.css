@@ -4,8 +4,8 @@
 
 /* Self-hosted caption faces (OFL, bundled; license .txt beside each). Used by the
  * canvas frame-renderer and the DOM preview. Bricolage is the display face; the
- * serif slot renders Fraunces and the handwriting slot renders Caveat (see
- * caption-render.ts fontFamily). */
+ * serif slot renders Fraunces and the handwriting slot renders Shantell Sans
+ * (a modern, genuine hand) — see caption-render.ts fontFamily. */
 @font-face {
   font-family: 'Bricolage Grotesque';
   font-style: normal;
@@ -28,18 +28,18 @@
   src: url('/fonts/fraunces-700.woff2') format('woff2');
 }
 @font-face {
-  font-family: 'Caveat';
+  font-family: 'Shantell Sans';
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url('/fonts/caveat-400.woff2') format('woff2');
+  src: url('/fonts/shantell-sans-400.woff2') format('woff2');
 }
 @font-face {
-  font-family: 'Caveat';
+  font-family: 'Shantell Sans';
   font-style: normal;
   font-weight: 700;
   font-display: swap;
-  src: url('/fonts/caveat-700.woff2') format('woff2');
+  src: url('/fonts/shantell-sans-700.woff2') format('woff2');
 }
 
 /* Motion utilities (enter transitions + press feedback) for the story surfaces. */
