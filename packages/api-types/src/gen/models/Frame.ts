@@ -27,8 +27,7 @@ export type Frame = {
     */
     kicker?: string;
     /**
-     * @description The frame\'s words — the one piece of text on the photo (decision 7.25). Short: the design sets it large and the words fit the band, rather than the band growing to fit the words.
-     * @minLength 1
+     * @description The frame\'s words — the one piece of text on the photo (decision 7.25). Short: the design sets it large and the words fit the band, rather than the band growing to fit the words. **Empty means silent** — some photos speak for themselves, so the frame is kept and the Look composes it without words (decision 7.26). It is a choice, not a missing value.
      * @type string
     */
     headline: string;

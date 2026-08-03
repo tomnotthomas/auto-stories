@@ -1,7 +1,7 @@
 import { Component, computed, input } from '@angular/core';
 
 import { paletteFor } from '../../../story/caption-palette';
-import type { Composition, Part, RowPart, RulePart, TextPart } from '../../../story/look';
+import type { Composition, Part, RowPart, RulePart, Run, TextPart } from '../../../story/look';
 
 /**
  * The DOM half of the Looks renderer (decision 7.24). Draws the same
@@ -77,9 +77,12 @@ export class LayoutView {
     return this.accent() ?? this.ink;
   }
 
-  /** `.head u` — the accent bar riding the baseline of an emphasised phrase. */
-  protected markStyle(part: TextPart): string | null {
-    return part.mark === 'accent-underline' ? `inset 0 -0.1em 0 ${this.accentColor}` : null;
+  /** `.head u` — the accent bar riding the baseline of an emphasised phrase.
+   * Null for a plain run, so the template can bind it unconditionally and avoid
+   * an @if that would inject whitespace into the words. */
+  protected markFor(part: TextPart, run: Run): string | null {
+    if (!run.emphasised || part.mark !== 'accent-underline') return null;
+    return `inset 0 -0.1em 0 ${this.accentColor}`;
   }
 
   /** The gradient that keeps type readable over an unknown photo. */

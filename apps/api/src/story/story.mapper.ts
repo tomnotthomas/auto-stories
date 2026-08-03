@@ -45,10 +45,10 @@ function toFrame(entry: unknown): Frame | null {
     entry as Record<string, unknown>;
   if (typeof photoId !== 'string') return null;
   if (typeof order !== 'number' || !Number.isFinite(order)) return null;
-  // The headline is the frame's only text (decision 7.25), so there is nothing
-  // to fall back to: a frame without one cannot be composed and is dropped.
+  // The headline is the frame's only text (decision 7.25). Empty is a real
+  // choice, not a broken frame: some photos speak for themselves, so the frame
+  // is kept and the Look composes it silently (decision 7.26, `silent`).
   const finalHeadline = trimmed(headline);
-  if (finalHeadline === '') return null;
   const finalKicker = trimmed(kicker);
   const finalEmphasis = trimmed(emphasis);
   // A mark the renderer cannot place is worse than no mark, so `emphasis` only

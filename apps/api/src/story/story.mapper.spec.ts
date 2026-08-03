@@ -22,18 +22,19 @@ describe('shapeFrames', () => {
     expect(shapeFrames(raw, ids).map((f) => f.photoId)).toEqual(['a']);
   });
 
-  // The headline is the frame's only text (7.25), so there is nothing to fall
-  // back to — a frame without one cannot be composed and is dropped.
-  it('drops a frame whose headline is missing, blank or not a string', () => {
+  // A frame with no words is silent, not broken: some photos speak for
+  // themselves (7.26). The frame is kept and the Look composes it wordlessly.
+  it('keeps a frame whose headline is missing, blank or not a string, as silent', () => {
     const raw = [
       { photoId: 'a', order: 1 },
       { photoId: 'b', order: 2, headline: '   ' },
       { photoId: 'c', order: 3, headline: 'real' },
     ];
-    expect(shapeFrames(raw, ids).map((f) => f.photoId)).toEqual(['c']);
-    expect(
-      shapeFrames([{ photoId: 'a', order: 1, headline: 42 }], ids),
-    ).toEqual([]);
+    const frames = shapeFrames(raw, ids);
+
+    expect(frames.map((f) => f.photoId)).toEqual(['a', 'b', 'c']);
+    expect(frames.map((f) => f.headline)).toEqual(['', '', 'real']);
+    expect(shapeFrames([{ photoId: 'a', order: 1, headline: 42 }], ids)[0].headline).toBe('');
   });
 
   it('trims the headline', () => {

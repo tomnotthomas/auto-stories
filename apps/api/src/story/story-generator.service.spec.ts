@@ -179,7 +179,9 @@ describe('StoryGeneratorService', () => {
 
   // The headline is the frame's only text (7.25) — a frame without one cannot
   // be composed, so it is dropped rather than shipped blank.
-  it('drops a frame the model left without a headline', async () => {
+  // No words is a silent frame, not a dropped one (7.26): the photo carries the
+  // moment on its own and the Look composes it without type.
+  it('keeps a frame the model left without a headline, as silent', async () => {
     const generateContent = jest.fn().mockResolvedValue(
       jsonResponse([
         { photoId: 'p1', order: 1, headline: 'a' },
@@ -191,7 +193,8 @@ describe('StoryGeneratorService', () => {
 
     const result = await service.generate(makeRequest(3));
 
-    expect(result.frames.map((f) => f.photoId)).toEqual(['p1']);
+    expect(result.frames.map((f) => f.photoId)).toEqual(['p1', 'p2', 'p3']);
+    expect(result.frames.map((f) => f.headline)).toEqual(['a', '', '']);
   });
 
   it('rejects with empty_result when the model returns non-JSON', async () => {
