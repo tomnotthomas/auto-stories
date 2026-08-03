@@ -90,6 +90,56 @@ describe('Story', () => {
     expect(story.phase()).toBe('example');
   });
 
+  describe('folding the action bar', () => {
+    it('shows the three story actions to begin with', async () => {
+      expect(await (await render()).isActionBarVisible()).toBe(true);
+    });
+
+    it('folds the actions away when the toggle is tapped', async () => {
+      const harness = await render();
+      await harness.toggleActionBar();
+      expect(await harness.isActionBarVisible()).toBe(false);
+    });
+
+    it('leaves a labelled way back on screen while folded', async () => {
+      const harness = await render();
+      await harness.toggleActionBar();
+      expect(await harness.actionBarToggleLabel()).toMatch(/Show buttons/);
+    });
+
+    it('brings the actions back on the next tap, working as before', async () => {
+      const harness = await render();
+      await harness.toggleActionBar();
+      await harness.toggleActionBar();
+
+      expect(await harness.isActionBarVisible()).toBe(true);
+      await harness.clickStartOver();
+      expect(story.phase()).toBe('example');
+    });
+
+    it('still pages the story while the actions are folded', async () => {
+      const harness = await render();
+      await harness.toggleActionBar();
+      await harness.tapNext();
+      expect(await harness.getHeadline()).toBe('Then she blew out the candle');
+    });
+
+    it('hands the space the actions were holding back to the composition', async () => {
+      const harness = await render();
+      const withActions = await harness.reservedBottomPx();
+
+      await harness.toggleActionBar();
+      const folded = await harness.reservedBottomPx();
+
+      expect(folded).toBeLessThan(withActions);
+      // The toggle itself stays on screen, so it keeps its own reservation.
+      expect(folded).toBeGreaterThan(0);
+
+      await harness.toggleActionBar();
+      expect(await harness.reservedBottomPx()).toBe(withActions);
+    });
+  });
+
   describe('refine', () => {
     it('keeps rendering the same composition it shows in view mode', async () => {
       const harness = await render();

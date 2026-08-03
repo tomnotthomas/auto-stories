@@ -136,6 +136,9 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
     scrim: null,
     accent: photo.accent,
     parts,
+    // The index row carried the place on its right (7.25). A kicker alone still
+    // draws the row, so this tracks the place itself, not the row.
+    consumedLocation: location !== '',
   };
 }
 

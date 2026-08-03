@@ -123,7 +123,8 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
     });
   }
 
-  return { ...base, parts, panel: CARD };
+  // The particulars line named the place, so no location sticker should (7.25).
+  return { ...base, parts, panel: CARD, consumedLocation: Boolean(location) };
 }
 
 export const GALLERY_LABEL: Look = {

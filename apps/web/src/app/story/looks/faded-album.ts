@@ -125,6 +125,8 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
     accent: photo.accent,
     parts,
     photoFilter: FADED,
+    // The caption under the rule named the place (7.25).
+    consumedLocation: Boolean(location),
   };
 }
 

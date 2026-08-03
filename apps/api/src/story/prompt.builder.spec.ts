@@ -80,16 +80,38 @@ describe('buildPrompt', () => {
     }
   });
 
-  // Suggestions still carry an anchor zone; the frame's own text never does, so
-  // the only other line allowed to say "position" is the one forbidding it.
-  it('only ever asks for a position on a suggestion, never on the words', () => {
+  // Decision 7.25: nothing on the frame is placed by the model any more — not
+  // the words, and no longer the add-ons. The only line that may say "position"
+  // is the one forbidding it.
+  it('never asks for a position, on the words or on an add-on', () => {
     const positioned = buildPrompt(story)
       .toLowerCase()
       .split('\n')
       .filter((line) => line.includes('position'));
     const asked = positioned.filter((line) => !line.includes('do not choose'));
-    expect(asked).toHaveLength(1);
-    expect(asked[0]).toContain('suggestions');
+    expect(asked).toEqual([]);
+  });
+
+  it('tells the model the app places add-ons and drops ones that do not fit', () => {
+    const bullet = buildPrompt(story)
+      .split('\n')
+      .find((line) => line.includes('`suggestions`'));
+    expect(bullet).toBeDefined();
+    const lower = (bullet ?? '').toLowerCase();
+    expect(lower).toMatch(/the app decides where/);
+    expect(lower).toMatch(/no room|does not fit|drops/);
+    // The model's job on an add-on is now only whether, and how sure.
+    expect(lower).toContain('confidence');
+  });
+
+  it('offers every add-on type, not location first', () => {
+    const bullet =
+      buildPrompt(story)
+        .split('\n')
+        .find((line) => line.includes('`suggestions`')) ?? '';
+    for (const type of ['location', 'mention', 'gif', 'poll', 'music']) {
+      expect(bullet).toContain(type);
+    }
   });
 
   it('keeps distinct moments and only drops weak or duplicate photos', () => {

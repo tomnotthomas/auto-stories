@@ -135,6 +135,8 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
       radiusWPct: 0,
     },
     photoFilter: WARM_PRINT,
+    // The stamp named the place, so no location sticker should (7.25).
+    consumedLocation: Boolean(location),
   };
 }
 

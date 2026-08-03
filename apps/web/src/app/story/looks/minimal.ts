@@ -105,7 +105,9 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
     });
   }
 
-  return { ...base, parts };
+  // The spaced capitals under the hairline named the place (7.25). With no
+  // place this Look draws the title alone, and its sticker should still appear.
+  return { ...base, parts, consumedLocation: Boolean(location) };
 }
 
 export const MINIMAL: Look = {

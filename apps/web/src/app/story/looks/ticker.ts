@@ -132,6 +132,9 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
       radiusWPct: 0,
       fullWidth: true,
     },
+    // The dateline strip carried the place at its right end (7.25). A kicker
+    // alone still draws the strip, so this tracks the place, not the strip.
+    consumedLocation: location !== '',
   };
 }
 

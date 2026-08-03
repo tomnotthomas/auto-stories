@@ -120,6 +120,8 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
     // a bright shoreline, not enough to shade the picture itself.
     scrim: { from: anchor, extentHPct: 30, strength: 0.45 },
     parts,
+    // The second caption line named the place (7.25).
+    consumedLocation: Boolean(location),
   };
 }
 

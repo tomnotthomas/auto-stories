@@ -138,6 +138,10 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
       radiusWPct: VIEWFINDER_RADIUS_WPCT,
     },
     photoFilter: HOME_MOVIE,
+    // Either the timecode or the line under it named the place — the readout
+    // takes it when there is no kicker, and it gets its own line when there is
+    // — so a frame with a place has always drawn it here (7.25).
+    consumedLocation: Boolean(location),
   };
 }
 

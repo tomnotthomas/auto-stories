@@ -48,6 +48,8 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
     };
   }
 
+  const location = content.location?.trim();
+
   return {
     lookId: 'edge-caps',
     // Nothing is laid down behind the type, so the polarity comes from the
@@ -60,10 +62,13 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
     offsetHPct: EDGE_OFFSET_HPCT,
     scrim: null,
     accent: photo.accent,
+    // The place is set on the spine itself, so no location sticker should draw
+    // it again (7.25).
+    consumedLocation: Boolean(location),
     parts: [
       {
         kind: 'text',
-        runs: spineRuns(content),
+        runs: spineRuns(content, location),
         fontFamily: BRICOLAGE,
         fontWeight: 600,
         fontSizeWPct: 2.2,
@@ -86,9 +91,8 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
  * this Look two lines, which it is not. The kicker has no such slot and is
  * dropped — three other Looks in the quiet group carry it.
  */
-function spineRuns(content: FrameContent): Run[] {
+function spineRuns(content: FrameContent, location: string | undefined): Run[] {
   const runs = splitEmphasis(content.headline, content.emphasis);
-  const location = content.location?.trim();
   return location ? [...runs, { text: ` · ${location}` }] : runs;
 }
 

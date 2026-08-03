@@ -133,6 +133,8 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
     accent: photo.accent,
     parts,
     rotationDeg: PAGE_TILT_DEG,
+    // The venue line at the foot of the flyer named the place (7.25).
+    consumedLocation: Boolean(location),
   };
 }
 

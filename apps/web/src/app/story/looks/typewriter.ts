@@ -137,6 +137,8 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
     scrim: { from: anchor, extentHPct: 38, strength: 0.6 },
     accent: photo.accent,
     parts,
+    // The filing line under the note named the place (7.25).
+    consumedLocation: Boolean(location),
   };
 }
 

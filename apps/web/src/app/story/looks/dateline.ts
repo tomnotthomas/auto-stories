@@ -101,6 +101,9 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
     scrim: { from: anchor, extentHPct: 44, strength: 0.62 },
     accent: photo.accent,
     parts,
+    // Only when the place actually took the dateline (7.25). With a kicker
+    // written the place went undrawn, and its sticker should still appear.
+    consumedLocation: label !== undefined && label === content.location?.trim(),
   };
 }
 

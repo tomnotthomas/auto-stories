@@ -120,6 +120,8 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
     scrim: null,
     accent: photo.accent,
     parts,
+    // The attribution named the place (7.25).
+    consumedLocation: Boolean(location),
   };
 }
 

@@ -125,6 +125,8 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
     scrim: { from: anchor, extentHPct: 58, strength: 0.7 },
     accent: photo.accent,
     parts,
+    // The dateline under the rules named the place (7.25).
+    consumedLocation: Boolean(location),
   };
 }
 

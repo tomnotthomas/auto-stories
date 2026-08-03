@@ -132,6 +132,8 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
     accent: photo.accent,
     parts,
     rotationDeg: PAGE_TILT_DEG,
+    // The tape carried the place, so no location sticker should (7.25).
+    consumedLocation: Boolean(location),
   };
 }
 

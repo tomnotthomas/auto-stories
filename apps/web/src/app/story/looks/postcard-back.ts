@@ -127,6 +127,10 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
     // and it sits straight on the photo.
     scrim: { from: anchor, extentHPct: 56, strength: 0.62 },
     parts,
+    // The place always takes the postmark when the frame has one, so the card
+    // has named it and a location sticker must not (7.25). With no place the
+    // kicker was franked instead and nothing here drew it.
+    consumedLocation: postmark !== undefined && postmark === location,
   };
 }
 

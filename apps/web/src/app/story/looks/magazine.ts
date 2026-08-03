@@ -147,6 +147,9 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
     scrim: { from: anchor, extentHPct: 62, strength: 0.72 },
     accent: photo.accent,
     parts,
+    // The byline row set the place, so a location sticker must not set it again
+    // (7.25). False on a frame with no place: the row was never drawn.
+    consumedLocation: Boolean(location),
   };
 }
 

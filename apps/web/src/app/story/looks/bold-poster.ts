@@ -117,6 +117,8 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
     scrim: { from: anchor, extentHPct: 66, strength: 0.75 },
     accent: photo.accent,
     parts,
+    // The pill named the place, so no location sticker should (7.25).
+    consumedLocation: Boolean(location),
   };
 }
 

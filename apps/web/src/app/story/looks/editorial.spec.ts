@@ -12,10 +12,11 @@ import { textParts } from '../look';
 import { BOLD_POSTER } from './bold-poster';
 import { BROADSHEET } from './broadsheet';
 import { CONTENTS_PAGE } from './contents-page';
+import { MAGAZINE } from './magazine';
 import { PULL_QUOTE } from './pull-quote';
 
 /**
- * The four editorial Looks (catalogue B, plus Bold Poster from C). Each one has
+ * The editorial Looks (catalogue B, plus Bold Poster from C). Each one has
  * the same contract — compose something drawable for any words, compose nothing
  * for none — and then one behaviour that is the reason it exists.
  */
@@ -38,7 +39,19 @@ const CONTENT: FrameContent = {
   location: 'Lake Braies',
 };
 
-const LOOKS = [BROADSHEET, CONTENTS_PAGE, PULL_QUOTE, BOLD_POSTER];
+const LOOKS = [BROADSHEET, CONTENTS_PAGE, PULL_QUOTE, BOLD_POSTER, MAGAZINE];
+
+/**
+ * The frames that separate a Look which draws the place from one which does not
+ * — including the two that trip a Look up: a missing kicker (several Looks put
+ * the place in its slot) and a silent frame (nothing is drawn at all).
+ */
+const LOCATION_CASES: [string, FrameContent][] = [
+  ['a normal frame', CONTENT],
+  ['a frame with no kicker', { ...CONTENT, kicker: undefined }],
+  ['a frame with no place', { ...CONTENT, location: undefined }],
+  ['a silent frame', { ...CONTENT, headline: '' }],
+];
 
 describe.each(LOOKS.map((look) => [look.id, look] as [string, Look]))('%s', (_id, look) => {
   it('composes the headline for a normal frame', () => {
@@ -102,6 +115,20 @@ describe.each(LOOKS.map((look) => [look.id, look] as [string, Look]))('%s', (_id
 
     expect(textParts(composition).filter((part) => part.mark !== undefined).length).toBeLessThan(2);
   });
+
+  // 7.25: the place must render once. A Look that sets it in its own design
+  // says so, and the sticker layer then suppresses the duplicate — so the flag
+  // has to describe THIS call, not what the Look does in general.
+  it.each(LOCATION_CASES)(
+    'flags the place as consumed for %s only when it set the place itself',
+    (_case, content) => {
+      const composition = look.compose(content, PHOTO);
+      const place = content.location?.trim() ?? '';
+      const drawn = place !== '' && everyWord(composition).includes(place);
+
+      expect(composition.consumedLocation ?? false).toBe(drawn);
+    },
+  );
 
   it('names the bands it wants', () => {
     expect(look.prefer.length).toBeGreaterThan(0);
@@ -197,6 +224,18 @@ describe('bold-poster', () => {
 /** The visible text of a text part, runs joined. */
 function runText(part: TextPart): string {
   return part.runs.map((run) => run.text).join('');
+}
+
+/** Every word a composition draws — text runs, tags and rows alike. */
+function everyWord(composition: HasParts): string {
+  return composition.parts
+    .map((part) => {
+      if (part.kind === 'text') return runText(part);
+      if (part.kind === 'tag') return part.text;
+      if (part.kind === 'row') return `${part.left} ${part.right}`;
+      return '';
+    })
+    .join(' ');
 }
 
 /** Where the headline sits in the part stack, so rules can be read either side. */

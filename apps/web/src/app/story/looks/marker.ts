@@ -121,6 +121,8 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
     accent: photo.accent,
     parts,
     rotationDeg: TILT_DEG,
+    // The hand wrote the place under the line, so no sticker should (7.25).
+    consumedLocation: Boolean(location),
   };
 }
 

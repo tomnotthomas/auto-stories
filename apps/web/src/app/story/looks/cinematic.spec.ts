@@ -45,6 +45,18 @@ const LOOKS: readonly [string, Look][] = [
   ['edge-caps', EDGE_CAPS],
 ];
 
+/**
+ * The frames that separate a Look which draws the place from one which does not
+ * — including the two that trip a Look up: a missing kicker (several Looks put
+ * the place in its slot) and a silent frame (nothing is drawn at all).
+ */
+const LOCATION_CASES: [string, FrameContent][] = [
+  ['a normal frame', CONTENT],
+  ['a frame with no kicker', { ...CONTENT, kicker: undefined }],
+  ['a frame with no place', { ...CONTENT, location: undefined }],
+  ['a silent frame', { ...CONTENT, headline: '' }],
+];
+
 describe.each(LOOKS)('%s', (id, look) => {
   it('is registered under its own id and prefers at least one band', () => {
     expect(look.id).toBe(id);
@@ -95,6 +107,20 @@ describe.each(LOOKS)('%s', (id, look) => {
     expect(offsetHPct).toBeGreaterThanOrEqual(0);
     expect(offsetHPct).toBeLessThan(100);
   });
+
+  // 7.25: the place must render once. A Look that sets it in its own design
+  // says so, and the sticker layer then suppresses the duplicate — so the flag
+  // has to describe THIS call, not what the Look does in general.
+  it.each(LOCATION_CASES)(
+    'flags the place as consumed for %s only when it set the place itself',
+    (_case, content) => {
+      const composition = look.compose(content, CALM);
+      const place = content.location?.trim() ?? '';
+      const drawn = place !== '' && allText(composition).includes(place);
+
+      expect(composition.consumedLocation ?? false).toBe(drawn);
+    },
+  );
 
   it('is deterministic', () => {
     expect(look.compose(CONTENT, CALM)).toEqual(look.compose(CONTENT, CALM));

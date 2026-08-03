@@ -145,6 +145,8 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
     scrim: null,
     accent: photo.accent,
     parts,
+    // The caption under the card named the place (7.25).
+    consumedLocation: Boolean(location),
   };
 }
 

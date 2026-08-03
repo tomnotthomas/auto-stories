@@ -24,10 +24,12 @@
          the exact term — self-explanatory at a glance. A passive preview: no drag,
          no swipe (`pointer-events-none`, so tapping pages the story). Acting on a
          suggestion — copy its term, drop it — happens in the hand-off card after
-         export. -->
+         export. It sits in a cell the design left free (7.25 slice 2). -->
     <div
       data-spark-marker
       [attr.data-spark-type]="spark.type"
+      [attr.data-spark-x]="spark.xPct"
+      [attr.data-spark-y]="spark.yPct"
       [attr.aria-label]="spark.type + ' suggestion: ' + spark.query"
       class="pointer-events-none absolute"
       [style.left.%]="spark.xPct"

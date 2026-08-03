@@ -1,7 +1,6 @@
 import type {
   Look,
   Suggestion,
-  SuggestionPositionEnum,
   SuggestionTypeEnum,
 } from '@auto-stories/api-types';
 
@@ -80,17 +79,6 @@ const SUGGESTION_TYPES: readonly SuggestionTypeEnum[] = [
   'poll',
   'music',
 ];
-const SUGGESTION_POSITIONS: readonly SuggestionPositionEnum[] = [
-  'top-left',
-  'top-center',
-  'top-right',
-  'bottom-left',
-  'bottom-center',
-  'bottom-right',
-];
-/** Anchor zone for a placed suggestion the model left blank or mangled. */
-export const DEFAULT_SUGGESTION_POSITION: SuggestionPositionEnum =
-  'bottom-center';
 /** Kept restrained: the AI proposes at most a couple of add-ons per frame. */
 export const MAX_SUGGESTIONS_PER_FRAME = 2;
 /** Confidence when the model omits/mangles it — neutral, so the UI can still show it. */
@@ -99,9 +87,11 @@ const DEFAULT_CONFIDENCE = 0.5;
 /**
  * Turn the model's raw `suggestions` into a valid, capped {@link Suggestion}
  * list. The model is non-deterministic, so this is defensive: drop items with an
- * invalid `type` or empty `query`, clamp `confidence` to [0,1], validate the
- * anchor `position` for placed types (music is story-level, so it carries none),
- * and cap the count. Missing/junk input → `[]`. Pure and unit-tested.
+ * invalid `type` or empty `query`, clamp `confidence` to [0,1], and cap the
+ * count. Nothing about placement crosses: the client puts each add-on in the
+ * free space the design leaves and drops one with no room (decision 7.25), so a
+ * zone the model volunteers is discarded here. Missing/junk input → `[]`. Pure
+ * and unit-tested.
  */
 export function normalizeSuggestions(raw: unknown): Suggestion[] {
   if (!Array.isArray(raw)) return [];
@@ -121,16 +111,7 @@ export function normalizeSuggestions(raw: unknown): Suggestion[] {
       typeof r['confidence'] === 'number' && Number.isFinite(r['confidence'])
         ? Math.min(1, Math.max(0, r['confidence']))
         : DEFAULT_CONFIDENCE;
-    const suggestion: Suggestion = { type, query, confidence };
-    // Placed types get an anchor zone; music is story-level (no position).
-    if (type !== 'music') {
-      suggestion.position = pick(
-        SUGGESTION_POSITIONS,
-        r['position'],
-        DEFAULT_SUGGESTION_POSITION,
-      );
-    }
-    out.push(suggestion);
+    out.push({ type, query, confidence });
   }
   return out;
 }

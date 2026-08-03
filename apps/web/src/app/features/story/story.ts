@@ -16,6 +16,21 @@ import { LayoutView } from './layout-view/layout-view';
 import type { Suggestion } from '@auto-stories/api-types';
 import type { Composition } from '../../story/look';
 
+/**
+ * How much of the frame the on-screen chrome covers at the bottom. The exported
+ * PNG has no chrome, so a Look's bottom offset is measured from the bottom of
+ * the *usable* frame and only the preview allows for this — each state reserves
+ * exactly what it actually draws.
+ */
+/** The fold toggle on its own: a 40px button plus the 24px `bottom-6` gap under
+ * it. The toggle never leaves view mode, so it is always reserved. */
+const TOGGLE_PX = 64;
+/** The three actions above it: 3 × 40px buttons, 2 × 8px gaps, and the 8px gap
+ * between the stack and the toggle. */
+const ACTIONS_PX = 144;
+/** The refine sheet, which folding does not touch — refine has its own bar. */
+const REFINE_BAR_PX = 160;
+
 /** A frame resolved for display: the picked photo plus what the device composed
  * for it. One text, one renderer (decision 7.25) — the composition is the whole
  * of what is drawn on the photo, in view and in refine alike. */
@@ -92,15 +107,22 @@ export class Story {
   /** Whether the story has any add-ons to surface at the hand-off. */
   protected readonly hasAddOns = computed(() => this.story.keptSuggestionCount() > 0);
 
-  /** Frames in narrative order, each resolved to its picked photo. */
   /**
-   * How much of the frame the bottom action bar covers on screen (its 136px of
-   * buttons plus the 24px `bottom-6` gap). The exported PNG has no action bar,
-   * so a Look's bottom offset is measured from the bottom of the usable frame
-   * and only the preview allows for this.
+   * The three story actions are on screen. Folding them away hands the whole
+   * frame back to the photo; the toggle that folded them stays exactly where it
+   * was, labelled, so bringing them back is one tap in a known place.
    */
-  protected readonly ACTION_BAR_PX = 160;
+  protected readonly actionsShown = signal(true);
 
+  /** What the composition must keep clear of the chrome under it. Folding the
+   * actions folds their reservation with them, so a bottom-anchored Look drops
+   * back down instead of floating over empty space. */
+  protected readonly safeBottomPx = computed(() => {
+    if (this.refining()) return REFINE_BAR_PX;
+    return this.actionsShown() ? ACTIONS_PX + TOGGLE_PX : TOGGLE_PX;
+  });
+
+  /** Frames in narrative order, each resolved to its picked photo. */
   protected readonly frames = computed<ViewFrame[]>(() => {
     const photos = this.story.photos();
     return this.story.frames().map((frame) => ({
@@ -163,6 +185,11 @@ export class Story {
     if (Math.abs(dx) < 48) return; // a tap, not a swipe — the tap zones handle it
     if (dx < 0) this.next();
     else this.prev();
+  }
+
+  /** Fold the action bar away, or bring it back. */
+  protected toggleActions(): void {
+    this.actionsShown.update((shown) => !shown);
   }
 
   protected dismissBanner(): void {

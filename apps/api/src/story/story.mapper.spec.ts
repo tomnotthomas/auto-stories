@@ -71,13 +71,9 @@ describe('shapeFrames', () => {
         ],
       },
     ];
+    // The stray `position` above is dropped: the client places add-ons (7.25).
     expect(shapeFrames(raw, ids)[0].suggestions).toEqual([
-      {
-        type: 'location',
-        query: 'Tartine',
-        position: 'bottom-left',
-        confidence: 0.9,
-      },
+      { type: 'location', query: 'Tartine', confidence: 0.9 },
     ]);
   });
 

@@ -138,6 +138,8 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
       radiusWPct: 1.2,
       fullWidth: false,
     },
+    // The card filed the place at its foot, so nothing else should draw it (7.25).
+    consumedLocation: Boolean(location),
   };
 }
 

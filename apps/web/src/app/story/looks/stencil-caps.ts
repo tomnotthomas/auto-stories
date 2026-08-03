@@ -151,6 +151,8 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
     scrim: { from: anchor, extentHPct: 92, strength: 0.52 },
     accent: photo.accent,
     parts,
+    // The bottom line of the print named the place (7.25).
+    consumedLocation: Boolean(location),
   };
 }
 

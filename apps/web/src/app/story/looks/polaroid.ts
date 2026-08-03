@@ -121,6 +121,8 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
       fullWidth: true,
     },
     photoFilter: INSTANT_LIFT,
+    // The margin carried the place under the caption, so no sticker should (7.25).
+    consumedLocation: Boolean(location),
   };
 }
 

@@ -12,5 +12,5 @@ export type { JobState, JobStateStatusEnum } from "./models/JobState.js";
 export type { Look, LookEnum } from "./models/Look.js";
 export type { Photo } from "./models/Photo.js";
 export type { StreamJobEvents200, StreamJobEvents404, StreamJobEventsPathParams, StreamJobEventsQuery, StreamJobEventsQueryResponse } from "./models/StreamJobEvents.js";
-export type { Suggestion, SuggestionPositionEnum, SuggestionTypeEnum } from "./models/Suggestion.js";
+export type { Suggestion, SuggestionTypeEnum } from "./models/Suggestion.js";
 export type { Tone, ToneEnum } from "./models/Tone.js";

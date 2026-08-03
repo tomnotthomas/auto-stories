@@ -21,6 +21,13 @@ export class StoryHarness extends ComponentHarness {
   private readonly editor = this.locatorForOptional(CaptionEditorHarness);
   private readonly filmstrip = this.locatorForOptional(RefineFilmstripHarness);
   private readonly layoutView = this.locatorForOptional(LayoutViewHarness);
+  private readonly actionsToggle = this.locatorFor(
+    MatButtonHarness.with({ text: /Hide buttons|Show buttons/ }),
+  );
+  private readonly postButtons = this.locatorForAll(
+    MatButtonHarness.with({ text: /Post to Instagram/ }),
+  );
+  private readonly reservation = this.locatorFor('[data-safe-bottom]');
 
   /**
    * The frame's words, as the composition renders them. A Look sets the words as
@@ -132,5 +139,27 @@ export class StoryHarness extends ComponentHarness {
   /** The refine filmstrip, when in refine mode; otherwise null. */
   async getFilmstrip(): Promise<RefineFilmstripHarness | null> {
     return this.filmstrip();
+  }
+
+  /** Fold the bottom action bar away, or bring it back. */
+  async toggleActionBar(): Promise<void> {
+    await (await this.actionsToggle()).click();
+  }
+
+  /** Whether the three story actions are on screen. */
+  async isActionBarVisible(): Promise<boolean> {
+    return (await this.postButtons()).length > 0;
+  }
+
+  /** The label of the fold toggle — on screen in both states, so the user can
+   * always read their way back to the actions. */
+  async actionBarToggleLabel(): Promise<string> {
+    return (await this.actionsToggle()).getText();
+  }
+
+  /** How much of the frame's bottom the composition is currently told to keep
+   * clear of the on-screen chrome (the export reserves nothing). */
+  async reservedBottomPx(): Promise<number> {
+    return Number(await (await this.reservation()).getAttribute('data-safe-bottom'));
   }
 }

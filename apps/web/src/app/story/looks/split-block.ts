@@ -141,6 +141,8 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
       radiusWPct: 0,
       fullWidth: true,
     },
+    // The pressing credit named the place (7.25).
+    consumedLocation: Boolean(location),
   };
 }
 

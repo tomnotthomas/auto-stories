@@ -98,7 +98,8 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
   const location = content.location?.trim();
   if (location) parts.push(chip(location, 2.9, 2.2, LOCATION_TILT_DEG, 'uppercase', 0.08));
 
-  return { ...base, parts };
+  // The chip named the place, so the sticker layer must not name it again (7.25).
+  return { ...base, parts, consumedLocation: Boolean(location) };
 }
 
 /** One lozenge. */

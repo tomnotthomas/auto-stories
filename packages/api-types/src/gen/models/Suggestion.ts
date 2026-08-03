@@ -6,10 +6,8 @@
 
 export type SuggestionTypeEnum = "location" | "mention" | "gif" | "poll" | "music";
 
-export type SuggestionPositionEnum = "top-left" | "top-center" | "top-right" | "bottom-left" | "bottom-center" | "bottom-right";
-
 /**
- * @description An optional Instagram add-on the model suggests for a frame (a place/mention tag, a GIF sticker, a poll, or music). The user adds it in Instagram via the hand-off; the app shows it as an in-app \"spark\" and never bakes it into the exported image.
+ * @description An optional Instagram add-on the model suggests for a frame (a place/mention tag, a GIF sticker, a poll, or music). The user adds it in Instagram via the hand-off; the app shows it as an in-app \"spark\" and never bakes it into the exported image. The model says only what the add-on is and how sure it is — never where it goes: the client places it in the free space the frame\'s design leaves, and drops a suggestion that has no room rather than placing it badly (decision 7.25).
 */
 export type Suggestion = {
     /**
@@ -22,11 +20,6 @@ export type Suggestion = {
      * @type string
     */
     query: string;
-    /**
-     * @description Anchor zone for a placed element (omit for music, which is story-level).
-     * @type string | undefined
-    */
-    position?: SuggestionPositionEnum;
     /**
      * @description 0..1 — how sure the model is; low-confidence suggestions read tentative.
      * @minLength 0
