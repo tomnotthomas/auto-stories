@@ -74,8 +74,55 @@ export type { LookId };
  */
 export const DEFAULT_LOOK_ID: LookId = 'quiet-editorial';
 
+/**
+ * How much this photo needs (decision 7.26). The content creator picks one; the
+ * design declares what it can set at each level; the client resolves the two.
+ * A judgement about the moment, never about type or placement.
+ */
+export type Density = 'silent' | 'beat' | 'line' | 'thought' | 'question';
+
+/**
+ * `thought` must land in a visibly different slot from `line`, or the model
+ * collapses the two into the same thing. `question` is strictly a different axis
+ * from the rest — they are about *how much*, it is about *what for* — but it
+ * stays one rung so the model cannot emit "silent + question", and so a Look can
+ * set a question differently from a statement: it invites a reply.
+ */
+export const DENSITIES: readonly Density[] = ['silent', 'beat', 'line', 'thought', 'question'];
+
+/** Word counts each rung is written to, so a Look can size type to the rung
+ * rather than to whatever the model happened to send. */
+export const DENSITY_WORDS: Record<Density, { readonly max: number }> = {
+  silent: { max: 0 },
+  beat: { max: 3 },
+  line: { max: 12 },
+  thought: { max: 35 },
+  question: { max: 14 },
+};
+
+/**
+ * The frame's density: what the model said, or read from the words when it said
+ * nothing. Inference is a fallback, not the design — a model that states its
+ * intent gets that intent honoured, including a deliberate `thought` that
+ * happens to be short.
+ */
+export function resolveDensity(content: FrameContent): Density {
+  if (content.density) return content.density;
+
+  const headline = content.headline.trim();
+  if (!headline) return 'silent';
+  if (headline.endsWith('?')) return 'question';
+
+  const words = headline.split(/\s+/).filter(Boolean).length;
+  if (words <= DENSITY_WORDS.beat.max) return 'beat';
+  if (words <= DENSITY_WORDS.line.max) return 'line';
+  return 'thought';
+}
+
 /** The words the model wrote for one frame. */
 export interface FrameContent {
+  /** How much this photo needs (7.26). Absent → inferred from the headline. */
+  readonly density?: Density;
   readonly kicker?: string;
   readonly headline: string;
   /** A phrase inside `headline` to mark. Ignored when it isn't found there. */

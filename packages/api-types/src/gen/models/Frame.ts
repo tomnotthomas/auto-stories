@@ -5,6 +5,8 @@
 
 import type { Suggestion } from "./Suggestion.js";
 
+export type FrameDensityEnum = "silent" | "beat" | "line" | "thought" | "question";
+
 /**
  * @description One chosen photo in narrative order, with the words that go on it. The story\'s Look decides how those words are set and where they sit (decision 7.24); the model supplies no type, position or size.
 */
@@ -20,6 +22,11 @@ export type Frame = {
      * @type integer
     */
     order: number;
+    /**
+     * @description How much this photo needs (decision 7.26) — the content creator\'s half of the brief it shares with the design. The design declares what it can set at each level and the client resolves the two, so this is a judgement about the moment, never about type or placement.\n`silent` — the photo speaks for itself, no words at all. `beat` — a label, an exhale (1-3 words). `line` — one sentence that lands the moment (4-12 words). `thought` — something reflective, deliberately more text (2-3 lines). `question` — invites the viewer to answer.\nOmitted means \"read it from the headline\", which the client can do from its length; supplying it is how the model states intent rather than having it inferred.
+     * @type string | undefined
+    */
+    density?: FrameDensityEnum;
     /**
      * @description Optional short line above the headline (decision 7.24). Each Look decides whether to show it and how to set it — Magazine renders it as a spaced all-caps eyebrow, Quiet Editorial as a letter-spaced kicker, Minimal drops it entirely.
      * @minLength 1
