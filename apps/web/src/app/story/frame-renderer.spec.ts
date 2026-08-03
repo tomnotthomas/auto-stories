@@ -58,6 +58,12 @@ function stubCanvas(recorder: Recorder): void {
     stroke: () => undefined,
     save: () => undefined,
     restore: () => undefined,
+    translate: () => undefined,
+    rotate: () => undefined,
+    strokeText: () => {
+      recorder.fillTextCalls += 1;
+    },
+    lineJoin: 'miter',
   };
 
   const globals = globalThis as unknown as Record<string, unknown>;
@@ -113,8 +119,15 @@ describe('renderFrame', () => {
     expect(recorder.fillTextCalls).toBeGreaterThan(0);
   });
 
-  it('exports a PNG for a Look that is not built yet, via the default Look', async () => {
-    const composition = composeFrame('scrapbook', { headline: 'Everyone made it' }, CALM);
+  // Every Look in the contract is built now (7.27), so this covers the ones that
+  // reach for the newer primitives — Scrapbook tilts the stack and draws a hand
+  // underline, which the canvas needs transform support for.
+  it('exports a PNG for a Look that rotates and marks by hand', async () => {
+    const composition = composeFrame(
+      'scrapbook',
+      { headline: 'Everyone made it', emphasis: 'made it', location: 'Crystal Lake' },
+      CALM,
+    );
 
     const blob = await renderFrame(file, frame(composition));
 

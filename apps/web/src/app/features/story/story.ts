@@ -7,6 +7,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { StoryService } from '../../story/story.service';
 import { GenerationService } from '../../story/generation.service';
 import { StoryExporter } from '../../story/story-exporter.service';
+import { photoFilter } from '../../story/frame-renderer';
 import { CaptionEditor } from '../refine/caption-editor/caption-editor';
 import { RefineFilmstrip } from '../refine/filmstrip/filmstrip';
 import { StorySparks } from './sparks/sparks';
@@ -21,7 +22,8 @@ import type { Composition } from '../../story/look';
 interface ViewFrame {
   readonly photoId: string;
   readonly previewUrl: string | null;
-  /** CSS `filter` that matches this photo's exposure to the story (cohesion). */
+  /** CSS `filter` for the photo: the exposure match that pulls the story
+   * together, plus the Look's own treatment (a warm wash, sepia). */
   readonly imageFilter: string;
   /** The frame's words — what refine edits and what the composition renders. */
   readonly headline: string;
@@ -104,7 +106,7 @@ export class Story {
     return this.story.frames().map((frame) => ({
       photoId: frame.photoId,
       previewUrl: photos.find((p) => p.id === frame.photoId)?.previewUrl ?? null,
-      imageFilter: frame.imageFilter,
+      imageFilter: photoFilter(frame),
       headline: frame.headline,
       suggestions: frame.suggestions ?? [],
       composition: frame.composition,

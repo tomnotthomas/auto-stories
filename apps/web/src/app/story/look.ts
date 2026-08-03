@@ -1,6 +1,37 @@
 import type { Look as LookId } from '@auto-stories/api-types';
 
+import { QUIET_EDITORIAL } from './looks/quiet-editorial';
+import { MINIMAL } from './looks/minimal';
+import { GALLERY_LABEL } from './looks/gallery-label';
+import { CORNER_NOTE } from './looks/corner-note';
+import { FOOTER_RULE } from './looks/footer-rule';
+import { CAPTION_CARD } from './looks/caption-card';
 import { MAGAZINE } from './looks/magazine';
+import { BROADSHEET } from './looks/broadsheet';
+import { CONTENTS_PAGE } from './looks/contents-page';
+import { PULL_QUOTE } from './looks/pull-quote';
+import { CHAPTER } from './looks/chapter';
+import { DATELINE } from './looks/dateline';
+import { BOLD_POSTER } from './looks/bold-poster';
+import { SPLIT_BLOCK } from './looks/split-block';
+import { TICKER } from './looks/ticker';
+import { STENCIL_CAPS } from './looks/stencil-caps';
+import { ZINE } from './looks/zine';
+import { DUOTONE_BAND } from './looks/duotone-band';
+import { FILM_POSTCARD } from './looks/film-postcard';
+import { POLAROID } from './looks/polaroid';
+import { SUPER_8 } from './looks/super-8';
+import { FADED_ALBUM } from './looks/faded-album';
+import { POSTCARD_BACK } from './looks/postcard-back';
+import { SCRAPBOOK } from './looks/scrapbook';
+import { MARKER } from './looks/marker';
+import { STICKER_SHEET } from './looks/sticker-sheet';
+import { INDEX_CARD } from './looks/index-card';
+import { TYPEWRITER } from './looks/typewriter';
+import { TITLE_CARD } from './looks/title-card';
+import { SUBTITLE } from './looks/subtitle';
+import { EDGE_CAPS } from './looks/edge-caps';
+import { LETTERBOX } from './looks/letterbox';
 import type { Band, BandScores } from './quiet-zone';
 
 /**
@@ -27,18 +58,14 @@ import type { Band, BandScores } from './quiet-zone';
 
 export type { LookId };
 
-/** Look ids the contract allows, in the order they appear on the design board. */
-export const LOOK_IDS: readonly LookId[] = [
-  'quiet-editorial',
-  'film-postcard',
-  'bold-poster',
-  'scrapbook',
-  'minimal',
-  'magazine-masthead',
-];
-
-/** Used when the model omits the Look, or names one not yet built (P2). */
-export const DEFAULT_LOOK_ID: LookId = 'magazine-masthead';
+/**
+ * Used when the model omits the Look or names one we do not have. Deliberately
+ * the most restrained of the set, not the most designed: a fallback is a case
+ * where nobody chose, and the least presumptuous thing to do to somebody's photo
+ * is to stay quiet. Magazine held this role while it was the only Look built,
+ * which is how every story ended up wearing it (7.27).
+ */
+export const DEFAULT_LOOK_ID: LookId = 'quiet-editorial';
 
 /** The words the model wrote for one frame. */
 export interface FrameContent {
@@ -308,7 +335,8 @@ export function textParts(composition: Composition): TextPart[] {
 
 /** The Look for an id, falling back to {@link DEFAULT_LOOK_ID}. */
 export function lookFor(id: string | undefined): Look {
-  return (id && REGISTRY[id]) || REGISTRY[DEFAULT_LOOK_ID];
+  const looks = registry();
+  return (id && looks[id]) || looks[DEFAULT_LOOK_ID];
 }
 
 /**
@@ -350,9 +378,60 @@ function coalesce(words: readonly { text: string; emphasised: boolean }[]): Run[
   return runs;
 }
 
-// P1 ships Magazine Masthead; every other id falls back to it until P2 fills the
-// rest in. Listing the Looks here (rather than having each self-register) keeps
-// the import one-way — a Look imports the engine, never the reverse.
-const REGISTRY: Record<string, Look> = {
-  [MAGAZINE.id]: MAGAZINE,
-};
+// Every Look, keyed by its contract id. Listing them here (rather than having
+// each self-register) keeps the import one-way — a Look imports the engine,
+// never the reverse — and makes the set reviewable in one place.
+//
+// Built LAZILY. A Look imports `splitEmphasis` from this module, so
+// look.ts <-> looks/* is a cycle: when a spec imports a Look first, this module
+// evaluates while that Look is still initialising and its export is briefly
+// `undefined`. A function body runs after every module has settled; an array
+// literal at module scope does not.
+function allLooks(): readonly Look[] {
+  return [
+    QUIET_EDITORIAL,
+    MINIMAL,
+    GALLERY_LABEL,
+    CORNER_NOTE,
+    FOOTER_RULE,
+    CAPTION_CARD,
+    MAGAZINE,
+    BROADSHEET,
+    CONTENTS_PAGE,
+    PULL_QUOTE,
+    CHAPTER,
+    DATELINE,
+    BOLD_POSTER,
+    SPLIT_BLOCK,
+    TICKER,
+    STENCIL_CAPS,
+    ZINE,
+    DUOTONE_BAND,
+    FILM_POSTCARD,
+    POLAROID,
+    SUPER_8,
+    FADED_ALBUM,
+    POSTCARD_BACK,
+    SCRAPBOOK,
+    MARKER,
+    STICKER_SHEET,
+    INDEX_CARD,
+    TYPEWRITER,
+    TITLE_CARD,
+    SUBTITLE,
+    EDGE_CAPS,
+    LETTERBOX,
+  ];
+}
+
+let registryCache: Record<string, Look> | undefined;
+
+function registry(): Record<string, Look> {
+  registryCache ??= Object.fromEntries(allLooks().map((look) => [look.id, look]));
+  return registryCache;
+}
+
+/** Every built Look id, derived from the registry so the two cannot drift. */
+export function lookIds(): readonly LookId[] {
+  return allLooks().map((look) => look.id);
+}
