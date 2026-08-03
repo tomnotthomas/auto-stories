@@ -2,15 +2,47 @@ type: string
 description: >-
   The story's design language (decision 7.24). One Look is chosen per story and
   held across every frame. A Look is a full grammar — type pairing, placement,
-  accent usage, marks, scrim — implemented deterministically on the client; the
-  model only names it. The client owns all geometry, so no coordinates cross
-  this boundary.
+  accent usage, marks, panels, photo treatment — implemented deterministically on
+  the client; the model only names it. The client owns all geometry, so no
+  coordinates cross this boundary. Grouped below by how loudly the design speaks.
 enum:
+  # Restrained — the photo dominates
   - quiet-editorial
-  - film-postcard
-  - bold-poster
-  - scrapbook
   - minimal
+  - gallery-label
+  - corner-note
+  - footer-rule
+  - caption-card
+  # Editorial — structured and designed
   - magazine-masthead
+  - broadsheet
+  - contents-page
+  - pull-quote
+  - chapter
+  - dateline
+  # Loud — graphic and shouting
+  - bold-poster
+  - split-block
+  - ticker
+  - stencil-caps
+  - zine
+  - duotone-band
+  # Warm — nostalgic keepsake
+  - film-postcard
+  - polaroid
+  - super-8
+  - faded-album
+  - postcard-back
+  # Handmade — personal
+  - scrapbook
+  - marker
+  - sticker-sheet
+  - index-card
+  # Cinematic — quiet
+  - typewriter
+  - title-card
+  - subtitle
+  - edge-caps
+  - letterbox
 examples:
-  - magazine-masthead
+  - film-postcard

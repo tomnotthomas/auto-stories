@@ -1,6 +1,37 @@
 import type { Look as LookId } from '@auto-stories/api-types';
 
+import { QUIET_EDITORIAL } from './looks/quiet-editorial';
+import { MINIMAL } from './looks/minimal';
+import { GALLERY_LABEL } from './looks/gallery-label';
+import { CORNER_NOTE } from './looks/corner-note';
+import { FOOTER_RULE } from './looks/footer-rule';
+import { CAPTION_CARD } from './looks/caption-card';
 import { MAGAZINE } from './looks/magazine';
+import { BROADSHEET } from './looks/broadsheet';
+import { CONTENTS_PAGE } from './looks/contents-page';
+import { PULL_QUOTE } from './looks/pull-quote';
+import { CHAPTER } from './looks/chapter';
+import { DATELINE } from './looks/dateline';
+import { BOLD_POSTER } from './looks/bold-poster';
+import { SPLIT_BLOCK } from './looks/split-block';
+import { TICKER } from './looks/ticker';
+import { STENCIL_CAPS } from './looks/stencil-caps';
+import { ZINE } from './looks/zine';
+import { DUOTONE_BAND } from './looks/duotone-band';
+import { FILM_POSTCARD } from './looks/film-postcard';
+import { POLAROID } from './looks/polaroid';
+import { SUPER_8 } from './looks/super-8';
+import { FADED_ALBUM } from './looks/faded-album';
+import { POSTCARD_BACK } from './looks/postcard-back';
+import { SCRAPBOOK } from './looks/scrapbook';
+import { MARKER } from './looks/marker';
+import { STICKER_SHEET } from './looks/sticker-sheet';
+import { INDEX_CARD } from './looks/index-card';
+import { TYPEWRITER } from './looks/typewriter';
+import { TITLE_CARD } from './looks/title-card';
+import { SUBTITLE } from './looks/subtitle';
+import { EDGE_CAPS } from './looks/edge-caps';
+import { LETTERBOX } from './looks/letterbox';
 import type { Band, BandScores } from './quiet-zone';
 
 /**
@@ -27,18 +58,14 @@ import type { Band, BandScores } from './quiet-zone';
 
 export type { LookId };
 
-/** Look ids the contract allows, in the order they appear on the design board. */
-export const LOOK_IDS: readonly LookId[] = [
-  'quiet-editorial',
-  'film-postcard',
-  'bold-poster',
-  'scrapbook',
-  'minimal',
-  'magazine-masthead',
-];
-
-/** Used when the model omits the Look, or names one not yet built (P2). */
-export const DEFAULT_LOOK_ID: LookId = 'magazine-masthead';
+/**
+ * Used when the model omits the Look or names one we do not have. Deliberately
+ * the most restrained of the set, not the most designed: a fallback is a case
+ * where nobody chose, and the least presumptuous thing to do to somebody's photo
+ * is to stay quiet. Magazine held this role while it was the only Look built,
+ * which is how every story ended up wearing it (7.27).
+ */
+export const DEFAULT_LOOK_ID: LookId = 'quiet-editorial';
 
 /** The words the model wrote for one frame. */
 export interface FrameContent {
@@ -70,10 +97,23 @@ export interface Line {
 }
 
 /** How a marked run is drawn — each Look picks the one that fits its grammar. */
-export type Mark = 'accent-underline' | 'accent-block' | 'hand-underline';
+export type Mark =
+  /** A solid bar riding the baseline (Magazine). */
+  | 'accent-underline'
+  /** A filled block behind the word, the word reversed out (Bold Poster). */
+  | 'accent-block'
+  /** A loose, uneven stroke — drawn, not typeset (Scrapbook). */
+  | 'hand-underline'
+  /** A thick translucent swipe through the word (Marker). */
+  | 'highlighter';
 
-/** Whether a part paints in the legible ink colour or the story accent. */
-export type PartColor = 'ink' | 'accent';
+/**
+ * Whether a part paints in the legible ink colour, the story accent, or the
+ * off-white "paper" a Look lays down for its own panels (Gallery Label,
+ * Polaroid). Paper is a fixed tone, not sampled: it is a material, not a
+ * reaction to the photo.
+ */
+export type PartColor = 'ink' | 'accent' | 'paper';
 
 interface TypeStyle {
   readonly fontFamily: string;
@@ -99,6 +139,28 @@ export interface TextPart extends TypeStyle {
     readonly heightHPct: number;
     readonly gapWPct: number;
   };
+  /** Draw the letters as outlines instead of filling them (Stencil Caps). */
+  readonly stroke?: boolean;
+}
+
+/** A small label set apart from the running text. */
+export type TagStyle =
+  /** Outlined, rounded — a location tag (Bold Poster). */
+  | 'pill'
+  /** Filled paper with a shadow, slightly askew — a taped note (Scrapbook). */
+  | 'tape'
+  /** Outlined and rotated, print-shop ink (Film Postcard, Super 8). */
+  | 'stamp'
+  /** Filled accent, rounded — an Instagram sticker (Sticker Sheet). */
+  | 'chip';
+
+/** A tag. Its own type, so a Look can set it apart from the headline. */
+export interface TagPart extends TypeStyle {
+  readonly kind: 'tag';
+  readonly text: string;
+  readonly style: TagStyle;
+  readonly gapHPct: number;
+  readonly rotationDeg?: number;
 }
 
 /** A hairline. Width is a % of the type column, thickness a % of frame HEIGHT. */
@@ -119,7 +181,7 @@ export interface RowPart extends TypeStyle {
   readonly gapHPct: number;
 }
 
-export type Part = TextPart | RulePart | RowPart;
+export type Part = TextPart | RulePart | RowPart | TagPart;
 
 /** A gradient behind the type, so a headline survives a busy photo. */
 export interface Scrim {
@@ -127,6 +189,30 @@ export interface Scrim {
   /** How far the gradient reaches, as a % of the frame height. */
   readonly extentHPct: number;
   readonly strength: number;
+}
+
+/**
+ * A solid block drawn behind the whole stack, padded around it — the graphic
+ * that Split Block, Ticker, Gallery Label and Polaroid are built on. Unlike a
+ * scrim it is opaque and deliberate: it covers the photo rather than shading it.
+ */
+export interface Panel {
+  readonly color: PartColor;
+  readonly opacity: number;
+  /** Padding around the stack, in % of frame width / height. */
+  readonly padWPct: number;
+  readonly padHPct: number;
+  readonly radiusWPct: number;
+  /** Run the panel edge to edge, ignoring the type column's insets. */
+  readonly fullWidth: boolean;
+}
+
+/** An inset frame drawn on the photo — a print border, a viewfinder. */
+export interface Border {
+  readonly insetWPct: number;
+  readonly widthWPct: number;
+  readonly color: PartColor;
+  readonly radiusWPct: number;
 }
 
 /**
@@ -151,6 +237,19 @@ export interface Composition {
   /** The resolved accent for this frame, so renderers don't re-sample. */
   readonly accent: string;
   readonly parts: readonly Part[];
+  /** Tilt the whole stack — a page laid down by hand rather than typeset. */
+  readonly rotationDeg?: number;
+  /** A solid block behind the stack (Split Block, Ticker, Gallery Label). */
+  readonly panel?: Panel;
+  /** An inset frame on the photo (Film Postcard, Super 8). */
+  readonly border?: Border;
+  /**
+   * A CSS/canvas `filter` applied to the PHOTO for this Look — the warm wash of
+   * Film Postcard, Super 8's sepia. It composes with the exposure-cohesion
+   * filter the device computes per frame; the renderer concatenates the two, so
+   * a Look's treatment never discards the cohesion match.
+   */
+  readonly photoFilter?: string;
 }
 
 /** A Look: the grammar that turns words + a photo reading into a composition. */
@@ -229,6 +328,57 @@ export function wrapRuns(
   return lines.map((line) => ({ runs: coalesce(line) }));
 }
 
+/**
+ * The off-white a Look lays down for its own panels and tape, and the near-black
+ * that reads on it. Fixed materials, not sampled — a sheet of paper does not
+ * react to the photograph under it. Shared so both renderers paint the same
+ * tone; they diverged while they were written in parallel.
+ */
+export const PAPER = '#f7f4ec';
+export const PAPER_INK = '#1f1b16';
+
+/**
+ * The shape of a hand-drawn underline, in units of the type's own size: each end
+ * at its own height, a sag on the way out and a lift on the way back, plus a
+ * little overshoot past the word.
+ *
+ * Shared, and this matters. Both surfaces draw this stroke, and each derived its
+ * wobble from its own constants while they were built in parallel — so the same
+ * word bent one way in the preview and another in the export. A composition is
+ * supposed to look identical on both. One source, scaled by each renderer.
+ */
+export interface HandStroke {
+  readonly startY: number;
+  readonly endY: number;
+  readonly sag: number;
+  readonly lift: number;
+  readonly overshoot: number;
+}
+
+/**
+ * Derive a stroke from the word itself, so it is stable: the same word always
+ * bends the same way, and redrawing never makes it twitch.
+ */
+export function handStroke(word: string): HandStroke {
+  return {
+    startY: (jitter(word, 1) - 0.5) * 0.14,
+    endY: (jitter(word, 2) - 0.5) * 0.14,
+    sag: 0.05 + jitter(word, 3) * 0.07,
+    lift: 0.02 + jitter(word, 4) * 0.06,
+    overshoot: 0.05,
+  };
+}
+
+/** FNV-1a over the word, so the wobble is a pure function of the input. */
+function jitter(seed: string, salt: number): number {
+  let hash = 2166136261 ^ salt;
+  for (let i = 0; i < seed.length; i += 1) {
+    hash ^= seed.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return ((hash >>> 0) % 1000) / 1000;
+}
+
 /** Every text part of a composition — the convenience most callers want. */
 export function textParts(composition: Composition): TextPart[] {
   return composition.parts.filter((part): part is TextPart => part.kind === 'text');
@@ -236,7 +386,8 @@ export function textParts(composition: Composition): TextPart[] {
 
 /** The Look for an id, falling back to {@link DEFAULT_LOOK_ID}. */
 export function lookFor(id: string | undefined): Look {
-  return (id && REGISTRY[id]) || REGISTRY[DEFAULT_LOOK_ID];
+  const looks = registry();
+  return (id && looks[id]) || looks[DEFAULT_LOOK_ID];
 }
 
 /**
@@ -278,9 +429,60 @@ function coalesce(words: readonly { text: string; emphasised: boolean }[]): Run[
   return runs;
 }
 
-// P1 ships Magazine Masthead; every other id falls back to it until P2 fills the
-// rest in. Listing the Looks here (rather than having each self-register) keeps
-// the import one-way — a Look imports the engine, never the reverse.
-const REGISTRY: Record<string, Look> = {
-  [MAGAZINE.id]: MAGAZINE,
-};
+// Every Look, keyed by its contract id. Listing them here (rather than having
+// each self-register) keeps the import one-way — a Look imports the engine,
+// never the reverse — and makes the set reviewable in one place.
+//
+// Built LAZILY. A Look imports `splitEmphasis` from this module, so
+// look.ts <-> looks/* is a cycle: when a spec imports a Look first, this module
+// evaluates while that Look is still initialising and its export is briefly
+// `undefined`. A function body runs after every module has settled; an array
+// literal at module scope does not.
+function allLooks(): readonly Look[] {
+  return [
+    QUIET_EDITORIAL,
+    MINIMAL,
+    GALLERY_LABEL,
+    CORNER_NOTE,
+    FOOTER_RULE,
+    CAPTION_CARD,
+    MAGAZINE,
+    BROADSHEET,
+    CONTENTS_PAGE,
+    PULL_QUOTE,
+    CHAPTER,
+    DATELINE,
+    BOLD_POSTER,
+    SPLIT_BLOCK,
+    TICKER,
+    STENCIL_CAPS,
+    ZINE,
+    DUOTONE_BAND,
+    FILM_POSTCARD,
+    POLAROID,
+    SUPER_8,
+    FADED_ALBUM,
+    POSTCARD_BACK,
+    SCRAPBOOK,
+    MARKER,
+    STICKER_SHEET,
+    INDEX_CARD,
+    TYPEWRITER,
+    TITLE_CARD,
+    SUBTITLE,
+    EDGE_CAPS,
+    LETTERBOX,
+  ];
+}
+
+let registryCache: Record<string, Look> | undefined;
+
+function registry(): Record<string, Look> {
+  registryCache ??= Object.fromEntries(allLooks().map((look) => [look.id, look]));
+  return registryCache;
+}
+
+/** Every built Look id, derived from the registry so the two cannot drift. */
+export function lookIds(): readonly LookId[] {
+  return allLooks().map((look) => look.id);
+}

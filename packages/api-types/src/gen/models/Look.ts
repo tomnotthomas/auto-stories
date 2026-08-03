@@ -4,9 +4,9 @@
 */
 
 
-export type LookEnum = "quiet-editorial" | "film-postcard" | "bold-poster" | "scrapbook" | "minimal" | "magazine-masthead";
+export type LookEnum = "quiet-editorial" | "minimal" | "gallery-label" | "corner-note" | "footer-rule" | "caption-card" | "magazine-masthead" | "broadsheet" | "contents-page" | "pull-quote" | "chapter" | "dateline" | "bold-poster" | "split-block" | "ticker" | "stencil-caps" | "zine" | "duotone-band" | "film-postcard" | "polaroid" | "super-8" | "faded-album" | "postcard-back" | "scrapbook" | "marker" | "sticker-sheet" | "index-card" | "typewriter" | "title-card" | "subtitle" | "edge-caps" | "letterbox";
 
 /**
- * @description The story\'s design language (decision 7.24). One Look is chosen per story and held across every frame. A Look is a full grammar — type pairing, placement, accent usage, marks, scrim — implemented deterministically on the client; the model only names it. The client owns all geometry, so no coordinates cross this boundary.
+ * @description The story\'s design language (decision 7.24). One Look is chosen per story and held across every frame. A Look is a full grammar — type pairing, placement, accent usage, marks, panels, photo treatment — implemented deterministically on the client; the model only names it. The client owns all geometry, so no coordinates cross this boundary. Grouped below by how loudly the design speaks.
 */
 export type Look = LookEnum;

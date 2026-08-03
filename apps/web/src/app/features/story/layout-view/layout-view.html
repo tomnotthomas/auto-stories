@@ -8,16 +8,23 @@
 <div
   data-layout-column
   class="absolute"
-  [style.left.%]="composition().leftPct"
-  [style.right.%]="composition().rightPct"
+  [attr.data-layout-panel]="panelBackground() ? '' : null"
+  [attr.data-layout-rotation]="stackTilt()"
+  [style.left]="columnLeft()"
+  [style.right]="columnRight()"
   [style.top]="composition().anchor === 'top' ? edgeOffset() : null"
   [style.bottom]="composition().anchor === 'bottom' ? edgeOffset() : null"
+  [style.padding]="columnPadding()"
+  [style.background]="panelBackground()"
+  [style.borderRadius]="panelRadius()"
+  [style.transform]="stackTransform()"
 >
   @for (part of parts(); track $index) {
     @if (isText(part)) {
       <div
         data-layout-text
         class="flex items-center"
+        [attr.data-layout-stroke]="part.stroke ? '' : null"
         [style.marginTop]="part.gapHPct + 'cqh'"
         [style.fontFamily]="part.fontFamily"
         [style.fontWeight]="part.fontWeight"
@@ -26,7 +33,8 @@
         [style.letterSpacing.em]="part.letterSpacingEm"
         [style.textTransform]="part.textTransform"
         [style.textAlign]="part.textAlign"
-        [style.color]="colorFor(part)"
+        [style.color]="textFill(part)"
+        [style.webkitTextStroke]="textStroke(part)"
       >
         @if (part.tab) {
           <i
@@ -42,12 +50,18 @@
              run already carries its own spacing, so any whitespace the template
              adds shows up in the words — an @if/@else here rendered
              "cousins , one cake". Whitespace-only nodes BETWEEN the spans are
-             stripped, so only this tight form is safe. -->
+             stripped, so only this tight form is safe. Every mark is therefore a
+             style binding on the run itself, never an element inside it. -->
         <span data-layout-lines class="block text-balance">
           @for (run of part.runs; track $index) {
             <span
-              [attr.data-layout-mark]="markFor(part, run) ? '' : null"
-              [style.boxShadow]="markFor(part, run)"
+              [attr.data-layout-mark]="markName(part, run)"
+              [style.boxShadow]="markBar(part, run)"
+              [style.background]="markBackground(part, run)"
+              [style.padding]="markPadding(part, run)"
+              [style.color]="markInk(part, run)"
+              [style.boxDecorationBreak]="markClip(part, run)"
+              [style.webkitBoxDecorationBreak]="markClip(part, run)"
               >{{ run.text }}</span
             >
           }
@@ -80,6 +94,42 @@
           <span>{{ part.right }}</span>
         }
       </div>
+    } @else if (isTag(part)) {
+      <!-- The tag shrinks to its label, so the row around it carries the
+           alignment the Look asked for. -->
+      <div [style.marginTop]="part.gapHPct + 'cqh'" [style.textAlign]="part.textAlign">
+        <span
+          data-layout-tag
+          class="inline-flex items-center whitespace-nowrap"
+          [attr.data-layout-tag-style]="part.style"
+          [style.fontFamily]="part.fontFamily"
+          [style.fontWeight]="part.fontWeight"
+          [style.fontSize]="part.fontSizeWPct + 'cqw'"
+          [style.lineHeight]="part.lineHeight"
+          [style.letterSpacing.em]="part.letterSpacingEm"
+          [style.textTransform]="part.textTransform"
+          [style.color]="tagInk(part)"
+          [style.background]="tagBackground(part)"
+          [style.border]="tagBorder(part)"
+          [style.borderRadius]="tagRadius(part)"
+          [style.boxShadow]="tagShadow(part)"
+          [style.padding]="tagPadding"
+          [style.transform]="tagTransform(part)"
+          >{{ part.text }}</span
+        >
+      </div>
     }
   }
 </div>
+
+<!-- The print border sits over the photo AND over the type, and never tilts with
+     the stack — the same order the export draws it in. -->
+@if (borderBox(); as border) {
+  <div
+    data-layout-border
+    class="absolute"
+    [style.inset]="border.inset"
+    [style.border]="border.stroke"
+    [style.borderRadius]="border.radius"
+  ></div>
+}

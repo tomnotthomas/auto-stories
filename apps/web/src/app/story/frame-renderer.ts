@@ -22,7 +22,11 @@ export async function renderFrame(file: File, frame: EditableFrame): Promise<Blo
   const bitmap = await createImageBitmap(file);
   try {
     // The cohesion match applies to the photo only; reset before the text.
-    ctx.filter = frame.imageFilter || 'none';
+    // Two filters compose on the photo: the exposure match the device computed
+    // to pull the story together (cohesion), and the Look's own treatment — a
+    // warm 35mm wash, Super 8's sepia. Concatenated, so a Look's stock never
+    // discards the cohesion match.
+    ctx.filter = photoFilter(frame);
     drawCover(ctx, bitmap);
     ctx.filter = 'none';
   } finally {
@@ -42,6 +46,19 @@ export async function renderFrame(file: File, frame: EditableFrame): Promise<Blo
   });
 
   return canvas.convertToBlob({ type: 'image/png' });
+}
+
+/**
+ * The photo's filter: the device's exposure-cohesion match plus the Look's own
+ * treatment, in that order. Exported so the DOM preview applies exactly the same
+ * string to its `<img>` — a treatment that reached only one surface would make
+ * the preview and the PNG disagree about what the photograph looks like.
+ */
+export function photoFilter(frame: EditableFrame): string {
+  const parts = [frame.imageFilter, frame.composition.photoFilter].filter(
+    (part): part is string => !!part && part !== 'none',
+  );
+  return parts.length ? parts.join(' ') : 'none';
 }
 
 /** Scale the photo to cover the whole frame (crop overflow, centred). */

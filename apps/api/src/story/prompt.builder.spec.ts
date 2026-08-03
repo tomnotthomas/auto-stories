@@ -1,3 +1,4 @@
+import { LOOKS } from './caption-style';
 import { buildPrompt } from './prompt.builder';
 
 describe('buildPrompt', () => {
@@ -12,7 +13,9 @@ describe('buildPrompt', () => {
   });
 
   it('omits tone guidance when none is given', () => {
-    expect(buildPrompt(story)).not.toMatch(/tone/i);
+    // Not a bare /tone/ — `duotone-band` is a Look id, and matching on the
+    // substring would fail for a word that has nothing to do with tone.
+    expect(buildPrompt(story)).not.toMatch(/match this tone/i);
   });
 
   it('instructs narrative ordering (hook first, payoff last)', () => {
@@ -52,12 +55,23 @@ describe('buildPrompt', () => {
   });
 
   // Decision 7.25 / 7.24: one text per frame, and the Look owns all of its type.
+  it('offers every Look the contract allows', () => {
+    // The range only exists if the model can name it. Six Looks were described
+    // here long after thirty-two were built, so every story wore the same one.
+    const prompt = buildPrompt(story);
+    for (const look of LOOKS) {
+      expect(prompt).toContain(`\`${look}\``);
+    }
+  });
+
   it('never asks the model for a font, a letterbox or extra text blocks', () => {
     const prompt = buildPrompt(story).toLowerCase();
+    // `letterbox` is a Look id now, so the old bare substring check fired on the
+    // Look list. What must stay gone is the model *choosing* type or fill.
     for (const banned of [
-      'texts',
-      'font',
-      'letterbox',
+      '`texts`',
+      'font (',
+      'letterbox (',
       'playfair',
       'space-mono',
       'caveat',

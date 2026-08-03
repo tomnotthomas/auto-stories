@@ -3,6 +3,7 @@ import {
   DEFAULT_LOOK_ID,
   composeFrame,
   lookFor,
+  lookIds,
   splitEmphasis,
   textParts,
   wrapRuns,
@@ -96,13 +97,29 @@ describe('lookFor', () => {
     expect(lookFor('magazine-masthead').id).toBe('magazine-masthead');
   });
 
-  it('falls back to the default Look for one that is not built yet', () => {
-    expect(lookFor('scrapbook').id).toBe(DEFAULT_LOOK_ID);
+  // This used to assert that `scrapbook` fell back to the default, because
+  // Magazine was the only Look built. Every id in the contract now resolves to
+  // its own Look, which is the whole point of the set (7.27).
+  it('returns its own Look for every id the contract allows', () => {
+    for (const id of lookIds()) {
+      expect(lookFor(id).id).toBe(id);
+    }
+  });
+
+  it('builds every Look the contract names', () => {
+    expect(lookIds()).toHaveLength(32);
+    expect(new Set(lookIds()).size).toBe(lookIds().length);
   });
 
   it('falls back to the default Look for a missing or unknown id', () => {
     expect(lookFor(undefined).id).toBe(DEFAULT_LOOK_ID);
     expect(lookFor('not-a-look').id).toBe(DEFAULT_LOOK_ID);
+  });
+
+  it('defaults to a restrained Look, not the loudest one', () => {
+    // A fallback is a case where nobody chose; the least presumptuous thing to
+    // do to somebody's photo is to stay quiet (7.27).
+    expect(DEFAULT_LOOK_ID).toBe('quiet-editorial');
   });
 });
 
