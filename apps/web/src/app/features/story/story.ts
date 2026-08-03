@@ -7,7 +7,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { StoryService, FramePlacement } from '../../story/story.service';
 import { GenerationService } from '../../story/generation.service';
 import { StoryExporter } from '../../story/story-exporter.service';
-import { DEFAULT_STYLE } from '../../story/caption-style';
+import { DEFAULT_STYLE, type Readable } from '../../story/caption-style';
 import { paletteFor } from '../../story/caption-palette';
 import {
   fitMultiplier,
@@ -51,8 +51,10 @@ interface ViewFrame {
   /** The art-directed layout the agent composed, when present — supersedes the
    * caption/style/texts for rendering in view mode (decision 7.21). */
   readonly layout: Layout | undefined;
-  /** Frame-level computed light (white vs dark text), used to colour the layout. */
+  /** Frame-level computed light (white vs dark text) — the layout fallback. */
   readonly light: boolean;
+  /** Per-element readability for the layout, computed on-device (7.10). */
+  readonly layoutReadable: readonly Readable[] | undefined;
 }
 
 /** One extra placed text block, resolved to CSS + its editable state. */
@@ -153,6 +155,7 @@ export class Story {
         suggestions: frame.suggestions ?? [],
         layout: frame.layout,
         light: frame.light,
+        layoutReadable: frame.layoutReadable,
         extraTexts: frame.extraTexts.map((b, i) => ({
           index: i,
           text: b.text,

@@ -63,14 +63,16 @@ export async function renderFrame(file: File, frame: EditableFrame): Promise<Blo
   // matches the DOM preview exactly. Colour comes from the device sampling (7.10).
   if (frame.layout) {
     const palette = paletteFor();
-    drawLayout(ctx, frame.layout, FRAME_W, FRAME_H, () => ({
-      fill: frame.light ? palette.textLight : palette.textDark,
-      scrim: frame.legibility
-        ? frame.light
-          ? 'rgba(0,0,0,0.42)'
-          : 'rgba(255,255,255,0.62)'
-        : undefined,
-    }));
+    drawLayout(ctx, frame.layout, FRAME_W, FRAME_H, (_element, index) => {
+      // Per-element readability sampled on-device (7.10), frame-level as fallback.
+      const r = frame.layoutReadable?.[index];
+      const light = r?.light ?? frame.light;
+      const scrim = r?.scrim ?? frame.legibility;
+      return {
+        fill: light ? palette.textLight : palette.textDark,
+        scrim: scrim ? (light ? 'rgba(0,0,0,0.42)' : 'rgba(255,255,255,0.62)') : undefined,
+      };
+    });
     return canvas.convertToBlob({ type: 'image/png' });
   }
 

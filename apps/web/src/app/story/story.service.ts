@@ -9,6 +9,7 @@ import {
   type Readable,
 } from './caption-style';
 import { cohesionFilter, frameLuminance } from './caption-cohesion';
+import { resolveLayout } from './layout-spec';
 
 /**
  * The screen the flow is currently on. Phase 1 is one linear, in-memory flow
@@ -86,6 +87,10 @@ export interface EditableFrame extends Frame {
   readonly imageFilter: string;
   /** Extra placed text blocks (0–2) besides the caption, each editable. */
   readonly extraTexts: readonly EditableTextBlock[];
+  /** Per-element readability for the AI layout (decision 7.21), parallel to
+   * `layout.elements` — computed on-device so each element is legible against the
+   * pixels under it (7.10). Undefined until computed / when there is no layout. */
+  readonly layoutReadable?: readonly Readable[];
 }
 
 /** Build the editable extra-text state for a contract frame's `texts` — each
@@ -275,7 +280,7 @@ export class StoryService {
     const files = new Map(this._photos().map((photo) => [photo.id, photo.file]));
     const readable = new Map<
       string,
-      { light: boolean; scrim: boolean; filter: string; extras: Readable[] }
+      { light: boolean; scrim: boolean; filter: string; extras: Readable[]; layout?: Readable[] }
     >();
     for (const frame of this._frames()) {
       const file = files.get(frame.photoId);
@@ -288,6 +293,14 @@ export class StoryService {
           ...pickReadable(sampleLuminance(bitmap, frame.placement)),
           filter: cohesionFilter(frameLuminance(bitmap)),
           extras: frame.extraTexts.map((b) => pickReadable(sampleLuminance(bitmap, b.placement))),
+          // Per-element readability for an AI layout: sample under each element's
+          // own spot, so a title in the bright sky and a deck over dark foreground
+          // each get a legible colour (7.10 / 7.21).
+          layout: frame.layout
+            ? resolveLayout(frame.layout).map((el) =>
+                pickReadable(sampleLuminance(bitmap, { xPct: el.xPct, yPct: el.yPct, scale: 1 })),
+              )
+            : undefined,
         });
         bitmap.close();
       } catch {
@@ -307,6 +320,7 @@ export class StoryService {
           extraTexts: frame.extraTexts.map((b, i) =>
             r.extras[i] ? { ...b, light: r.extras[i].light, legibility: r.extras[i].scrim } : b,
           ),
+          layoutReadable: r.layout ?? frame.layoutReadable,
         };
       }),
     );

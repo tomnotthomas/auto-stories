@@ -47,4 +47,21 @@ describe('LayoutView', () => {
     expect(await harness.elementCount()).toBe(1);
     expect(await harness.lineTexts()).toEqual(['we', 'drove', 'till']);
   });
+
+  it('renders every element when per-element readability is supplied', async () => {
+    await TestBed.configureTestingModule({ imports: [LayoutView] }).compileComponents();
+    const fixture = TestBed.createComponent(LayoutView);
+    fixture.componentRef.setInput('layout', {
+      elements: [element({ text: 'Golden hour' }), element({ text: 'the coast', role: 'deck' })],
+    });
+    // Different readability per element (dark title in the sky, light deck below).
+    fixture.componentRef.setInput('readable', [
+      { light: false, scrim: true },
+      { light: true, scrim: false },
+    ]);
+    fixture.detectChanges();
+    const harness = await TestbedHarnessEnvironment.harnessForFixture(fixture, LayoutViewHarness);
+
+    expect(await harness.lineTexts()).toEqual(['Golden hour', 'the coast']);
+  });
 });
