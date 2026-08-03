@@ -12,6 +12,9 @@ import { SUGGESTION_META } from '../../../story/suggestion-meta';
 interface TrayItem {
   /** Stable key (frame + suggestion index) — drives the copy-confirm state. */
   readonly key: string;
+  /** The frame + index this add-on came from, to key its dismissal. */
+  readonly photoId: string;
+  readonly index: number;
   readonly type: SuggestionTypeEnum;
   readonly icon: string;
   readonly label: string;
@@ -56,6 +59,8 @@ export class HandoffCompanion {
         const meta = SUGGESTION_META[suggestion.type];
         out.push({
           key: sparkKey(frame.photoId, index),
+          photoId: frame.photoId,
+          index,
           type: suggestion.type,
           icon: meta.icon,
           label: meta.label,
@@ -83,6 +88,12 @@ export class HandoffCompanion {
   protected copy(item: TrayItem): void {
     this.clipboard.copy(item.query);
     this.copiedKey.set(item.key);
+  }
+
+  /** Drop an add-on you don't want — the same dismissal the marker used to own,
+   * now a plain tap here so acting on a suggestion is consistent. */
+  protected dismiss(item: TrayItem): void {
+    this.story.dismissSpark(item.photoId, item.index);
   }
 
   /** Confirm — render the frames and hand off to Instagram. */

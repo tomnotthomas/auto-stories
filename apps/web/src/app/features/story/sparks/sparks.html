@@ -1,10 +1,12 @@
-<!-- Click-through overlay: only the markers take pointer events, so tapping the
-     photo between them still pages the story underneath. -->
+<!-- Fully click-through overlay: markers are passive previews, so tapping
+     anywhere — photo or marker — pages the story underneath. -->
 <div class="pointer-events-none absolute inset-0 z-20">
   <!-- Music is story-level (no anchor), so it previews as a chip near the top,
        where Instagram's music sticker lives. -->
   @if (music().length) {
-    <div class="pointer-events-none absolute left-1/2 top-16 flex -translate-x-1/2 flex-col gap-1.5">
+    <div
+      class="pointer-events-none absolute left-1/2 top-16 flex -translate-x-1/2 flex-col gap-1.5"
+    >
       @for (track of music(); track track.index) {
         <div
           data-spark-music
@@ -19,21 +21,18 @@
 
   @for (spark of sparks(); track spark.index) {
     <!-- Each marker is shaped like the Instagram element it stands for and shows
-         the exact term — self-explanatory at a glance. Flick sideways to dismiss;
-         `touch-none` so the flick doesn't scroll. Preview only — copy/add happens
-         in the hand-off companion after export. -->
+         the exact term — self-explanatory at a glance. A passive preview: no drag,
+         no swipe (`pointer-events-none`, so tapping pages the story). Acting on a
+         suggestion — copy its term, drop it — happens in the hand-off card after
+         export. -->
     <div
       data-spark-marker
       [attr.data-spark-type]="spark.type"
       [attr.aria-label]="spark.type + ' suggestion: ' + spark.query"
-      class="press pointer-events-auto absolute touch-none"
+      class="pointer-events-none absolute"
       [style.left.%]="spark.xPct"
       [style.top.%]="spark.yPct"
-      [style.transform]="'translate(-50%, -50%) translateX(' + flickDx(spark.index) + 'px)'"
-      (pointerdown)="onPointerDown($event, spark.index)"
-      (pointermove)="onPointerMove($event)"
-      (pointerup)="onPointerUp($event, spark.index)"
-      (pointercancel)="onPointerCancel($event)"
+      [style.transform]="'translate(-50%, -50%)'"
     >
       @switch (spark.type) {
         @case ('location') {
@@ -41,7 +40,9 @@
             class="relative flex items-center gap-1 rounded-full bg-primary py-1 pl-2 pr-2.5 text-on-primary shadow-lg"
           >
             <mat-icon class="h-4 w-4 flex-none text-[16px] leading-none">location_on</mat-icon>
-            <span data-spark-query class="mat-label-large whitespace-nowrap">{{ spark.query }}</span>
+            <span data-spark-query class="mat-label-large whitespace-nowrap">{{
+              spark.query
+            }}</span>
             <span
               aria-hidden="true"
               class="absolute -bottom-1 left-3 h-2 w-2 rotate-45 rounded-[1px] bg-primary"
@@ -53,15 +54,21 @@
             class="flex items-center gap-0.5 rounded-full border border-white/15 bg-surface-container-high/85 py-1 pl-2 pr-2.5 text-on-surface shadow-lg backdrop-blur-sm"
           >
             <span class="mat-label-large font-bold text-primary">&#64;</span>
-            <span data-spark-query class="mat-label-large whitespace-nowrap">{{ spark.query }}</span>
+            <span data-spark-query class="mat-label-large whitespace-nowrap">{{
+              spark.query
+            }}</span>
           </span>
         }
         @case ('poll') {
           <span
             class="flex items-center gap-1 rounded-xl border border-white/15 bg-surface-container-high/85 px-2.5 py-1 text-on-surface shadow-lg backdrop-blur-sm"
           >
-            <mat-icon class="h-4 w-4 flex-none text-[16px] leading-none text-primary">poll</mat-icon>
-            <span data-spark-query class="mat-label-large whitespace-nowrap">{{ spark.query }}</span>
+            <mat-icon class="h-4 w-4 flex-none text-[16px] leading-none text-primary"
+              >poll</mat-icon
+            >
+            <span data-spark-query class="mat-label-large whitespace-nowrap">{{
+              spark.query
+            }}</span>
           </span>
         }
         @case ('gif') {
@@ -69,7 +76,9 @@
             class="flex items-center gap-1.5 rounded-xl border border-white/15 bg-surface-container-high/85 px-2.5 py-1 text-on-surface shadow-lg backdrop-blur-sm"
           >
             <span class="mat-label-medium font-extrabold tracking-wide text-primary">GIF</span>
-            <span data-spark-query class="mat-label-large whitespace-nowrap">{{ spark.query }}</span>
+            <span data-spark-query class="mat-label-large whitespace-nowrap">{{
+              spark.query
+            }}</span>
           </span>
         }
       }

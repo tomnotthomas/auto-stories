@@ -98,6 +98,19 @@ describe('HandoffCompanion (card)', () => {
     expect(await harness.isCopied(0)).toBe(true);
   });
 
+  it('drops an add-on when the user dismisses it, leaving the rest', async () => {
+    const harness = await render([
+      [{ type: 'location', query: 'Tartine', confidence: 0.9 }],
+      [{ type: 'poll', query: 'Best pastry?', confidence: 0.7 }],
+    ]);
+    expect(await harness.itemCount()).toBe(2);
+
+    await harness.clickDismiss(0); // drop the hero (the place)
+    fixture.detectChanges();
+
+    expect(await harness.termTexts()).toEqual(['Best pastry?']);
+  });
+
   it('emits save when the user confirms the hand-off', async () => {
     const harness = await render([[{ type: 'location', query: 'Tartine', confidence: 0.9 }]]);
 
