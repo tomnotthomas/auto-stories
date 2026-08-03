@@ -19,10 +19,9 @@ export function fontFamily(font: Style['font']): string {
     case 'space-mono':
       return 'ui-monospace, "SF Mono", Menlo, monospace';
     case 'caveat':
-      // The handwriting slot renders the self-hosted Caveat (real hand), which
-      // gives a frame a personal, first-person voice. (Reverses the earlier
-      // "rounded sans, no script" call, decision 7.21.)
-      return '"Caveat", "Bradley Hand", "Segoe Script", cursive';
+      // The handwriting slot renders self-hosted Shantell Sans — a modern,
+      // genuine hand (Caveat read dated). Gives a frame a personal voice.
+      return '"Shantell Sans", "Bradley Hand", "Segoe Script", cursive';
     case 'inter':
     default:
       return `"${DISPLAY_FONT}", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif`;
@@ -43,8 +42,8 @@ export async function loadCaptionFonts(): Promise<void> {
     fonts.load(`700 64px "${DISPLAY_FONT}"`),
     fonts.load('400 64px "Fraunces"'),
     fonts.load('700 64px "Fraunces"'),
-    fonts.load('400 64px "Caveat"'),
-    fonts.load('700 64px "Caveat"'),
+    fonts.load('400 64px "Shantell Sans"'),
+    fonts.load('700 64px "Shantell Sans"'),
   ]).catch(() => undefined);
 }
 
