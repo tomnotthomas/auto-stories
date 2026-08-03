@@ -83,6 +83,7 @@
     @if (frame.layout && !refining() && !editingFrame()) {
       <app-layout-view
         [layout]="frame.layout"
+        [readable]="frame.layoutReadable"
         [light]="frame.light"
         [legibility]="frame.legibility"
       />

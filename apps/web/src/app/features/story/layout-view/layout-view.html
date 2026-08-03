@@ -1,10 +1,10 @@
 <!-- Art-directed typography: each element placed at its anchor, resolved from the
      shared layout spec so the preview matches the canvas export. -->
-@for (element of elements(); track $index) {
+@for (element of elements(); track $index; let i = $index) {
   <div
     data-layout-element
     class="absolute leading-tight"
-    [class]="scrimClass() ? 'rounded-xl px-3 py-2 ' + scrimClass() : ''"
+    [class]="scrimClassFor(i) ? 'rounded-xl px-3 py-2 ' + scrimClassFor(i) : ''"
     [style.left.%]="element.xPct"
     [style.top.%]="element.yPct"
     [style.transform]="translate(element)"
@@ -16,7 +16,7 @@
     [style.letterSpacing.em]="element.letterSpacingEm"
     [style.lineHeight]="element.lineHeight"
     [style.fontSize.px]="fontPx(element)"
-    [style.color]="color()"
+    [style.color]="colorFor(i)"
   >
     @for (line of element.lines; track $index) {
       <span data-layout-line class="block">{{ line }}</span>
