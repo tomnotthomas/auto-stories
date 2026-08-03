@@ -1,8 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import request from 'supertest';
+import type { GenerateResponse } from '@auto-stories/api-types';
 import { AppModule } from './../src/app.module';
 import { configureApp, type AppSetupOptions } from './../src/app.setup';
+import type { JobState } from './../src/job/job.service';
 import { GENAI } from './../src/story/story.constants';
 
 const JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]).toString(
@@ -19,10 +21,13 @@ describe('App (e2e)', () => {
   async function boot(options?: AppSetupOptions): Promise<void> {
     generateContent = jest.fn().mockResolvedValue({
       text: JSON.stringify({
+        // The model names one Look for the story and writes each frame's words
+        // (decision 7.24); it no longer emits any geometry.
+        look: 'magazine-masthead',
         frames: [
-          { photoId: 'p1', order: 1, caption: 'first' },
-          { photoId: 'p2', order: 2, caption: 'second' },
-          { photoId: 'p3', order: 3, caption: 'third' },
+          { photoId: 'p1', order: 1, caption: 'first', headline: 'First' },
+          { photoId: 'p2', order: 2, caption: 'second', headline: 'Second' },
+          { photoId: 'p3', order: 3, caption: 'third', headline: 'Third' },
         ],
       }),
     });
@@ -46,6 +51,43 @@ describe('App (e2e)', () => {
     await app.close();
   });
 
+  /**
+   * Enqueue a generation and return its job id. Generation is async since
+   * architecture 6.1: the route answers 202 straight away so a 30-photo run
+   * can't hold the request open past Render's timeout.
+   */
+  async function enqueue(body: unknown): Promise<string> {
+    const res = await request(app.getHttpServer())
+      .post('/api/v1/generate')
+      .send(body)
+      .expect(202);
+
+    expect(typeof res.body.jobId).toBe('string');
+    return res.body.jobId as string;
+  }
+
+  /** Poll the status route until the job reaches a terminal state. */
+  async function settle(jobId: string): Promise<JobState> {
+    for (let attempt = 0; attempt < 100; attempt++) {
+      const res = await request(app.getHttpServer())
+        .get(`/api/v1/jobs/${jobId}`)
+        .expect(200);
+      const state = res.body as JobState;
+      if (state.status === 'done' || state.status === 'failed') return state;
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    throw new Error(`Job ${jobId} never settled.`);
+  }
+
+  /** Run a story end to end and assert it succeeded, returning the story. */
+  async function generate(body: unknown): Promise<GenerateResponse> {
+    const state = await settle(await enqueue(body));
+    if (state.status !== 'done') {
+      throw new Error(`Expected the job to finish, got ${state.status}.`);
+    }
+    return state.result;
+  }
+
   describe('ops + generate', () => {
     beforeEach(() => boot());
 
@@ -60,23 +102,56 @@ describe('App (e2e)', () => {
       return request(app.getHttpServer()).get('/api/v1/healthz').expect(404);
     });
 
-    it('POST /api/v1/generate returns an ordered, captioned story', async () => {
-      const res = await request(app.getHttpServer())
-        .post('/api/v1/generate')
-        .send({
-          story: 'beach day with the crew',
-          tone: 'chill',
-          photos: photos(3),
-        })
-        .expect(200);
+    it('POST /api/v1/generate accepts the work and returns a job id', async () => {
+      const jobId = await enqueue({
+        story: 'beach day with the crew',
+        tone: 'chill',
+        photos: photos(3),
+      });
 
-      expect(res.body.frames).toHaveLength(3);
-      expect(res.body.frames[0]).toEqual({
+      // The job is readable straight away, before it has finished.
+      const res = await request(app.getHttpServer())
+        .get(`/api/v1/jobs/${jobId}`)
+        .expect(200);
+      expect(['queued', 'processing', 'done']).toContain(res.body.status);
+    });
+
+    it('finishes the job with an ordered, captioned story', async () => {
+      const story = await generate({
+        story: 'beach day with the crew',
+        tone: 'chill',
+        photos: photos(3),
+      });
+
+      expect(story.frames).toHaveLength(3);
+      expect(story.frames.map((frame) => frame.photoId)).toEqual([
+        'p1',
+        'p2',
+        'p3',
+      ]);
+      expect(story.frames.map((frame) => frame.order)).toEqual([1, 2, 3]);
+      expect(story.frames[0]).toMatchObject({
         photoId: 'p1',
         order: 1,
         caption: 'first',
+        headline: 'First',
       });
-      expect(res.body.partial).toBe(false);
+      expect(story.partial).toBe(false);
+    });
+
+    it('carries the story-level Look the model chose', async () => {
+      const story = await generate({
+        story: 'beach day with the crew',
+        photos: photos(3),
+      });
+
+      expect(story.look).toBe('magazine-masthead');
+    });
+
+    it('404s an unknown job id', () => {
+      return request(app.getHttpServer())
+        .get('/api/v1/jobs/not-a-real-job')
+        .expect(404);
     });
 
     it('rejects fewer than 3 photos with invalid_request (400)', async () => {
@@ -89,17 +164,17 @@ describe('App (e2e)', () => {
     });
 
     it('accepts a full 30-photo dump', async () => {
-      await request(app.getHttpServer())
-        .post('/api/v1/generate')
-        .send({ story: 'a whole day at the lake', photos: photos(30) })
-        .expect(200);
+      await enqueue({ story: 'a whole day at the lake', photos: photos(30) });
     });
 
     it('accepts a mustInclude list (hand-added photo during refine)', async () => {
-      await request(app.getHttpServer())
-        .post('/api/v1/generate')
-        .send({ story: 'add one more', photos: photos(4), mustInclude: ['p4'] })
-        .expect(200);
+      await generate({
+        story: 'add one more',
+        photos: photos(4),
+        mustInclude: ['p4'],
+      });
+
+      expect(generateContent).toHaveBeenCalledTimes(1);
     });
 
     it('rejects more than 30 photos with invalid_request (400)', async () => {
@@ -165,15 +240,14 @@ describe('App (e2e)', () => {
       photos: photos(3),
     });
 
+    // The hourly IP limit is enforced by the guard, before the handler runs, so
+    // a flooding client is still turned away synchronously.
     it('returns rate_limited (429) once an IP exceeds the hourly limit', async () => {
       process.env.RATE_LIMIT_PER_HOUR = '1';
       process.env.DAILY_GENERATION_CAP = '1000';
       await boot();
 
-      await request(app.getHttpServer())
-        .post('/api/v1/generate')
-        .send(story())
-        .expect(200);
+      await enqueue(story());
 
       const res = await request(app.getHttpServer())
         .post('/api/v1/generate')
@@ -182,22 +256,21 @@ describe('App (e2e)', () => {
       expect(res.body.error.code).toBe('rate_limited');
     });
 
-    it('returns quota_exhausted (503) once the daily budget is spent', async () => {
+    // The daily budget is spent when the job RUNS, not when it is accepted, so a
+    // queued job that never runs never spends it. Exhaustion therefore surfaces
+    // as a failed job rather than a rejected request.
+    it('fails the job with quota_exhausted once the daily budget is spent', async () => {
       process.env.RATE_LIMIT_PER_HOUR = '1000';
       process.env.DAILY_GENERATION_CAP = '1';
       await boot();
 
-      await request(app.getHttpServer())
-        .post('/api/v1/generate')
-        .send(story())
-        .expect(200);
+      await generate(story());
 
-      const res = await request(app.getHttpServer())
-        .post('/api/v1/generate')
-        .send(story())
-        .expect(503);
-      expect(res.body.error.code).toBe('quota_exhausted');
-      // The model is only called for the request that stayed within budget.
+      const state = await settle(await enqueue(story()));
+      expect(state.status).toBe('failed');
+      if (state.status !== 'failed') throw new Error('expected a failed job');
+      expect(state.error.code).toBe('quota_exhausted');
+      // The model is only called for the job that stayed within budget.
       expect(generateContent).toHaveBeenCalledTimes(1);
     });
   });
