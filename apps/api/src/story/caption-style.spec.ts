@@ -288,6 +288,19 @@ describe('normalizeLayout', () => {
     ).toBeUndefined();
   });
 
+  it('drops frame-index chrome labels like "01" or "1 / 5"', () => {
+    const layout = normalizeLayout({
+      elements: [
+        el({ text: '01' }),
+        el({ text: '1 / 5' }),
+        el({ text: 'no. 3' }),
+        el({ text: 'Golden hour' }),
+      ],
+    });
+    expect(layout?.elements).toHaveLength(1);
+    expect(layout?.elements[0].text).toBe('Golden hour');
+  });
+
   it('caps the number of elements', () => {
     const many = Array.from({ length: MAX_LAYOUT_ELEMENTS + 3 }, () => el());
     expect(normalizeLayout({ elements: many })?.elements).toHaveLength(
