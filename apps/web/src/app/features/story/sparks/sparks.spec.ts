@@ -239,4 +239,24 @@ describe('StorySparks', () => {
       expect(await harness.markerCount()).toBe(0);
     });
   });
+
+  describe('the app’s own chrome', () => {
+    // Regression: ISSUE-001 — a gif sticker was placed in the top-left cell,
+    // overlapping the story progress bar, so it read as a rendering fault.
+    // Found by /qa on 2026-08-03 against a live `faded-album` story.
+    // Report: .gstack/qa-reports/qa-report-localhost-2026-08-03.md
+    it('never places a sticker on the progress row or the action overlay', async () => {
+      const harness = await render([
+        suggestion({ type: 'gif', query: 'sparkles', confidence: 0.9 }),
+        suggestion({ type: 'poll', query: 'best costume?', confidence: 0.8 }),
+        suggestion({ type: 'mention', query: 'Maya', confidence: 0.7 }),
+      ]);
+
+      for (const placed of await harness.placements()) {
+        // The photo's own busyness cannot know about furniture drawn over it.
+        expect(placed.yPct).toBeGreaterThan(12);
+        expect(placed.yPct).toBeLessThan(78);
+      }
+    });
+  });
 });

@@ -4,7 +4,14 @@ import type { Suggestion, SuggestionTypeEnum } from '@auto-stories/api-types';
 
 import { StoryService, sparkKey } from '../../../story/story.service';
 import type { Composition } from '../../../story/look';
-import { bestCell, cellBox, claim, emptySpace } from '../../../story/quiet-zone';
+import {
+  bestCell,
+  cellBox,
+  claim,
+  emptySpace,
+  type Box,
+  type FreeSpace,
+} from '../../../story/quiet-zone';
 
 /** A suggestion resolved for the overlay: which type-shaped marker to draw, the
  * exact term it previews, and where it sits. Dismissed ones are filtered out. */
@@ -73,6 +80,14 @@ export class StorySparks {
 
   /** The placed suggestions (music excluded, dismissed hidden, anything with no
    * room dropped), each keeping its original index so its state stays keyed. */
+  /**
+   * Music has no anchor of its own, so it previews near the top — where
+   * Instagram's music sticker lives. A Look that also hangs its type from the
+   * top then stacks the two, which QA caught on a `faded-album` frame. When they
+   * would share the top, the chip moves to the other end.
+   */
+  protected readonly musicClashesWithType = computed(() => this.composition()?.anchor === 'top');
+
   protected readonly sparks = computed<SparkView[]>(() => {
     const states = this.story.sparks();
     const id = this.photoId();
@@ -88,7 +103,11 @@ export class StorySparks {
         return !(consumedLocation && suggestion.type === 'location');
       });
 
-    let space = composition?.free ?? emptySpace();
+    // The free map describes the PHOTO. It knows nothing about the app drawn on
+    // top of it — the progress bar along the top, the actions along the bottom —
+    // so a sticker could land on the progress row and read as a rendering fault.
+    // Claim that chrome before placing anything (QA, 7.25).
+    let space = claimChrome(composition?.free ?? emptySpace());
     const placed = new Map<number, SparkView>();
 
     // A spot the user dragged to is fixed: used unchanged, and subtracted from
@@ -139,4 +158,20 @@ export class StorySparks {
     });
     return out;
   });
+}
+
+/**
+ * The app's own furniture, in % of the frame: the progress row across the top
+ * and the action overlay across the bottom. Neither belongs to the photograph,
+ * so the photo's busyness score cannot know about them — a sticker placed from
+ * that map alone lands on the progress bar and reads as a rendering fault.
+ */
+const CHROME: readonly Box[] = [
+  { xPct: 0, yPct: 0, wPct: 100, hPct: 12 },
+  { xPct: 0, yPct: 78, wPct: 100, hPct: 22 },
+];
+
+/** Take the app's own chrome out of the map a sticker may be placed into. */
+function claimChrome(space: FreeSpace): FreeSpace {
+  return CHROME.reduce(claim, space);
 }
