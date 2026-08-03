@@ -70,10 +70,23 @@ export interface Line {
 }
 
 /** How a marked run is drawn — each Look picks the one that fits its grammar. */
-export type Mark = 'accent-underline' | 'accent-block' | 'hand-underline';
+export type Mark =
+  /** A solid bar riding the baseline (Magazine). */
+  | 'accent-underline'
+  /** A filled block behind the word, the word reversed out (Bold Poster). */
+  | 'accent-block'
+  /** A loose, uneven stroke — drawn, not typeset (Scrapbook). */
+  | 'hand-underline'
+  /** A thick translucent swipe through the word (Marker). */
+  | 'highlighter';
 
-/** Whether a part paints in the legible ink colour or the story accent. */
-export type PartColor = 'ink' | 'accent';
+/**
+ * Whether a part paints in the legible ink colour, the story accent, or the
+ * off-white "paper" a Look lays down for its own panels (Gallery Label,
+ * Polaroid). Paper is a fixed tone, not sampled: it is a material, not a
+ * reaction to the photo.
+ */
+export type PartColor = 'ink' | 'accent' | 'paper';
 
 interface TypeStyle {
   readonly fontFamily: string;
@@ -99,6 +112,28 @@ export interface TextPart extends TypeStyle {
     readonly heightHPct: number;
     readonly gapWPct: number;
   };
+  /** Draw the letters as outlines instead of filling them (Stencil Caps). */
+  readonly stroke?: boolean;
+}
+
+/** A small label set apart from the running text. */
+export type TagStyle =
+  /** Outlined, rounded — a location tag (Bold Poster). */
+  | 'pill'
+  /** Filled paper with a shadow, slightly askew — a taped note (Scrapbook). */
+  | 'tape'
+  /** Outlined and rotated, print-shop ink (Film Postcard, Super 8). */
+  | 'stamp'
+  /** Filled accent, rounded — an Instagram sticker (Sticker Sheet). */
+  | 'chip';
+
+/** A tag. Its own type, so a Look can set it apart from the headline. */
+export interface TagPart extends TypeStyle {
+  readonly kind: 'tag';
+  readonly text: string;
+  readonly style: TagStyle;
+  readonly gapHPct: number;
+  readonly rotationDeg?: number;
 }
 
 /** A hairline. Width is a % of the type column, thickness a % of frame HEIGHT. */
@@ -119,7 +154,7 @@ export interface RowPart extends TypeStyle {
   readonly gapHPct: number;
 }
 
-export type Part = TextPart | RulePart | RowPart;
+export type Part = TextPart | RulePart | RowPart | TagPart;
 
 /** A gradient behind the type, so a headline survives a busy photo. */
 export interface Scrim {
@@ -127,6 +162,30 @@ export interface Scrim {
   /** How far the gradient reaches, as a % of the frame height. */
   readonly extentHPct: number;
   readonly strength: number;
+}
+
+/**
+ * A solid block drawn behind the whole stack, padded around it — the graphic
+ * that Split Block, Ticker, Gallery Label and Polaroid are built on. Unlike a
+ * scrim it is opaque and deliberate: it covers the photo rather than shading it.
+ */
+export interface Panel {
+  readonly color: PartColor;
+  readonly opacity: number;
+  /** Padding around the stack, in % of frame width / height. */
+  readonly padWPct: number;
+  readonly padHPct: number;
+  readonly radiusWPct: number;
+  /** Run the panel edge to edge, ignoring the type column's insets. */
+  readonly fullWidth: boolean;
+}
+
+/** An inset frame drawn on the photo — a print border, a viewfinder. */
+export interface Border {
+  readonly insetWPct: number;
+  readonly widthWPct: number;
+  readonly color: PartColor;
+  readonly radiusWPct: number;
 }
 
 /**
@@ -151,6 +210,19 @@ export interface Composition {
   /** The resolved accent for this frame, so renderers don't re-sample. */
   readonly accent: string;
   readonly parts: readonly Part[];
+  /** Tilt the whole stack — a page laid down by hand rather than typeset. */
+  readonly rotationDeg?: number;
+  /** A solid block behind the stack (Split Block, Ticker, Gallery Label). */
+  readonly panel?: Panel;
+  /** An inset frame on the photo (Film Postcard, Super 8). */
+  readonly border?: Border;
+  /**
+   * A CSS/canvas `filter` applied to the PHOTO for this Look — the warm wash of
+   * Film Postcard, Super 8's sepia. It composes with the exposure-cohesion
+   * filter the device computes per frame; the renderer concatenates the two, so
+   * a Look's treatment never discards the cohesion match.
+   */
+  readonly photoFilter?: string;
 }
 
 /** A Look: the grammar that turns words + a photo reading into a composition. */
