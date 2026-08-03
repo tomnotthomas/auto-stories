@@ -4,6 +4,7 @@ import { MatButtonHarness } from '@angular/material/button/testing';
 import { CaptionEditorHarness } from '../refine/caption-editor/caption-editor.harness';
 import { RefineFilmstripHarness } from '../refine/filmstrip/filmstrip.harness';
 import { LayoutViewHarness } from './layout-view/layout-view.harness';
+import { SETTLE_MS } from './story';
 
 /** Where a simulated gesture starts, in viewport pixels. Any point does — the
  * component only reads how far the pointer travelled. */
@@ -164,15 +165,60 @@ export class StoryHarness extends ComponentHarness {
    * component listens, exactly as a real pointer's release bubbles to it.
    */
   private async swipe(from: TestElement, dx: number, dy: number): Promise<void> {
-    await from.dispatchEvent('pointerdown', { clientX: GESTURE_X, clientY: GESTURE_Y });
-    await (
-      await this.host()
-    ).dispatchEvent('pointerup', { clientX: GESTURE_X + dx, clientY: GESTURE_Y + dy });
+    await this.press(from);
+    this.pointer = { x: GESTURE_X + dx, y: GESTURE_Y + dy };
+    await this.release();
   }
 
-  /** Swipe the three story actions down and away. */
+  /** Where the simulated finger is now, so a release lands where the last move
+   * left it — exactly as a real pointerup does. */
+  private pointer = { x: GESTURE_X, y: GESTURE_Y };
+
+  private async press(on: TestElement): Promise<void> {
+    this.pointer = { x: GESTURE_X, y: GESTURE_Y };
+    await on.dispatchEvent('pointerdown', { clientX: GESTURE_X, clientY: GESTURE_Y });
+  }
+
+  /** Put a finger on the action cluster — the start of a tracked drag. */
+  async pressActions(): Promise<void> {
+    await this.press(await this.actionCluster());
+  }
+
+  /** Put a finger on the bottom edge, where the actions left from. */
+  async pressEdge(): Promise<void> {
+    await this.press(await this.restoreStrip());
+  }
+
+  /** Move the finger to `dy` px from where it went down (negative is upward). */
+  async dragTo(dy: number): Promise<void> {
+    this.pointer = { x: GESTURE_X, y: GESTURE_Y + dy };
+    await (
+      await this.host()
+    ).dispatchEvent('pointermove', { clientX: this.pointer.x, clientY: this.pointer.y });
+  }
+
+  /** Hold the finger still, so what follows reads as a slow drag, not a flick. */
+  async hold(ms: number): Promise<void> {
+    await new Promise<void>((resolve) => setTimeout(resolve, ms));
+  }
+
+  /** Lift the finger where the last move left it. */
+  async release(): Promise<void> {
+    await (
+      await this.host()
+    ).dispatchEvent('pointerup', { clientX: this.pointer.x, clientY: this.pointer.y });
+  }
+
+  /** Wait out the panel's settle — the dismissal is committed when it ends. */
+  async settle(): Promise<void> {
+    await new Promise<void>((resolve) => setTimeout(resolve, SETTLE_MS + 20));
+    await this.forceStabilize();
+  }
+
+  /** Swipe the three story actions down and away, and let them leave. */
   async swipeActionsAway(): Promise<void> {
     await this.swipe(await this.actionCluster(), 0, GESTURE_PX);
+    await this.settle();
   }
 
   /**
@@ -183,14 +229,19 @@ export class StoryHarness extends ComponentHarness {
    * on the button arrives once it has bubbled.)
    */
   async swipeAcrossStartOver(): Promise<void> {
-    const button = await this.startOverTarget();
     await this.swipe(await this.actionCluster(), -GESTURE_PX, 0);
-    await button.dispatchEvent('click');
+    await this.tailClickStartOver();
+  }
+
+  /** The click the browser fires after a drag, on the button it began on. */
+  async tailClickStartOver(): Promise<void> {
+    await (await this.startOverTarget()).dispatchEvent('click');
   }
 
   /** Swipe up from the bottom edge to bring the actions back. */
   async swipeActionsBack(): Promise<void> {
     await this.swipe(await this.restoreStrip(), 0, -GESTURE_PX);
+    await this.settle();
   }
 
   /** A swipe down on the photo itself, nowhere near the actions. */
@@ -224,6 +275,7 @@ export class StoryHarness extends ComponentHarness {
   /** The keyboard/screen-reader equivalent of the swipe: dismiss or restore. */
   async clickActionsToggle(): Promise<void> {
     await (await this.actionsToggle()).click();
+    await this.settle();
   }
 
   /** The label that control carries — it says which way it will go. */

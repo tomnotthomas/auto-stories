@@ -1,6 +1,8 @@
 import {
   DEFAULT_LOOK,
+  DENSITIES,
   MAX_SUGGESTIONS_PER_FRAME,
+  normalizeDensity,
   normalizeLook,
   normalizeSuggestions,
 } from './caption-style';
@@ -106,5 +108,37 @@ describe('normalizeLook', () => {
     expect(normalizeLook('watercolour')).toBe(DEFAULT_LOOK);
     expect(normalizeLook(7)).toBe(DEFAULT_LOOK);
     expect(normalizeLook({ look: 'minimal' })).toBe(DEFAULT_LOOK);
+  });
+});
+
+describe('normalizeDensity', () => {
+  it('offers the five rungs the client can set', () => {
+    expect(DENSITIES).toEqual([
+      'silent',
+      'beat',
+      'line',
+      'thought',
+      'question',
+    ]);
+  });
+
+  it('keeps each of the five densities', () => {
+    for (const density of DENSITIES) {
+      expect(normalizeDensity(density)).toBe(density);
+    }
+  });
+
+  // Decision 7.26: absent means "read it from the headline". An unrecognised
+  // value is dropped to that same fallback rather than crossing the boundary.
+  it('drops a value outside the set, so the client infers instead', () => {
+    expect(normalizeDensity('paragraph')).toBeUndefined();
+    expect(normalizeDensity('')).toBeUndefined();
+    expect(normalizeDensity(3)).toBeUndefined();
+    expect(normalizeDensity({ density: 'beat' })).toBeUndefined();
+  });
+
+  it('drops a missing value', () => {
+    expect(normalizeDensity(undefined)).toBeUndefined();
+    expect(normalizeDensity(null)).toBeUndefined();
   });
 });

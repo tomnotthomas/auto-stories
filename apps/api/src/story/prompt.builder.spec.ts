@@ -37,16 +37,52 @@ describe('buildPrompt', () => {
     expect(prompt).toMatch(/location|gif|poll|music/);
   });
 
-  it('tells the model to vary headline length per photo, not a uniform terseness', () => {
+  // Decision 7.26: the model picks how much the photo needs from a fixed
+  // vocabulary, instead of guessing an amount the design never asked for. The
+  // old "vary the headline length" wording said the same thing vaguely and is
+  // replaced by the five rungs below.
+  it('asks for a density per frame and names all five rungs', () => {
+    const prompt = buildPrompt(story);
+    expect(prompt).toContain('`density`');
+    for (const rung of ['silent', 'beat', 'line', 'thought', 'question']) {
+      expect(prompt).toContain(`\`${rung}\``);
+    }
+  });
+
+  it('gives each rung an amount of text, so the rungs are distinguishable', () => {
     const prompt = buildPrompt(story).toLowerCase();
-    // A self-explanatory photo still breathes…
-    expect(prompt).toContain('breathe');
-    expect(prompt).toContain('vary');
-    // …but a frame that needs context earns a fuller line.
-    expect(prompt).toMatch(/fuller line|short sentence/);
-    // The headlines across the story should have rhythm, not the same few words.
-    expect(prompt).toMatch(/rhythm|never a uniform/);
-    // The judgement is about the headline now — there is no second text field.
+    expect(prompt).toMatch(/1 to 3 words/);
+    expect(prompt).toMatch(/4 to 12 words/);
+    expect(prompt).toMatch(/15 to 35 words|2 to 3 lines/);
+  });
+
+  // The first failure mode: a model that treats an empty headline as a mistake
+  // captions every frame, and the story reads as relentless.
+  it('makes clear that silent is a correct choice, not a failure', () => {
+    const prompt = buildPrompt(story).toLowerCase();
+    expect(prompt).toMatch(/no text at all|no words at all/);
+    expect(prompt).toMatch(/not a failure|real, correct choice/);
+    expect(prompt).toMatch(/relentless|every frame is captioned/);
+  });
+
+  // The second: `thought` and `line` collapse into each other unless the
+  // prompt says outright that a thought is more text.
+  it('separates thought from line by making thought deliberately longer', () => {
+    const prompt = buildPrompt(story).toLowerCase();
+    expect(prompt).toMatch(/more text than a `line`|deliberately more text/);
+  });
+
+  // The third: a uniform row of same-length labels.
+  it('asks for rhythm across the story, never a uniform row of labels', () => {
+    const prompt = buildPrompt(story).toLowerCase();
+    expect(prompt).toContain('rhythm');
+    expect(prompt).toMatch(/never a uniform/);
+  });
+
+  it('ties the headline to the density the model chose', () => {
+    const prompt = buildPrompt(story).toLowerCase();
+    expect(prompt).toMatch(/write the `headline` to the density/);
+    expect(prompt).toMatch(/must agree/);
     expect(prompt).toContain('headline');
   });
 
@@ -140,6 +176,69 @@ describe('buildPrompt', () => {
     ]) {
       expect(prompt).toContain(look);
     }
+  });
+
+  // Decision 7.26, the half the rungs on their own cannot state. The model picks
+  // the `look` and writes the words in the SAME call, so a design that cannot
+  // hold 35 words has to be told so here — the client's own budget is published
+  // after the words are already written, which is too late to change them.
+  describe('what the chosen design can hold', () => {
+    /** The one bullet that states the loud family's smaller budget. */
+    const budgetLine = (): string =>
+      buildPrompt(story)
+        .split('\n')
+        .find(
+          (line) => line.includes('LOUD') && line.includes('fewer words'),
+        ) ?? '';
+
+    it('states the budget by family, for every loud look', () => {
+      // Stated by family on purpose: 32 Looks × 5 rungs is a table no prompt
+      // should carry, and the loud/quiet split is what moves the number.
+      const bullet = budgetLine();
+      expect(bullet).not.toBe('');
+      for (const look of [
+        'bold-poster',
+        'split-block',
+        'ticker',
+        'stencil-caps',
+        'zine',
+        'duotone-band',
+      ]) {
+        expect(bullet).toContain(`\`${look}\``);
+      }
+    });
+
+    it('gives the loud family a thought budget well under the rung ceiling', () => {
+      const bullet = budgetLine();
+      const stated = /about (\d+) words/.exec(bullet);
+
+      expect(stated).not.toBeNull();
+      // The rung itself allows 15–35; a loud look takes the short end.
+      expect(Number(stated?.[1])).toBeLessThan(35);
+      expect(bullet.toLowerCase()).toMatch(/never 35|not 35/);
+    });
+
+    it('leaves the quieter families carrying a full thought', () => {
+      const bullet = budgetLine();
+
+      expect(bullet).toContain('QUIET, EDITORIAL and WARM');
+      expect(bullet.toLowerCase()).toMatch(/carry a full `thought`/);
+    });
+
+    it('makes the chosen design decide how much text it can hold', () => {
+      const prompt = buildPrompt(story).toLowerCase();
+
+      expect(prompt).toMatch(/design you choose decides how much text/);
+      expect(prompt).toMatch(/match the words to it/);
+    });
+
+    it('names loud-look-plus-long-thought as the mistake to avoid', () => {
+      // The specific failure: the model reaches for a poster and then writes a
+      // paragraph into it, and each half looks defensible on its own.
+      expect(buildPrompt(story).toLowerCase()).toMatch(
+        /choosing a loud look and then writing a long thought/,
+      );
+    });
   });
 
   it('asks for exactly one Look, held across every frame', () => {

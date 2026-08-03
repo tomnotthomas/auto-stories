@@ -1,6 +1,9 @@
 import { DEFAULT_ACCENT } from '../accent-color';
+import { DENSITIES, wordBudget } from '../look';
 import type {
   Composition,
+  Density,
+  DensityRamp,
   FrameContent,
   Look,
   PhotoAnalysis,
@@ -8,11 +11,11 @@ import type {
   TextPart,
   HasParts,
 } from '../look';
-import { INDEX_CARD } from './index-card';
-import { POSTCARD_BACK } from './postcard-back';
-import { SCRAPBOOK } from './scrapbook';
-import { STICKER_SHEET } from './sticker-sheet';
-import { ZINE } from './zine';
+import { INDEX_CARD, INDEX_CARD_RAMP } from './index-card';
+import { POSTCARD_BACK, POSTCARD_BACK_RAMP } from './postcard-back';
+import { SCRAPBOOK, SCRAPBOOK_RAMP } from './scrapbook';
+import { STICKER_SHEET, STICKER_SHEET_RAMP } from './sticker-sheet';
+import { ZINE, ZINE_RAMP } from './zine';
 
 /**
  * The five handmade Looks — the warm end of the catalogue (decision 7.24,
@@ -148,6 +151,129 @@ describe.each(HANDMADE.map((look) => [look.id, look] as const))('%s', (id, look)
   });
 });
 
+/**
+ * Every Look in this file, each with the ramp it publishes — no subset. The two
+ * halves of 7.26 are declared together (what the design can set, and how much it
+ * can carry), so they are tested together.
+ */
+const RAMPED: readonly (readonly [Look, DensityRamp])[] = [
+  [SCRAPBOOK, SCRAPBOOK_RAMP],
+  [STICKER_SHEET, STICKER_SHEET_RAMP],
+  [ZINE, ZINE_RAMP],
+  [INDEX_CARD, INDEX_CARD_RAMP],
+  [POSTCARD_BACK, POSTCARD_BACK_RAMP],
+];
+
+it('publishes a ramp for every Look in this file', () => {
+  // The pairing above is hand-written, so it is checked rather than trusted: a
+  // Look added to the file without its ramp would otherwise skip every density
+  // contract below without a single test going red.
+  expect(RAMPED.map(([look]) => look)).toEqual(HANDMADE);
+});
+
+describe.each(RAMPED.map(([look, ramp]) => [look.id, look, ramp] as const))(
+  '%s density',
+  (_id, look, ramp) => {
+    // 7.26: `thought` has to land in a visibly different slot from the rungs
+    // above it, or the model collapses the two. Same words either side, so the
+    // only thing that can move the type is the density the creator stated.
+    it('sets a thought visibly smaller than a beat', () => {
+      const beat = displayWPct(look.compose({ ...CONTENT, density: 'beat' }, CALM));
+      const thought = displayWPct(look.compose({ ...CONTENT, density: 'thought' }, CALM));
+
+      expect(thought).toBeLessThan(beat * 0.8);
+    });
+
+    it('steps the headline down from beat to line to thought', () => {
+      const beat = headlineFor(look, 'beat').fontSizeWPct;
+      const line = headlineFor(look, 'line').fontSizeWPct;
+      const thought = headlineFor(look, 'thought').fontSizeWPct;
+
+      expect(beat).toBeGreaterThan(line);
+      expect(line).toBeGreaterThan(thought);
+    });
+
+    it('opens the leading over the same three rungs', () => {
+      // The step is taken in the leading as well as the size, in every Look:
+      // held constant, a `thought` reads as a shrunken headline instead of as
+      // running text, and the words it was given are the ones that suffer.
+      const beat = headlineFor(look, 'beat').lineHeight;
+      const line = headlineFor(look, 'line').lineHeight;
+      const thought = headlineFor(look, 'thought').lineHeight;
+
+      expect(line).toBeGreaterThan(beat);
+      expect(thought).toBeGreaterThan(line);
+    });
+
+    it('asks for no words at all at silent', () => {
+      expect(wordBudget(ramp, 'silent')).toBe(0);
+    });
+
+    it('sets its whole word budget without dropping below its own smallest type', () => {
+      // The half of 7.26 the type ramp cannot state on its own: a Look may only
+      // claim the words it can still set as itself. Sticker Sheet is where this
+      // bites — its chips never wrap, so an over-claimed budget is answered by
+      // the fit solver shrinking the type under every rung the Look declares.
+      for (const density of DENSITIES) {
+        const budget = wordBudget(ramp, density);
+        if (budget === 0) continue;
+
+        const set = headlineFor(look, density, words(budget));
+
+        expect(set.fontSizeWPct).toBeGreaterThanOrEqual(smallestRung(ramp));
+      }
+    });
+
+    it('asks for fewer words the larger it sets them', () => {
+      // `silent` is excluded: its nought says the rung wants no words, which is
+      // not a measurement of what the type could hold.
+      const rungs = DENSITIES.filter((density) => density !== 'silent').map(
+        (density) => ramp[density],
+      );
+
+      for (const bigger of rungs) {
+        for (const smaller of rungs) {
+          if (bigger.fontSizeWPct > smaller.fontSizeWPct) {
+            expect(bigger.maxWords).toBeLessThanOrEqual(smaller.maxWords);
+          }
+        }
+      }
+    });
+  },
+);
+
+/** The smallest type this Look sets anywhere on its ramp. */
+function smallestRung(ramp: DensityRamp): number {
+  return Math.min(...DENSITIES.map((density) => ramp[density].fontSizeWPct));
+}
+
+/**
+ * A headline of `count` words. One fixed word, because a budget is a claim about
+ * an average measure rather than about a particular sentence — and a fixed one
+ * keeps the check deterministic.
+ */
+function words(count: number): string {
+  return Array.from({ length: count }, () => 'river').join(' ');
+}
+
+/**
+ * The part this Look set the headline in, at one density. Found by being the
+ * largest type in the frame rather than by its kind: Sticker Sheet sets its
+ * headline in tags and the rest of the group in text, and a test about how the
+ * headline is set should not have to know which.
+ */
+function headlineFor(
+  look: Look,
+  density: Density,
+  headline: string = CONTENT.headline,
+): TextPart | TagPart {
+  const composition = look.compose({ headline, density }, CALM);
+  const set = [...texts(composition), ...tags(composition)];
+  if (set.length === 0) throw new Error(`${look.id} sets no headline at density “${density}”`);
+
+  return set.reduce((largest, part) => (part.fontSizeWPct > largest.fontSizeWPct ? part : largest));
+}
+
 describe('scrapbook', () => {
   it('tilts the whole page', () => {
     expect(SCRAPBOOK.compose(CONTENT, CALM).rotationDeg).toBeLessThan(0);
@@ -199,14 +325,28 @@ describe('sticker-sheet', () => {
   });
 
   it('shrinks the type rather than overflowing on a long headline', () => {
-    const short = STICKER_SHEET.compose({ headline: 'Sunday' }, CALM);
+    // A chip is never wrapped by the renderer, so it has to fit the column at
+    // whatever size it is set. Density only sets the ceiling; the fit still
+    // lowers the type from there, so both frames are stated at the rung that
+    // allows the largest chip and the width is the only thing left to move it.
+    const short = STICKER_SHEET.compose({ headline: 'Sunday', density: 'beat' }, CALM);
     const long = STICKER_SHEET.compose(
-      { headline: 'A headline long enough to run past three lines of type on any frame at all' },
+      {
+        headline: 'A headline long enough to run past three lines of type on any frame at all',
+        density: 'beat',
+      },
       CALM,
     );
 
     expect(tags(long)[0].fontSizeWPct).toBeLessThan(tags(short)[0].fontSizeWPct);
     expect(tags(long).length).toBeLessThanOrEqual(3 + 2);
+  });
+
+  it('caps the chip at what the density allows, even when the words would fit bigger', () => {
+    const beat = STICKER_SHEET.compose({ headline: 'Sunday', density: 'beat' }, CALM);
+    const thought = STICKER_SHEET.compose({ headline: 'Sunday', density: 'thought' }, CALM);
+
+    expect(tags(thought)[0].fontSizeWPct).toBeLessThan(tags(beat)[0].fontSizeWPct);
   });
 
   it('is still a sheet of chips with no location', () => {
@@ -300,6 +440,17 @@ function texts(composition: HasParts): TextPart[] {
 
 function tags(composition: HasParts): TagPart[] {
   return composition.parts.filter((part): part is TagPart => part.kind === 'tag');
+}
+
+/**
+ * The largest type in the frame, whatever kind of part carries it — Sticker
+ * Sheet sets its headline in tags and the rest of the group in text, so a test
+ * about the headline's size should not have to know which.
+ */
+function displayWPct(composition: HasParts): number {
+  return Math.max(
+    ...composition.parts.map((part) => (part.kind === 'rule' ? 0 : part.fontSizeWPct)),
+  );
 }
 
 /** Every word a composition draws — text runs, tags and rows alike. */

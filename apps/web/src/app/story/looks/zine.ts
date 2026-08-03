@@ -1,5 +1,13 @@
-import type { DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
-import { splitEmphasis } from '../look';
+import type {
+  DensityRamp,
+  DrawnComposition,
+  FrameContent,
+  Look,
+  Part,
+  PhotoAnalysis,
+  Rung,
+} from '../look';
+import { resolveDensity, splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
 /**
@@ -32,6 +40,34 @@ const PAGE_TILT_DEG = 1.8;
 /** A cover shouts from the top; the bottom is the fallback. */
 const PREFERRED_BANDS: readonly Band[] = ['top', 'bottom'];
 
+/**
+ * What this Look sets at each density (7.26). A zine cover shouts, so the `beat`
+ * rung carries the biggest type in the catalogue. It still shouts at a `thought`
+ * — the weight, the tilt and the bar do that, not the point size — but caps set
+ * at 10.6% and run to three lines cover the photocopied photo entirely, which is
+ * the one thing a cover cannot do. The locked-up leading opens with it: a block
+ * of caps at 0.92 is a graphic, and several lines of them are unreadable.
+ *
+ * The budgets are the tightest in the catalogue, and this Look is the reason
+ * `maxWords` exists. Caps set at the `thought` rung take about 22 characters to
+ * the 84%-wide column, so 7.26's 35 words run past seven lines of solid toner:
+ * the frame does not overflow, it simply stops being a zine. Sixteen words is
+ * four to five lines under the bar, which still reads as a cover.
+ */
+const LINE: Rung = { fontSizeWPct: 10.6, lineHeight: 0.92, maxWords: 7 };
+export const ZINE_RAMP: DensityRamp = {
+  // A frame that states `silent` and then writes words has words, and words are
+  // always drawn; a truly wordless frame returns before this is read. The budget
+  // is still nought: the rung asks for no words at all.
+  silent: { ...LINE, maxWords: 0 },
+  beat: { fontSizeWPct: 13.6, lineHeight: 0.88, maxWords: 3 },
+  line: LINE,
+  thought: { fontSizeWPct: 6.4, lineHeight: 1.06, maxWords: 16 },
+  // Shorter than a statement at the same size: a question set in cover caps has
+  // to be readable in one look, and two lines of it is the whole of one.
+  question: { ...LINE, maxWords: 6 },
+};
+
 function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
   const band = quietestBand(photo.bands, PREFERRED_BANDS);
   const anchor = band === 'top' ? 'top' : 'bottom';
@@ -52,6 +88,7 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
     };
   }
 
+  const density = resolveDensity(content);
   const parts: Part[] = [];
 
   // Wide-tracked caps in the accent — the strip of type across the top of a
@@ -86,13 +123,14 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
 
   // The shout. Biggest type in the catalogue, negative tracking and leading
   // under 1 so the lines lock into a block; one phrase blocked out in accent.
+  const rung = ZINE_RAMP[density];
   parts.push({
     kind: 'text',
     runs: splitEmphasis(content.headline, content.emphasis),
     fontFamily: BRICOLAGE,
     fontWeight: 800,
-    fontSizeWPct: 10.6,
-    lineHeight: 0.92,
+    fontSizeWPct: rung.fontSizeWPct,
+    lineHeight: rung.lineHeight,
     letterSpacingEm: -0.025,
     textTransform: 'uppercase',
     textAlign: 'left',
@@ -139,6 +177,7 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
 }
 
 export const ZINE: Look = {
+  ramp: ZINE_RAMP,
   id: 'zine',
   prefer: PREFERRED_BANDS,
   compose,

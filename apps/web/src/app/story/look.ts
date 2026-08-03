@@ -74,8 +74,128 @@ export type { LookId };
  */
 export const DEFAULT_LOOK_ID: LookId = 'quiet-editorial';
 
+/**
+ * How much this photo needs (decision 7.26). The content creator picks one; the
+ * design declares what it can set at each level; the client resolves the two.
+ * A judgement about the moment, never about type or placement.
+ */
+export type Density = 'silent' | 'beat' | 'line' | 'thought' | 'question';
+
+/**
+ * `thought` must land in a visibly different slot from `line`, or the model
+ * collapses the two into the same thing. `question` is strictly a different axis
+ * from the rest — they are about *how much*, it is about *what for* — but it
+ * stays one rung so the model cannot emit "silent + question", and so a Look can
+ * set a question differently from a statement: it invites a reply.
+ */
+export const DENSITIES: readonly Density[] = ['silent', 'beat', 'line', 'thought', 'question'];
+
+/** Word counts each rung is written to, so a Look can size type to the rung
+ * rather than to whatever the model happened to send. */
+export const DENSITY_WORDS: Record<Density, { readonly max: number }> = {
+  silent: { max: 0 },
+  beat: { max: 3 },
+  line: { max: 12 },
+  thought: { max: 35 },
+  question: { max: 14 },
+};
+
+/**
+ * The frame's density: what the model said, or read from the words when it said
+ * nothing. Inference is a fallback, not the design — a model that states its
+ * intent gets that intent honoured, including a deliberate `thought` that
+ * happens to be short.
+ */
+export function resolveDensity(content: FrameContent): Density {
+  if (content.density) return content.density;
+
+  const headline = content.headline.trim();
+  if (!headline) return 'silent';
+  if (headline.endsWith('?')) return 'question';
+
+  const words = headline.split(/\s+/).filter(Boolean).length;
+  if (words <= DENSITY_WORDS.beat.max) return 'beat';
+  if (words <= DENSITY_WORDS.line.max) return 'line';
+  return 'thought';
+}
+
+/**
+ * What a Look can set at one density rung — the "designer publishes what it can
+ * set" half of the shared brief (7.26).
+ *
+ * Declared here rather than reinvented per Look: both halves of the catalogue
+ * independently arrived at this shape, and one had to rewrite finished work to
+ * match the other. One definition means thirty-two Looks cannot drift into two
+ * conventions.
+ */
+export interface Rung {
+  /** Type size as a % of the frame WIDTH. */
+  readonly fontSizeWPct: number;
+  /** Leading opens as the rung grows, so a thought reads as running text rather
+   * than a shrunken headline. */
+  readonly lineHeight: number;
+  /**
+   * Most words this Look can carry at this rung before it stops reading as
+   * itself. This is the missing half of the brief: 7.26 gives `thought` a
+   * 15-35 word budget, but a poster set in 13% capitals cannot carry 35 words
+   * at any size that still looks like a poster — it runs to seven lines. The
+   * type ramp alone cannot fix that; the model has to be told what the design
+   * it picked can actually hold.
+   */
+  readonly maxWords: number;
+}
+
+/** A Look's full ramp: what it sets at every rung. */
+export type DensityRamp = Record<Density, Rung>;
+
+/**
+ * The rung a headline is actually set at.
+ *
+ * The stated density picks a rung, but a rung publishes how many words it can
+ * carry, and the model writes the words in the same call it picks the Look — so
+ * it can state `thought` for a poster that holds sixteen words and then write
+ * thirty-five. Rather than truncate somebody's words, step down to the first
+ * rung that can carry them: the frame gets smaller type instead of a headline
+ * running off it. Non-destructive, deterministic, and it means the prompt's
+ * budget is a hint rather than a load-bearing promise.
+ */
+export function resolveRung(ramp: DensityRamp, density: Density, headline: string): Rung {
+  const words = headline.trim().split(/\s+/).filter(Boolean).length;
+  const stated = ramp[density];
+  if (words <= stated.maxWords) return stated;
+
+  // Rungs in descending type size; the first that fits wins, and the smallest is
+  // the floor — below it the Look stops being itself, so overflow beats vanishing.
+  const smallerFirst: Density[] = ['thought', 'line', 'beat'];
+  const fits = smallerFirst
+    .map((rung) => ramp[rung])
+    .filter((rung) => rung.fontSizeWPct < stated.fontSizeWPct)
+    .sort((a, b) => b.fontSizeWPct - a.fontSizeWPct)
+    .find((rung) => words <= rung.maxWords);
+
+  return fits ?? smallest(ramp);
+}
+
+/** The smallest type this Look sets — the floor a step-down cannot pass. */
+function smallest(ramp: DensityRamp): Rung {
+  return DENSITIES.map((density) => ramp[density]).reduce((min, rung) =>
+    rung.fontSizeWPct > 0 && rung.fontSizeWPct < min.fontSizeWPct ? rung : min,
+  );
+}
+
+/**
+ * How many words the chosen Look can carry at a density. Used to tell the model
+ * the budget of the family it picked, and to check in tests that a Look's own
+ * `thought` claim is honest.
+ */
+export function wordBudget(ramp: DensityRamp, density: Density): number {
+  return ramp[density].maxWords;
+}
+
 /** The words the model wrote for one frame. */
 export interface FrameContent {
+  /** How much this photo needs (7.26). Absent → inferred from the headline. */
+  readonly density?: Density;
   readonly kicker?: string;
   readonly headline: string;
   /** A phrase inside `headline` to mark. Ignored when it isn't found there. */
@@ -293,6 +413,14 @@ export interface Look {
   readonly id: LookId;
   /** Bands this Look would like to sit in, best first. */
   readonly prefer: readonly Band[];
+  /**
+   * What this design can set at each density, including how many words it can
+   * carry there. Part of the interface rather than a separate export per Look:
+   * every list of Looks maintained alongside the registry has drifted from it at
+   * least once (LOOK_IDS, the response schema), and each time the symptom was a
+   * Look silently doing nothing. A member cannot be forgotten.
+   */
+  readonly ramp: DensityRamp;
   compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition;
 }
 

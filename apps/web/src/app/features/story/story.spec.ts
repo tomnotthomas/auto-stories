@@ -178,6 +178,141 @@ describe('Story', () => {
     });
   });
 
+  describe('dragging the actions', () => {
+    /** Shorter than the 48px the distance threshold asks for, so only how fast
+     * the finger was moving can decide these. */
+    const SHORT = 32;
+    /** Long enough that 16px of travel is nowhere near the flick velocity. */
+    const SLOW_MS = 400;
+
+    const realMatchMedia = window.matchMedia;
+    afterEach(() => {
+      window.matchMedia = realMatchMedia;
+    });
+
+    /** Answer every media query with "reduce", as an OS setting would. */
+    function reduceMotion(): void {
+      window.matchMedia = (() => ({ matches: true })) as unknown as typeof window.matchMedia;
+    }
+
+    it('dismisses on a short, fast flick down', async () => {
+      const harness = await render();
+
+      await harness.pressActions();
+      await harness.dragTo(SHORT / 2);
+      await harness.dragTo(SHORT);
+      await harness.release();
+      await harness.settle();
+
+      expect(await harness.isActionBarVisible()).toBe(false);
+    });
+
+    it('springs back when a slow drag stops short of the threshold', async () => {
+      const harness = await render();
+
+      await harness.pressActions();
+      await harness.dragTo(SHORT / 2);
+      await harness.hold(SLOW_MS);
+      await harness.dragTo(SHORT);
+      await harness.release();
+      await harness.settle();
+
+      expect(await harness.isActionBarVisible()).toBe(true);
+    });
+
+    it('does not dismiss a drag that reverses before the finger lifts', async () => {
+      const harness = await render();
+
+      await harness.pressActions();
+      await harness.dragTo(120); // past the threshold…
+      await harness.dragTo(8); // …but pulled back up before letting go
+      await harness.release();
+      await harness.settle();
+
+      expect(await harness.isActionBarVisible()).toBe(true);
+    });
+
+    it('brings the actions back on a short, fast flick up from the edge', async () => {
+      const harness = await render();
+      await harness.swipeActionsAway();
+
+      await harness.pressEdge();
+      await harness.dragTo(-SHORT / 2);
+      await harness.dragTo(-SHORT);
+      await harness.release();
+      await harness.settle();
+
+      expect(await harness.isActionBarVisible()).toBe(true);
+    });
+
+    it('leaves them dismissed when a slow restore drag stops short', async () => {
+      const harness = await render();
+      await harness.swipeActionsAway();
+
+      await harness.pressEdge();
+      await harness.dragTo(-SHORT / 2);
+      await harness.hold(SLOW_MS);
+      await harness.dragTo(-SHORT);
+      await harness.release();
+      await harness.settle();
+
+      expect(await harness.isActionBarVisible()).toBe(false);
+    });
+
+    it('does not fire the button under a drag that sprang back', async () => {
+      const harness = await render();
+
+      await harness.pressActions();
+      await harness.dragTo(20);
+      await harness.dragTo(10);
+      await harness.release();
+      // The browser follows any drag with a click on where it began.
+      await harness.tailClickStartOver();
+
+      expect(story.phase()).toBe('story');
+      expect(await harness.isActionBarVisible()).toBe(true);
+    });
+
+    it('never moves the composition, mid-drag or after it', async () => {
+      const harness = await render();
+      const reserved = await harness.reservedBottomPx();
+
+      await harness.pressActions();
+      await harness.dragTo(60);
+      expect(await harness.reservedBottomPx()).toBe(reserved);
+
+      await harness.release();
+      expect(await harness.reservedBottomPx()).toBe(reserved);
+
+      await harness.settle();
+      expect(await harness.reservedBottomPx()).toBe(reserved);
+    });
+
+    it('keeps the actions on screen until the panel has left', async () => {
+      const harness = await render();
+
+      await harness.pressActions();
+      await harness.dragTo(120);
+      await harness.release();
+      // The finger is off, but the panel is still on its way out.
+      expect(await harness.isActionBarVisible()).toBe(true);
+
+      await harness.settle();
+      expect(await harness.isActionBarVisible()).toBe(false);
+    });
+
+    it('swaps instantly, with no panel to wait for, when motion is reduced', async () => {
+      const harness = await render();
+      reduceMotion();
+
+      await harness.pressActions();
+      await harness.dragTo(120);
+      await harness.release();
+
+      expect(await harness.isActionBarVisible()).toBe(false);
+    });
+  });
+
   describe('paging by swipe', () => {
     it('advances a frame on a swipe left', async () => {
       const harness = await render();

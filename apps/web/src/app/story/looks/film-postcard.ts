@@ -1,5 +1,13 @@
-import type { DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
-import { splitEmphasis } from '../look';
+import type {
+  DensityRamp,
+  DrawnComposition,
+  FrameContent,
+  Look,
+  Part,
+  PhotoAnalysis,
+  Rung,
+} from '../look';
+import { resolveDensity, splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
 /**
@@ -31,6 +39,32 @@ const WARM_PRINT = 'saturate(1.08) sepia(0.18) contrast(1.04)';
 
 /** A postcard is written along the bottom; the top is its fallback. */
 const PREFERRED_BANDS: readonly Band[] = ['bottom', 'top'];
+
+/**
+ * What this Look sets at each density (7.26). A postcard is written on the back
+ * in whatever space is left: a greeting takes the whole card, a message is
+ * written smaller and closer so it fits. The `thought` rung is that message —
+ * still centred Fraunces inside the print margin, just no longer a greeting.
+ *
+ * The budget is what the card leaves. The message sits inside a printed margin
+ * and above a stamped place, and at 4.1% across a 72% column it runs to about
+ * six words a line — so thirty words is five lines and still clear of the
+ * border. The greeting at 6.4% is under four words a line, and a greeting that
+ * runs past three lines has stopped being one, so `line` takes 7.26's twelve
+ * and no more.
+ */
+const LINE: Rung = { fontSizeWPct: 6.4, lineHeight: 1.16, maxWords: 12 };
+export const FILM_POSTCARD_RAMP: DensityRamp = {
+  // A frame that states `silent` and then writes words has words, and words are
+  // always drawn; a truly wordless frame returns before this is read.
+  silent: { ...LINE, maxWords: 0 },
+  beat: { fontSizeWPct: 8.4, lineHeight: 1.08, maxWords: 3 },
+  line: LINE,
+  thought: { fontSizeWPct: 4.1, lineHeight: 1.42, maxWords: 30 },
+  // A line written to somebody on the back of a card, asked rather than told —
+  // same size as a greeting, a word shorter so it lands as one question.
+  question: { ...LINE, maxWords: 11 },
+};
 
 function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
   const band = quietestBand(photo.bands, PREFERRED_BANDS);
@@ -79,13 +113,14 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
 
   // The line itself. Regular weight, generous leading, no mark — a keepsake is
   // read, not sold.
+  const rung = FILM_POSTCARD_RAMP[resolveDensity(content)];
   parts.push({
     kind: 'text',
     runs: splitEmphasis(content.headline, content.emphasis),
     fontFamily: FRAUNCES,
     fontWeight: 400,
-    fontSizeWPct: 6.4,
-    lineHeight: 1.16,
+    fontSizeWPct: rung.fontSizeWPct,
+    lineHeight: rung.lineHeight,
     letterSpacingEm: 0.005,
     textTransform: 'none',
     textAlign: 'center',
@@ -141,6 +176,7 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
 }
 
 export const FILM_POSTCARD: Look = {
+  ramp: FILM_POSTCARD_RAMP,
   id: 'film-postcard',
   prefer: PREFERRED_BANDS,
   compose,

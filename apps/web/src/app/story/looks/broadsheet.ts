@@ -1,5 +1,13 @@
-import type { DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
-import { splitEmphasis } from '../look';
+import type {
+  Density,
+  DrawnComposition,
+  FrameContent,
+  Look,
+  Part,
+  PhotoAnalysis,
+  Rung,
+} from '../look';
+import { resolveDensity, splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
 /**
@@ -29,6 +37,42 @@ const PAIR_GAP_HPCT = 0.24;
 
 /** A masthead sits at the top of the page; the foot is its fallback. */
 const PREFERRED_BANDS: readonly Band[] = ['top', 'bottom'];
+
+/**
+ * A front page changes weight as well as size between its registers, which the
+ * shared rung does not carry — so this Look extends the shared rung rather than
+ * redefining one, and a ramp of these stays a `DensityRamp`.
+ */
+interface WeightedRung extends Rung {
+  readonly fontWeight: number;
+}
+
+/**
+ * What this Look sets at each density (7.26). A front page has two registers
+ * already — the banner headline and the standfirst under it — so the rungs are
+ * that same pair: a `beat` is the banner, a `thought` is the standfirst, set at
+ * reading size inside the same double rules.
+ *
+ * The word budgets are read off the measure: an 82% column of centred Fraunces
+ * holds about eighteen characters per line at banner size and about thirty at
+ * standfirst size. A banner runs to three lines before it stops being one, so
+ * `line` is ten words; a standfirst runs to six, so `thought` is twenty-eight —
+ * short of 7.26's thirty-five, because the block is held between four rules and
+ * the rules have to stay on the frame with it.
+ */
+const LINE: WeightedRung = { fontSizeWPct: 8.8, lineHeight: 1.02, fontWeight: 700, maxWords: 10 };
+export const BROADSHEET_RAMP: Record<Density, WeightedRung> = {
+  // A frame that states `silent` and then writes words has words, and words are
+  // always drawn; a truly wordless frame returns before this is read.
+  silent: { ...LINE, maxWords: 0 },
+  beat: { fontSizeWPct: 11.5, lineHeight: 0.98, fontWeight: 700, maxWords: 3 },
+  line: LINE,
+  thought: { fontSizeWPct: 5.4, lineHeight: 1.24, fontWeight: 700, maxWords: 28 },
+  // A question is set in the book weight, not the front-page weight: the page
+  // asks rather than declares, and the rules around it carry the structure. It
+  // is set a shade smaller too, so it carries a word more than the banner does.
+  question: { fontSizeWPct: 8.4, lineHeight: 1.06, fontWeight: 400, maxWords: 11 },
+};
 
 function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
   const band = quietestBand(photo.bands, PREFERRED_BANDS);
@@ -76,13 +120,14 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
   parts.push(rule(HEAVY_HPCT, kicker ? 2.4 : 0, 0.9));
   parts.push(rule(HAIRLINE_HPCT, PAIR_GAP_HPCT, 0.7));
 
+  const rung = BROADSHEET_RAMP[resolveDensity(content)];
   parts.push({
     kind: 'text',
     runs: splitEmphasis(content.headline, content.emphasis),
     fontFamily: FRAUNCES,
-    fontWeight: 700,
-    fontSizeWPct: 8.8,
-    lineHeight: 1.02,
+    fontWeight: rung.fontWeight,
+    fontSizeWPct: rung.fontSizeWPct,
+    lineHeight: rung.lineHeight,
     letterSpacingEm: -0.012,
     textTransform: 'none',
     textAlign: 'center',
@@ -136,6 +181,7 @@ function rule(thicknessHPct: number, gapHPct: number, opacity: number): Part {
 }
 
 export const BROADSHEET: Look = {
+  ramp: BROADSHEET_RAMP,
   id: 'broadsheet',
   prefer: PREFERRED_BANDS,
   compose,

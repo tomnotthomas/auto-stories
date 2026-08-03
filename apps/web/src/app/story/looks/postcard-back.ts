@@ -1,5 +1,13 @@
-import type { DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
-import { splitEmphasis } from '../look';
+import type {
+  DensityRamp,
+  DrawnComposition,
+  FrameContent,
+  Look,
+  Part,
+  PhotoAnalysis,
+  Rung,
+} from '../look';
+import { resolveDensity, splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
 /**
@@ -30,6 +38,31 @@ const POSTMARK_TILT_DEG = -6.5;
 /** A message is written under the stamp, so the stack hangs off the bottom. */
 const PREFERRED_BANDS: readonly Band[] = ['bottom', 'top'];
 
+/**
+ * What this Look sets at each density (7.26). A postcard is the one Look in the
+ * set that a `thought` genuinely suits — the back of a card is where people write
+ * several lines — so the drop is to a real message hand, leaded like one, rather
+ * than to something apologetic. A `beat` is the other extreme: three words across
+ * the card, the way a card gets written when the sender is in a hurry.
+ *
+ * The budget is high for the same reason and still short of 7.26's ceiling: the
+ * hand takes about 36 characters to the 82%-wide measure at the `thought` rung,
+ * and the postmark, the printed divider and the franked kicker have already
+ * taken the top of the card, so the message gets five written lines — thirty
+ * words — before it runs off the bottom of what the card can hold.
+ */
+const LINE: Rung = { fontSizeWPct: 6, lineHeight: 1.34, maxWords: 12 };
+export const POSTCARD_BACK_RAMP: DensityRamp = {
+  // A frame that states `silent` and then writes words has words, and words are
+  // always drawn; a truly wordless frame returns before this is read. The budget
+  // is still nought: the rung asks for no words at all.
+  silent: { ...LINE, maxWords: 0 },
+  beat: { fontSizeWPct: 7.8, lineHeight: 1.24, maxWords: 3 },
+  line: LINE,
+  thought: { fontSizeWPct: 4.1, lineHeight: 1.48, maxWords: 30 },
+  question: { ...LINE, maxWords: 9 },
+};
+
 function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
   const band = quietestBand(photo.bands, PREFERRED_BANDS);
   const anchor = band === 'top' ? 'top' : 'bottom';
@@ -48,6 +81,7 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
   // it is a sticker on someone's picture.
   if (!content.headline.trim()) return { ...base, scrim: null, parts: [] };
 
+  const density = resolveDensity(content);
   const parts: Part[] = [];
 
   // The postmark carries the place — a postmark names where it was franked. If
@@ -107,13 +141,14 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
 
   // The message. Unmarked: the postmark is already the one graphic on this
   // card (7.23), and a highlight through handwriting reads as a correction.
+  const rung = POSTCARD_BACK_RAMP[density];
   parts.push({
     kind: 'text',
     runs: splitEmphasis(content.headline, content.emphasis),
     fontFamily: SHANTELL,
     fontWeight: 400,
-    fontSizeWPct: 6,
-    lineHeight: 1.34,
+    fontSizeWPct: rung.fontSizeWPct,
+    lineHeight: rung.lineHeight,
     letterSpacingEm: 0,
     textTransform: 'none',
     textAlign: 'left',
@@ -135,6 +170,7 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
 }
 
 export const POSTCARD_BACK: Look = {
+  ramp: POSTCARD_BACK_RAMP,
   id: 'postcard-back',
   prefer: PREFERRED_BANDS,
   compose,

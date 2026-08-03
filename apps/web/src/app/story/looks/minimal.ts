@@ -1,5 +1,13 @@
-import type { DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
-import { splitEmphasis } from '../look';
+import type {
+  DensityRamp,
+  DrawnComposition,
+  FrameContent,
+  Look,
+  Part,
+  PhotoAnalysis,
+  Rung,
+} from '../look';
+import { resolveDensity, splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
 /**
@@ -36,6 +44,30 @@ const RULE_WIDTH_PCT = Math.round((RULE_WPCT / COLUMN_WPCT) * 100);
 /** Top-left is the whole idea; the bottom is the fallback on a busy sky. */
 const PREFERRED_BANDS: readonly Band[] = ['top', 'bottom'];
 
+/**
+ * What this Look sets at each density (7.26). The column is narrow by design — a
+ * quarter of the frame is held empty — so words wrap early here and the ramp has
+ * to be real: at the `line` size a `thought` would fill the space the Look exists
+ * to protect. Thin weight at every rung; the size and the leading are what move.
+ *
+ * The budgets are the smallest in the restrained group, and that is the design
+ * rather than a shortfall: 65 of the frame's 100 widths is under four words a
+ * line, and the emptiness only survives two lines at the `line` rung and three
+ * at `thought`. A Minimal frame that fills its column is not Minimal, so the
+ * model is told a small number rather than left to discover it.
+ */
+const LINE: Rung = { fontSizeWPct: 5.6, lineHeight: 1.25, maxWords: 8 };
+export const MINIMAL_RAMP: DensityRamp = {
+  // A frame that states `silent` and then writes words has words, and words are
+  // always drawn; a truly wordless frame returns before this is read. The rung
+  // still carries no budget, because the rung is the absence of words.
+  silent: { ...LINE, maxWords: 0 },
+  beat: { fontSizeWPct: 7.4, lineHeight: 1.15, maxWords: 3 },
+  line: LINE,
+  thought: { fontSizeWPct: 3.8, lineHeight: 1.42, maxWords: 16 },
+  question: LINE,
+};
+
 function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
   const band = quietestBand(photo.bands, PREFERRED_BANDS);
   const anchor = band === 'bottom' ? 'bottom' : 'top';
@@ -56,6 +88,7 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
   // sit under a title; with no title there is nothing to underline.
   if (!content.headline.trim()) return { ...base, parts: [] };
 
+  const density = resolveDensity(content);
   const parts: Part[] = [];
 
   // The title. Thin and small — this Look never sets type that competes with
@@ -66,8 +99,8 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
     runs: splitEmphasis(content.headline, content.emphasis),
     fontFamily: SYSTEM_SANS,
     fontWeight: 300,
-    fontSizeWPct: 5.6,
-    lineHeight: 1.25,
+    fontSizeWPct: MINIMAL_RAMP[density].fontSizeWPct,
+    lineHeight: MINIMAL_RAMP[density].lineHeight,
     letterSpacingEm: -0.01,
     textTransform: 'none',
     textAlign: 'left',
@@ -111,6 +144,7 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
 }
 
 export const MINIMAL: Look = {
+  ramp: MINIMAL_RAMP,
   id: 'minimal',
   prefer: PREFERRED_BANDS,
   compose,

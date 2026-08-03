@@ -127,6 +127,87 @@ describe('shapeFrames', () => {
     expect(shapeFrames(raw, ids)[0].emphasis).toBe('GOLDEN');
   });
 
+  // Decision 7.26: the rung the model picked is its half of the brief the
+  // design shares, so it crosses as stated whenever the words agree with it.
+  it("threads the model's density when the words agree with it", () => {
+    const raw = [
+      { photoId: 'a', order: 1, headline: 'Golden hour', density: 'beat' },
+      {
+        photoId: 'b',
+        order: 2,
+        headline: 'Was this the best day of the whole trip?',
+        density: 'question',
+      },
+    ];
+    expect(shapeFrames(raw, ids).map((f) => f.density)).toEqual([
+      'beat',
+      'question',
+    ]);
+  });
+
+  it('drops an unrecognised density, so the client infers from the headline', () => {
+    const raw = [
+      { photoId: 'a', order: 1, headline: 'Golden hour', density: 'paragraph' },
+      { photoId: 'b', order: 2, headline: 'Golden hour', density: 7 },
+    ];
+    for (const frame of shapeFrames(raw, ids)) {
+      expect(frame.density).toBeUndefined();
+    }
+  });
+
+  it('omits density when the model states none', () => {
+    expect(
+      shapeFrames([{ photoId: 'a', order: 1, headline: 'Golden hour' }], ids)[0]
+        .density,
+    ).toBeUndefined();
+  });
+
+  // The words are the truth and the label is reconciled to them: a frame that
+  // says `silent` but wrote words is not silent, and dropping real words to
+  // honour a label destroys content. The label goes, the words stay, and the
+  // client reads the rung off the headline it actually has.
+  it('drops a silent density when the model wrote words anyway', () => {
+    const frame = shapeFrames(
+      [{ photoId: 'a', order: 1, headline: 'Golden hour', density: 'silent' }],
+      ids,
+    )[0];
+    expect(frame.headline).toBe('Golden hour');
+    expect(frame.density).toBeUndefined();
+  });
+
+  // The other half of the same rule: with no words there is nothing to set, so
+  // any other rung is a contradiction and `silent` is the only truthful one.
+  it('makes a frame with no words silent, whatever rung the model claimed', () => {
+    const raw = [
+      { photoId: 'a', order: 1, headline: '   ', density: 'thought' },
+      { photoId: 'b', order: 2, density: 'line' },
+      { photoId: 'c', order: 3 },
+    ];
+    const frames = shapeFrames(raw, ids);
+    expect(frames.map((f) => f.headline)).toEqual(['', '', '']);
+    expect(frames.map((f) => f.density)).toEqual([
+      'silent',
+      'silent',
+      'silent',
+    ]);
+  });
+
+  it('never emits a density that contradicts the words', () => {
+    const raw = [
+      { photoId: 'a', order: 1, headline: '', density: 'beat' },
+      {
+        photoId: 'b',
+        order: 2,
+        headline: 'A real line here',
+        density: 'silent',
+      },
+      { photoId: 'c', order: 3, headline: 'Golden hour', density: 'beat' },
+    ];
+    for (const frame of shapeFrames(raw, ids)) {
+      expect(frame.density === 'silent').toBe(frame.headline === '');
+    }
+  });
+
   it('ignores malformed entries (missing/mistyped fields)', () => {
     const raw = [
       { photoId: 'a', headline: 'no order' },

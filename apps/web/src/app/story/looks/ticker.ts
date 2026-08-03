@@ -1,5 +1,13 @@
-import type { DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
-import { splitEmphasis } from '../look';
+import type {
+  DensityRamp,
+  DrawnComposition,
+  FrameContent,
+  Look,
+  Part,
+  PhotoAnalysis,
+  Rung,
+} from '../look';
+import { resolveDensity, splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
 /**
@@ -32,22 +40,43 @@ const PAD_HPCT = 2;
 const PREFERRED_BANDS: readonly Band[] = ['bottom', 'top'];
 
 /**
- * A ticker is a *thin* bar, and that is the whole Look — so the type has to give
- * way as the words get longer, or the bar swells to a fifth of the frame and
- * reads as a caption block instead. Coarse steps on purpose: fine-grained sizing
- * would give every frame in a story a slightly different bar.
+ * What this Look sets at each density (7.26). A ticker is a *thin* bar, and that
+ * is the whole Look, so the ramp is steep: a `beat` fills the strip, while a
+ * `thought` has to come right down or the bar swells to a fifth of the frame and
+ * reads as a caption block instead.
+ *
+ * A `thought` is the rung a ticker likes least — a lower third is not written to
+ * hold thirty-five words — so it takes the smallest setting in the Look, which
+ * is what keeps the bar as shallow as the words allow.
+ *
+ * This replaces a ramp that guessed from the headline's character count: the
+ * model now states what it meant, so the bar is sized to the intent rather than
+ * to the accident of how long the sentence came out.
+ *
+ * So the budgets are set by the bar's depth, not by the rung's own ceiling: a
+ * lower third is one line of type, two at the very most, and a third line is the
+ * moment it stops being a ticker and becomes a caption block. That is the whole
+ * measure. Tracked caps at the `line` size run about twenty-eight characters
+ * across the 88% column, so two lines is eight words; at the `thought` size the
+ * measure nearly doubles, so the same two lines take fourteen. Neither rung ever
+ * gets a third line, which is why even `thought` stops less than halfway through
+ * the 15–35 words 7.26 allows it.
  */
-const SIZE_STEPS: readonly { readonly upTo: number; readonly fontSizeWPct: number }[] = [
-  { upTo: 24, fontSizeWPct: 5.4 },
-  { upTo: 40, fontSizeWPct: 4.4 },
-  { upTo: 62, fontSizeWPct: 3.6 },
-  { upTo: Number.POSITIVE_INFINITY, fontSizeWPct: 3 },
-];
-
-function sizeFor(headline: string): number {
-  const step = SIZE_STEPS.find((candidate) => headline.trim().length <= candidate.upTo);
-  return (step ?? SIZE_STEPS[SIZE_STEPS.length - 1]).fontSizeWPct;
-}
+const LINE: Rung = { fontSizeWPct: 4.6, lineHeight: 1.14, maxWords: 8 };
+export const TICKER_RAMP: DensityRamp = {
+  // A frame that states `silent` and then writes words has words, and words are
+  // always drawn; a truly wordless frame returns before this is read. The size
+  // is `line`'s because that is what those stray words get set at; the budget is
+  // zero because a silent frame is not written to.
+  silent: { ...LINE, maxWords: 0 },
+  // One line of the strip, filled — the size the bar was drawn for.
+  beat: { fontSizeWPct: 6, lineHeight: 1.08, maxWords: 3 },
+  line: LINE,
+  thought: { fontSizeWPct: 2.8, lineHeight: 1.28, maxWords: 14 },
+  // A question is a statement's length and is set as one, so it gets the same
+  // measure and the same two lines.
+  question: LINE,
+};
 
 function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
   const band = quietestBand(photo.bands, PREFERRED_BANDS);
@@ -69,6 +98,7 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
     };
   }
 
+  const rung = TICKER_RAMP[resolveDensity(content)];
   const parts: Part[] = [];
 
   // The dateline strip: flag left, place right, on one baseline. It appears only
@@ -100,8 +130,8 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
     runs: splitEmphasis(content.headline, content.emphasis),
     fontFamily: BRICOLAGE,
     fontWeight: 700,
-    fontSizeWPct: sizeFor(content.headline),
-    lineHeight: 1.14,
+    fontSizeWPct: rung.fontSizeWPct,
+    lineHeight: rung.lineHeight,
     letterSpacingEm: 0.06,
     textTransform: 'uppercase',
     textAlign: 'left',
@@ -139,6 +169,7 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
 }
 
 export const TICKER: Look = {
+  ramp: TICKER_RAMP,
   id: 'ticker',
   prefer: PREFERRED_BANDS,
   compose,

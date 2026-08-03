@@ -1,15 +1,20 @@
 import type {
+  FrameDensityEnum,
   Look,
   Suggestion,
   SuggestionTypeEnum,
 } from '@auto-stories/api-types';
 
-/** Keep `value` only if it is one of `allowed`; otherwise use `fallback`. */
-function pick<T extends string>(
+/**
+ * Keep `value` only if it is one of `allowed`; otherwise use `fallback`.
+ * The fallback is its own type so a field whose fallback is "say nothing"
+ * (`undefined`) can use the same check as one with a real default.
+ */
+function pick<T extends string, F>(
   allowed: readonly T[],
   value: unknown,
-  fallback: T,
-): T {
+  fallback: F,
+): T | F {
   return typeof value === 'string' &&
     (allowed as readonly string[]).includes(value)
     ? (value as T)
@@ -70,6 +75,30 @@ export const DEFAULT_LOOK: Look = 'quiet-editorial';
  */
 export function normalizeLook(raw: unknown): Look {
   return pick(LOOKS, raw, DEFAULT_LOOK);
+}
+
+/**
+ * The five rungs of the brief the design and the words share (decision 7.26):
+ * `silent` no text, `beat` 1–3 words, `line` 4–12, `thought` 2–3 lines,
+ * `question` one short question. Kept in step with the client's own list.
+ */
+export const DENSITIES: readonly FrameDensityEnum[] = [
+  'silent',
+  'beat',
+  'line',
+  'thought',
+  'question',
+];
+
+/**
+ * Turn the model's per-frame `density` into one of the {@link DENSITIES}, or
+ * `undefined` when it named none or named something the client cannot set.
+ * There is no default rung: absent means "read it from the headline", which the
+ * client does from its length (decision 7.26), and that inference is a better
+ * answer than a rung nobody chose. Pure and unit-tested.
+ */
+export function normalizeDensity(raw: unknown): FrameDensityEnum | undefined {
+  return pick(DENSITIES, raw, undefined);
 }
 
 const SUGGESTION_TYPES: readonly SuggestionTypeEnum[] = [

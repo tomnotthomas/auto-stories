@@ -1,6 +1,6 @@
 export type { ErrorCode, ErrorCodeEnum } from "./models/ErrorCode.js";
 export type { ErrorResponse } from "./models/ErrorResponse.js";
-export type { Frame } from "./models/Frame.js";
+export type { Frame, FrameDensityEnum } from "./models/Frame.js";
 export type { GenerateAccepted } from "./models/GenerateAccepted.js";
 export type { GenerateRequest } from "./models/GenerateRequest.js";
 export type { GenerateResponse } from "./models/GenerateResponse.js";

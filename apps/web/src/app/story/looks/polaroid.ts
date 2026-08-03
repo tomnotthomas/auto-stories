@@ -1,5 +1,13 @@
-import type { DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
-import { splitEmphasis } from '../look';
+import type {
+  DensityRamp,
+  DrawnComposition,
+  FrameContent,
+  Look,
+  Part,
+  PhotoAnalysis,
+  Rung,
+} from '../look';
+import { resolveDensity, splitEmphasis } from '../look';
 import type { Band } from '../quiet-zone';
 
 /**
@@ -36,6 +44,33 @@ const INSTANT_LIFT = 'brightness(1.04) saturate(1.06) contrast(0.98)';
  */
 const PREFERRED_BANDS: readonly Band[] = ['bottom'];
 
+/**
+ * What this Look sets at each density (7.26). The margin grows with the words —
+ * the panel is drawn around the ink — so the ramp is not about overflow but about
+ * how much of the photograph the paper is allowed to take. At the `line` size a
+ * `thought` would push the margin up over a third of the print, which is a
+ * caption card with a picture attached rather than a Polaroid.
+ *
+ * The word budget is the same measurement, stated for the model instead of for
+ * the renderer: paper, not overflow, is what runs out. The margin already pads
+ * 7.2% of the frame height above and below whatever is written, so every line
+ * costs the picture twice over. Three lines of handwriting is a quarter of the
+ * print in paper — about twenty-four words at the `thought` size and ten at the
+ * caption size, which is where both stop. Nothing here is ever cut off; the
+ * photograph just disappears behind its own margin.
+ */
+const LINE: Rung = { fontSizeWPct: 4.8, lineHeight: 1.28, maxWords: 10 };
+export const POLAROID_RAMP: DensityRamp = {
+  // A frame that states `silent` and then writes words has words, and words are
+  // always drawn; a truly wordless frame returns before this is read.
+  silent: { ...LINE, maxWords: 0 },
+  beat: { fontSizeWPct: 6.4, lineHeight: 1.2, maxWords: 3 },
+  line: LINE,
+  thought: { fontSizeWPct: 3.3, lineHeight: 1.44, maxWords: 24 },
+  // Written on the strip in the same hand, asked rather than told.
+  question: { ...LINE, maxWords: 9 },
+};
+
 function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
   // Silent: the photo speaks for itself (decision 7.26). With nothing written
   // the margin has no reason to exist — an empty white band across a photo
@@ -60,14 +95,15 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
   // A print margin holds one hand-written thought. The kicker is dropped rather
   // than stacked into it — three lines of handwriting in a white band is a
   // caption block, not a Polaroid.
+  const rung = POLAROID_RAMP[resolveDensity(content)];
   const parts: Part[] = [
     {
       kind: 'text',
       runs: splitEmphasis(content.headline, content.emphasis),
       fontFamily: SHANTELL,
       fontWeight: 400,
-      fontSizeWPct: 4.8,
-      lineHeight: 1.28,
+      fontSizeWPct: rung.fontSizeWPct,
+      lineHeight: rung.lineHeight,
       letterSpacingEm: 0,
       textTransform: 'none',
       textAlign: 'center',
@@ -127,6 +163,7 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
 }
 
 export const POLAROID: Look = {
+  ramp: POLAROID_RAMP,
   id: 'polaroid',
   prefer: PREFERRED_BANDS,
   compose,

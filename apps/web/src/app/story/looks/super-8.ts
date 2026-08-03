@@ -1,5 +1,13 @@
-import type { DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
-import { splitEmphasis } from '../look';
+import type {
+  DensityRamp,
+  DrawnComposition,
+  FrameContent,
+  Look,
+  Part,
+  PhotoAnalysis,
+  Rung,
+} from '../look';
+import { resolveDensity, splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
 /**
@@ -36,6 +44,30 @@ const HOME_MOVIE = 'sepia(0.42) saturate(0.9) contrast(1.06) brightness(0.98)';
 /** A readout belongs at the head of the picture; the foot is its fallback. */
 const PREFERRED_BANDS: readonly Band[] = ['top', 'bottom'];
 
+/**
+ * What this Look sets at each density (7.26). This Look is a readout, not a
+ * headline, so the whole ramp sits low — a `beat` here is still smaller than a
+ * `thought` in the loud group. Mono caps are wide, so the drop at `thought` is
+ * what keeps a passage from filling the viewfinder it is supposed to sit inside.
+ *
+ * The type is small enough that space is never what runs out here — 7.26's whole
+ * thirty-five words is four lines inside the viewfinder. What runs out is the
+ * idiom: this is a camera burning capitals into the corner of a frame, and a
+ * readout that runs past four lines of monospaced caps is a wall of text with a
+ * viewfinder drawn round it. Twenty-six is where it stops reading as a readout,
+ * which is a lower budget than a Look setting the same words in a serif.
+ */
+const LINE: Rung = { fontSizeWPct: 3.6, lineHeight: 1.4, maxWords: 12 };
+export const SUPER_8_RAMP: DensityRamp = {
+  // A frame that states `silent` and then writes words has words, and words are
+  // always drawn; a truly wordless frame returns before this is read.
+  silent: { ...LINE, maxWords: 0 },
+  beat: { fontSizeWPct: 5, lineHeight: 1.3, maxWords: 3 },
+  line: LINE,
+  thought: { fontSizeWPct: 2.6, lineHeight: 1.54, maxWords: 26 },
+  question: LINE,
+};
+
 function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
   const band = quietestBand(photo.bands, PREFERRED_BANDS);
   const anchor = band === 'top' ? 'top' : 'bottom';
@@ -59,6 +91,7 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
     };
   }
 
+  const density = resolveDensity(content);
   const parts: Part[] = [];
 
   // The timecode. Nothing is invented: it sets whatever short label the frame
@@ -91,8 +124,8 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
     runs: splitEmphasis(content.headline, content.emphasis),
     fontFamily: MONO,
     fontWeight: 400,
-    fontSizeWPct: 3.6,
-    lineHeight: 1.4,
+    fontSizeWPct: SUPER_8_RAMP[density].fontSizeWPct,
+    lineHeight: SUPER_8_RAMP[density].lineHeight,
     letterSpacingEm: 0.02,
     textTransform: 'uppercase',
     textAlign: 'left',
@@ -146,6 +179,7 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
 }
 
 export const SUPER_8: Look = {
+  ramp: SUPER_8_RAMP,
   id: 'super-8',
   prefer: PREFERRED_BANDS,
   compose,

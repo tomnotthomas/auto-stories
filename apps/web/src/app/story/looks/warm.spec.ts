@@ -1,17 +1,23 @@
 import { DEFAULT_ACCENT } from '../accent-color';
 import {
+  DENSITIES,
+  DENSITY_WORDS,
   textParts,
+  wordBudget,
   type Composition,
+  type Density,
+  type DensityRamp,
   type FrameContent,
   type Look,
   type PhotoAnalysis,
   type TagPart,
+  type TextPart,
   type HasParts,
 } from '../look';
-import { FADED_ALBUM } from './faded-album';
-import { FILM_POSTCARD } from './film-postcard';
-import { POLAROID } from './polaroid';
-import { SUPER_8 } from './super-8';
+import { FADED_ALBUM, FADED_ALBUM_RAMP } from './faded-album';
+import { FILM_POSTCARD, FILM_POSTCARD_RAMP } from './film-postcard';
+import { POLAROID, POLAROID_RAMP } from './polaroid';
+import { SUPER_8, SUPER_8_RAMP } from './super-8';
 
 /**
  * The warm group — Film Postcard, Polaroid, Super 8, Faded Album. Four Looks
@@ -164,6 +170,120 @@ describe.each(WARM_LOOKS.map((look) => [look.id, look] as const))('%s', (id, loo
     });
   });
 });
+
+/**
+ * Every Look in this file, with the ramp it declares. The ramp is a contract,
+ * not a per-Look flourish, so there is no subset here — a Look added to the file
+ * is a Look held to it.
+ */
+const RAMPED: readonly (readonly [Look, DensityRamp])[] = [
+  [FILM_POSTCARD, FILM_POSTCARD_RAMP],
+  [POLAROID, POLAROID_RAMP],
+  [SUPER_8, SUPER_8_RAMP],
+  [FADED_ALBUM, FADED_ALBUM_RAMP],
+];
+
+/** The same words at every rung, so only the stated density differs (7.26). */
+const PROBE = 'The road out of the valley and back again';
+
+describe.each(RAMPED.map(([look, ramp]) => [look.id, look, ramp] as const))(
+  '%s density',
+  (_id, look, ramp) => {
+    it('sets a thought in a visibly different slot from a beat', () => {
+      // 7.26's named failure: `thought` collapsing into `line` (or into `beat`).
+      // Same words both times — the size difference is the density, nothing else.
+      expect(headlineFor(look, 'thought').fontSizeWPct).toBeLessThan(
+        headlineFor(look, 'beat').fontSizeWPct * 0.75,
+      );
+    });
+
+    it('steps the headline down from beat to line to thought', () => {
+      const beat = headlineFor(look, 'beat').fontSizeWPct;
+      const line = headlineFor(look, 'line').fontSizeWPct;
+      const thought = headlineFor(look, 'thought').fontSizeWPct;
+
+      expect(beat).toBeGreaterThan(line);
+      expect(line).toBeGreaterThan(thought);
+    });
+
+    it('opens the leading as the rung grows', () => {
+      // The other half of the same step: a thought set smaller but leaded like a
+      // headline reads as a shrunken headline. Every Look opens it — a design
+      // that put the whole step into the size was the subset this used to allow.
+      const beat = headlineFor(look, 'beat').lineHeight;
+      const line = headlineFor(look, 'line').lineHeight;
+      const thought = headlineFor(look, 'thought').lineHeight;
+
+      expect(line).toBeGreaterThan(beat);
+      expect(thought).toBeGreaterThan(line);
+    });
+
+    it('still sets the words at every rung the model can state', () => {
+      // Including `silent`: a frame that says silent and then writes words has
+      // words, and words are always drawn.
+      for (const density of DENSITIES) {
+        expect(everyWord(look.compose({ ...CONTENT, density }, CALM))).toContain(CONTENT.headline);
+      }
+    });
+
+    it('carries fewer words the larger it sets them', () => {
+      // The budget is the design's own statement of what it can hold, so it has
+      // to move against the size — a rung set bigger that claimed to hold more
+      // would be describing a different Look.
+      expect(ramp.beat.fontSizeWPct).toBeGreaterThan(ramp.line.fontSizeWPct);
+      expect(ramp.line.fontSizeWPct).toBeGreaterThan(ramp.thought.fontSizeWPct);
+      expect(wordBudget(ramp, 'beat')).toBeLessThan(wordBudget(ramp, 'line'));
+      expect(wordBudget(ramp, 'line')).toBeLessThan(wordBudget(ramp, 'thought'));
+    });
+
+    it('never claims to hold more than the rung is written to', () => {
+      // 7.26 says how long the words are; the Look says how much of that it can
+      // take. It may take less — Polaroid does, because its paper grows with the
+      // words — but never more.
+      for (const density of DENSITIES) {
+        expect(wordBudget(ramp, density)).toBeLessThanOrEqual(DENSITY_WORDS[density].max);
+      }
+      expect(wordBudget(ramp, 'silent')).toBe(0);
+    });
+
+    it('sets a headline of its own budget without dropping below its smallest rung', () => {
+      // The budget has to be one this Look can actually set: written to the word
+      // it published, the frame still composes, and the type is still one of the
+      // sizes the design declared rather than something shrunk to fit.
+      const smallest = Math.min(...DENSITIES.map((density) => ramp[density].fontSizeWPct));
+
+      for (const density of DENSITIES) {
+        const budget = wordBudget(ramp, density);
+        if (budget === 0) continue;
+        const headline = wordsOf(budget);
+        const part = headlineOf(look, headline, density);
+
+        expect(part.fontSizeWPct).toBeGreaterThanOrEqual(smallest);
+      }
+    });
+  },
+);
+
+/** The headline part this Look composes at one density. */
+function headlineFor(look: Look, density: Density): TextPart {
+  return headlineOf(look, PROBE, density);
+}
+
+/** The part carrying these exact words, so a test can probe any headline. */
+function headlineOf(look: Look, headline: string, density: Density): TextPart {
+  const composition = look.compose({ headline, density }, CALM);
+  const part = textParts(composition).find((candidate) => runText(candidate) === headline);
+  if (!part) throw new Error(`${look.id} sets no headline at density “${density}”`);
+  return part;
+}
+
+/** Plain words to fill a budget with — content nobody has to read, of a length
+ * that is the point. Never ends in a question mark, so a stated density is the
+ * only thing under test. */
+function wordsOf(count: number): string {
+  const pool = ['the', 'road', 'out', 'of', 'the', 'valley', 'and', 'back', 'again', 'before'];
+  return Array.from({ length: count }, (_unused, index) => pool[index % pool.length]).join(' ');
+}
 
 describe('film-postcard', () => {
   it('prints a border on the photo', () => {

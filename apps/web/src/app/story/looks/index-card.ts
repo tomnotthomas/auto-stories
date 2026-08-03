@@ -1,5 +1,13 @@
-import type { DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
-import { splitEmphasis } from '../look';
+import type {
+  DensityRamp,
+  DrawnComposition,
+  FrameContent,
+  Look,
+  Part,
+  PhotoAnalysis,
+  Rung,
+} from '../look';
+import { resolveDensity, splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
 /**
@@ -32,6 +40,31 @@ const PANEL_PAD_HPCT = 3.2;
 
 /** A card gets put down low on the picture. */
 const PREFERRED_BANDS: readonly Band[] = ['bottom', 'top'];
+
+/**
+ * What this Look sets at each density (7.26). The card is a fixed thing: what
+ * changes is the hand writing on it. A `beat` is written large across the ruled
+ * line, a `thought` is the same hand filling the card — smaller, and leaded like
+ * ruled paper, because a card that had to grow to hold its words would stop
+ * being something laid on the photo.
+ *
+ * The budget is bounded by the card rather than by the frame. Shantell is a
+ * wide hand — about 36 characters to the 78%-wide measure at the `thought` rung
+ * — and each line costs 3.4% of the frame's height on top of the panel's own
+ * padding, so 28 words is five written lines and a card about a quarter of the
+ * picture deep. That is the point at which the Look stops being the quiet one.
+ */
+const LINE: Rung = { fontSizeWPct: 6.2, lineHeight: 1.32, maxWords: 11 };
+export const INDEX_CARD_RAMP: DensityRamp = {
+  // A frame that states `silent` and then writes words has words, and words are
+  // always drawn; a truly wordless frame returns before this is read. The budget
+  // is still nought: the rung asks for no words at all.
+  silent: { ...LINE, maxWords: 0 },
+  beat: { fontSizeWPct: 8, lineHeight: 1.2, maxWords: 3 },
+  line: LINE,
+  thought: { fontSizeWPct: 4, lineHeight: 1.5, maxWords: 28 },
+  question: { ...LINE, maxWords: 9 },
+};
 
 function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
   const band = quietestBand(photo.bands, PREFERRED_BANDS);
@@ -89,13 +122,14 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
   // thing on the frame, and this is the Look chosen when the photo should win.
   // The emphasis is still split into its own run so the renderer sees the same
   // shape here as everywhere else.
+  const rung = INDEX_CARD_RAMP[resolveDensity(content)];
   parts.push({
     kind: 'text',
     runs: splitEmphasis(content.headline, content.emphasis),
     fontFamily: SHANTELL,
     fontWeight: 400,
-    fontSizeWPct: 6.2,
-    lineHeight: 1.32,
+    fontSizeWPct: rung.fontSizeWPct,
+    lineHeight: rung.lineHeight,
     letterSpacingEm: 0,
     textTransform: 'none',
     textAlign: 'left',
@@ -144,6 +178,7 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
 }
 
 export const INDEX_CARD: Look = {
+  ramp: INDEX_CARD_RAMP,
   id: 'index-card',
   prefer: PREFERRED_BANDS,
   compose,

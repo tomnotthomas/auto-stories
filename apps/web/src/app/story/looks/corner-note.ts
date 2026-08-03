@@ -1,5 +1,12 @@
-import type { DrawnComposition, FrameContent, Look, PhotoAnalysis } from '../look';
-import { splitEmphasis } from '../look';
+import type {
+  DensityRamp,
+  DrawnComposition,
+  FrameContent,
+  Look,
+  PhotoAnalysis,
+  Rung,
+} from '../look';
+import { resolveDensity, splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
 /**
@@ -34,6 +41,32 @@ const EDGE_OFFSET_HPCT = 7;
 /** The top corner is the Look; the bottom is the fallback on a busy sky. */
 const PREFERRED_BANDS: readonly Band[] = ['top', 'bottom'];
 
+/**
+ * What this Look sets at each density (7.26). Every rung is small — the whole
+ * Look is that the words stay out of the picture's way, so a `beat` is a note
+ * written a little firmer, not a headline. The `thought` rung is where the ramp
+ * does its work: several lines of mono stacked in the corner, set smaller and
+ * leaded further apart so the block reads as a paragraph and not as a caption
+ * that outgrew its corner.
+ *
+ * The budgets are the most generous of the nine, and that follows from the
+ * measure rather than from ambition: mono set this small across a 68-width wrap
+ * runs to six words a line at `line` and nearly nine at `thought`. What limits
+ * the note is the corner, not the column — two lines still reads as tucked away,
+ * three or four is the most a paragraph can occupy before the note is a caption.
+ */
+const LINE: Rung = { fontSizeWPct: 2.9, lineHeight: 1.5, maxWords: 12 };
+export const CORNER_NOTE_RAMP: DensityRamp = {
+  // A frame that states `silent` and then writes words has words, and words are
+  // always drawn; a truly wordless frame returns before this is read. The rung
+  // still carries no budget, because the rung is the absence of words.
+  silent: { ...LINE, maxWords: 0 },
+  beat: { fontSizeWPct: 3.3, lineHeight: 1.4, maxWords: 3 },
+  line: LINE,
+  thought: { fontSizeWPct: 2.1, lineHeight: 1.65, maxWords: 26 },
+  question: LINE,
+};
+
 function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
   const band = quietestBand(photo.bands, PREFERRED_BANDS);
   const anchor = band === 'bottom' ? 'bottom' : 'top';
@@ -59,6 +92,7 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
   // rather than promoted to a second line: what makes this Look work is that
   // there is only ever one thing on the photo. Runs are still split so an
   // emphasis is carried correctly, even though nothing marks it.
+  const rung = CORNER_NOTE_RAMP[resolveDensity(content)];
   return {
     ...base,
     parts: [
@@ -67,8 +101,8 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
         runs: splitEmphasis(content.headline, content.emphasis),
         fontFamily: MONO,
         fontWeight: 400,
-        fontSizeWPct: 2.9,
-        lineHeight: 1.5,
+        fontSizeWPct: rung.fontSizeWPct,
+        lineHeight: rung.lineHeight,
         letterSpacingEm: 0.02,
         textTransform: 'none',
         textAlign: 'right',
@@ -80,6 +114,7 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
 }
 
 export const CORNER_NOTE: Look = {
+  ramp: CORNER_NOTE_RAMP,
   id: 'corner-note',
   prefer: PREFERRED_BANDS,
   compose,

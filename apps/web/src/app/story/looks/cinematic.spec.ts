@@ -1,6 +1,8 @@
 import { DEFAULT_ACCENT } from '../accent-color';
 import type {
   Composition,
+  Density,
+  DensityRamp,
   FrameContent,
   Look,
   PhotoAnalysis,
@@ -8,10 +10,11 @@ import type {
   TextPart,
   HasParts,
 } from '../look';
-import { EDGE_CAPS } from './edge-caps';
-import { SUBTITLE } from './subtitle';
-import { TITLE_CARD } from './title-card';
-import { TYPEWRITER } from './typewriter';
+import { claimedBoxes, DENSITIES, DENSITY_WORDS, textParts, wordBudget } from '../look';
+import { EDGE_CAPS, EDGE_CAPS_RAMP } from './edge-caps';
+import { SUBTITLE, SUBTITLE_RAMP } from './subtitle';
+import { TITLE_CARD, TITLE_CARD_RAMP } from './title-card';
+import { TYPEWRITER, TYPEWRITER_RAMP } from './typewriter';
 
 /**
  * The four quiet, cinematic Looks. They share a restraint, so the shared block
@@ -38,12 +41,19 @@ const CONTENT: FrameContent = {
   location: 'Chamonix',
 };
 
-const LOOKS: readonly [string, Look][] = [
-  ['typewriter', TYPEWRITER],
-  ['title-card', TITLE_CARD],
-  ['subtitle', SUBTITLE],
-  ['edge-caps', EDGE_CAPS],
+/** Each Look with the density ramp it publishes, so neither is tested alone. */
+const LOOKS: readonly [string, Look, DensityRamp][] = [
+  ['typewriter', TYPEWRITER, TYPEWRITER_RAMP],
+  ['title-card', TITLE_CARD, TITLE_CARD_RAMP],
+  ['subtitle', SUBTITLE, SUBTITLE_RAMP],
+  ['edge-caps', EDGE_CAPS, EDGE_CAPS_RAMP],
 ];
+
+/** The same words at every rung, so only the stated density differs (7.26). */
+const PROBE = 'Where the mountain meets its mirror';
+
+/** The rungs that carry words — every one but `silent`, whose budget is zero. */
+const BUDGETED: readonly Density[] = DENSITIES.filter((density) => density !== 'silent');
 
 /**
  * The frames that separate a Look which draws the place from one which does not
@@ -57,7 +67,7 @@ const LOCATION_CASES: [string, FrameContent][] = [
   ['a silent frame', { ...CONTENT, headline: '' }],
 ];
 
-describe.each(LOOKS)('%s', (id, look) => {
+describe.each(LOOKS)('%s', (id, look, ramp) => {
   it('is registered under its own id and prefers at least one band', () => {
     expect(look.id).toBe(id);
     expect(look.prefer.length).toBeGreaterThan(0);
@@ -124,6 +134,57 @@ describe.each(LOOKS)('%s', (id, look) => {
 
   it('is deterministic', () => {
     expect(look.compose(CONTENT, CALM)).toEqual(look.compose(CONTENT, CALM));
+  });
+
+  // 7.26: `thought` has to land in a visibly different slot from the rungs above
+  // it, or the model collapses the two. Same words either side, so the only
+  // thing that can move the type is the density the creator stated.
+  it('sets a thought visibly smaller than a beat', () => {
+    const beat = displayWPct(look.compose({ ...CONTENT, density: 'beat' }, CALM));
+    const thought = displayWPct(look.compose({ ...CONTENT, density: 'thought' }, CALM));
+
+    expect(thought).toBeLessThan(beat * 0.8);
+  });
+
+  it('opens the leading as the words lengthen', () => {
+    // The counterpart of the size step, and a contract on every Look rather than
+    // on the few that happened to do it: a `thought` set at a headline's leading
+    // reads as a shrunken headline, whatever size it is set at.
+    const beat = headlineFor(look, 'beat').lineHeight;
+    const line = headlineFor(look, 'line').lineHeight;
+    const thought = headlineFor(look, 'thought').lineHeight;
+
+    expect(line).toBeGreaterThan(beat);
+    expect(thought).toBeGreaterThan(line);
+  });
+
+  it.each(BUDGETED)('carries a full %s inside the design', (density) => {
+    // The other half of 7.26: the ramp says how big the type is, `maxWords` says
+    // how much of it this design can hold. A budget is honest only if the Look
+    // sets the words at its own rung — never dropping below its smallest setting
+    // to make them fit — and the block still leaves the photograph the frame it
+    // is the point of.
+    const words = wordBudget(ramp, density);
+    const headline = headlineOf(words);
+    const [box] = claimedBoxes(look.compose({ headline, density }, CALM));
+
+    expect(headlineFor(look, density, headline).fontSizeWPct).toBeGreaterThanOrEqual(
+      smallestRung(ramp),
+    );
+    expect(box.yPct).toBeGreaterThanOrEqual(0);
+    expect(box.yPct + box.hPct).toBeLessThanOrEqual(100);
+    expect(box.hPct).toBeLessThanOrEqual(MOST_OF_THE_FRAME_HPCT);
+  });
+
+  it('carries fewer words the larger it is set', () => {
+    expect(budgetsBySize(ramp)).toEqual([...budgetsBySize(ramp)].sort(ascending));
+  });
+
+  it('budgets nothing for silence, and never more than the rung is written to', () => {
+    expect(wordBudget(ramp, 'silent')).toBe(0);
+    for (const density of DENSITIES) {
+      expect(wordBudget(ramp, density)).toBeLessThanOrEqual(DENSITY_WORDS[density].max);
+    }
   });
 });
 
@@ -202,6 +263,31 @@ describe('subtitle', () => {
 
     expect(composition.anchor).toBe('bottom');
   });
+
+  it('sets a question larger than the same line stated as a statement', () => {
+    // A subtitle has no furniture to signal with, so size is the only thing it
+    // can say a question with (7.26). It still holds the bottom and stays one
+    // bare part — the difference is that the line asks to be answered.
+    const question = SUBTITLE.compose({ ...CONTENT, density: 'question' }, CALM);
+    const statement = SUBTITLE.compose({ ...CONTENT, density: 'line' }, CALM);
+
+    expect(textOf(question)[0].fontSizeWPct).toBeGreaterThan(textOf(statement)[0].fontSizeWPct);
+    expect(question.parts).toHaveLength(1);
+  });
+
+  it('reaches its wash further up for a question, which holds the eye longer', () => {
+    const question = SUBTITLE.compose({ ...CONTENT, density: 'question' }, CALM);
+    const statement = SUBTITLE.compose({ ...CONTENT, density: 'line' }, CALM);
+
+    expect(question.scrim?.extentHPct).toBeGreaterThan(statement.scrim!.extentHPct);
+  });
+
+  it('reads a question off the words when the model states no density', () => {
+    const asked = SUBTITLE.compose({ headline: 'Who booked this place?' }, CALM);
+    const told = SUBTITLE.compose({ headline: 'Someone booked this place' }, CALM);
+
+    expect(textOf(asked)[0].fontSizeWPct).toBeGreaterThan(textOf(told)[0].fontSizeWPct);
+  });
 });
 
 describe('edge-caps', () => {
@@ -230,6 +316,63 @@ describe('edge-caps', () => {
 /** Every text part of a composition. */
 function textOf(composition: HasParts): TextPart[] {
   return composition.parts.filter((part): part is TextPart => part.kind === 'text');
+}
+
+/**
+ * The headline part this Look composes at one density. Nothing but the headline
+ * is passed, so the part that carries it is the one that sets exactly those
+ * words — Edge Caps appends the place to the same run when it is given one.
+ */
+function headlineFor(look: Look, density: Density, headline: string = PROBE): TextPart {
+  const composition = look.compose({ headline, density }, CALM);
+  const part = textParts(composition).find((candidate) => runText(candidate) === headline);
+  if (!part) throw new Error(`${look.id} sets no headline at density “${density}”`);
+  return part;
+}
+
+/**
+ * These four are the quiet, cinematic Looks: the photograph carries the frame
+ * and the type is set on it. So even a design filled to its own word budget has
+ * to leave the frame most of itself.
+ */
+const MOST_OF_THE_FRAME_HPCT = 75;
+
+/** Ordinary words of ordinary length, so a budget is probed with real setting. */
+const FILLER = ['where', 'the', 'mountain', 'meets', 'its', 'mirror', 'again', 'light', 'below'];
+
+/** A headline of exactly `count` words. */
+function headlineOf(count: number): string {
+  return Array.from({ length: count }, (_, i) => FILLER[i % FILLER.length]).join(' ');
+}
+
+/** The smallest type this Look ever sets — its floor across the whole ramp. */
+function smallestRung(ramp: DensityRamp): number {
+  return Math.min(...DENSITIES.map((density) => ramp[density].fontSizeWPct));
+}
+
+/**
+ * Every budget that carries words, largest setting first. `silent` is left out:
+ * it is not a size on the ramp but the absence of words, and it borrows the
+ * `line` setting only so a frame that says silent and then writes something
+ * still draws it.
+ */
+function budgetsBySize(ramp: DensityRamp): number[] {
+  return BUDGETED.map((density) => ramp[density])
+    .sort((a, b) => b.fontSizeWPct - a.fontSizeWPct)
+    .map((rung) => rung.maxWords);
+}
+
+const ascending = (a: number, b: number): number => a - b;
+
+/**
+ * The largest type in the frame, whatever kind of part carries it — the size a
+ * reader reads as the headline, without a test having to know which part a given
+ * Look reaches for.
+ */
+function displayWPct(composition: HasParts): number {
+  return Math.max(
+    ...composition.parts.map((part) => (part.kind === 'rule' ? 0 : part.fontSizeWPct)),
+  );
 }
 
 /** Every rule of a composition, in stack order. */

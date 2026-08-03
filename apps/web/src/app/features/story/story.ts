@@ -1,4 +1,15 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { DOCUMENT } from '@angular/common';
+import {
+  Component,
+  DestroyRef,
+  ElementRef,
+  Injector,
+  afterNextRender,
+  computed,
+  inject,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 
@@ -34,11 +45,50 @@ const REFINE_BAR_PX = 160;
 /** How far a pointer must travel before it is a swipe and not a tap — one
  * threshold for paging left/right and for dismissing the actions. */
 const SWIPE_PX = 48;
+/** Below this much travel a pointer gesture is a tap and moved nothing. */
+const TAP_SLOP = 6;
+/**
+ * Distance **or** velocity ends the gesture: 48px of travel, or a flick fast
+ * enough to count while staying short. 0.11 px/ms is the threshold the spark
+ * flick used (decision 7.23) — slower than a deliberate throw-away, faster than
+ * a hand coming to rest, so the app keeps one idea of "a flick".
+ */
+const FLICK_VELOCITY = 0.11;
+/** How far past the end of its travel the panel can be pulled before it stops
+ * moving — the rubber band's asymptote, in px. */
+const RUBBER_LIMIT = 96;
+/** The panel rests 24px off the bottom (`bottom-6`), so it clears the screen at
+ * its own height plus that inset. */
+const PANEL_INSET_PX = 24;
+/** How long the panel takes to settle once the finger is off. The dismissal is
+ * committed when it lands, so the panel is never cut off mid-flight. */
+export const SETTLE_MS = 260;
+/** The settle is a **transition**, not a keyframe: a drag that reverses (or a
+ * second gesture) retargets it from wherever the panel is, instead of restarting
+ * from zero. Written inline on the panel alone, so it beats both the enter class
+ * and the `none` the drag itself sets. */
+const SETTLE_TRANSITION = `transform ${SETTLE_MS}ms var(--ease-drawer)`;
 
 /** What the pointer went down on, which is what gives a vertical swipe its
  * meaning: down on the actions dismisses them, up from the bottom edge (where
  * they left from) brings them back. */
 type SwipeOrigin = 'actions' | 'edge';
+
+/** A point in the gesture: where the finger was and when. Two of these — the
+ * last two moves — are what the release reads its speed from. */
+interface Sample {
+  readonly y: number;
+  readonly t: number;
+}
+
+/**
+ * Resistance past the end of the panel's travel: the further it is pulled, the
+ * less it moves, tending to `limit` px however hard it is dragged. Keeps a pull
+ * in the wrong direction alive under the finger instead of hitting a wall.
+ */
+function rubberBand(overshoot: number, limit: number): number {
+  return (overshoot * limit) / (limit + Math.abs(overshoot));
+}
 
 /** A frame resolved for display: the picked photo plus what the device composed
  * for it. One text, one renderer (decision 7.25) — the composition is the whole
@@ -85,6 +135,7 @@ interface ViewFrame {
     // started (an inner handler marks that) and where it was released, which
     // can be anywhere by the time the finger lifts.
     '(pointerdown)': 'onSwipeStart($event)',
+    '(pointermove)': 'onSwipeMove($event)',
     '(pointerup)': 'onSwipeEnd($event)',
     '(pointercancel)': 'onSwipeCancel()',
     '(click)': 'onClickSettled()',
@@ -94,7 +145,11 @@ export class Story {
   private readonly story = inject(StoryService);
   private readonly generation = inject(GenerationService);
   private readonly exporter = inject(StoryExporter);
+  private readonly injector = inject(Injector);
+  private readonly view = inject(DOCUMENT).defaultView;
   private readonly index = signal(0);
+  /** The action panel itself — the one element the drag transforms. */
+  private readonly panel = viewChild<ElementRef<HTMLElement>>('actionsPanel');
 
   /** True when the model dropped a photo but still built a story (4.3). */
   protected readonly partial = this.story.partial;
@@ -116,6 +171,19 @@ export class Story {
   private swipeStartX: number | null = null;
   private swipeStartY = 0;
   private swipeOrigin: SwipeOrigin | null = null;
+  /** The last two points of the gesture. The release reads its speed from the
+   * segment between them — the *final* one — so a drag that turned around is
+   * judged on where it was going when it ended, not on the whole trip. */
+  private prevSample: Sample = { y: 0, t: 0 };
+  private lastSample: Sample = { y: 0, t: 0 };
+  /** This gesture moved the panel: it followed the finger, so whatever it ends
+   * on has already been acted on. */
+  private dragged = false;
+  /** This gesture animates. False under `prefers-reduced-motion`, where the
+   * panel does not follow the finger and the swap is instant. */
+  private tracking = false;
+  /** The pending end of a settle — the moment the state is committed. */
+  private settleTimer: ReturnType<typeof setTimeout> | null = null;
   /** The gesture just ended travelled far enough to be a swipe. A drag still
    * ends in a `click` on whatever it started on, so every handler a pointer can
    * reach checks this first and swallows that one click. */
@@ -138,6 +206,12 @@ export class Story {
    * the bottom edge — the place they left from — brings them back.
    */
   protected readonly actionsShown = signal(true);
+  /** The panel is on screen for a passing reason rather than a settled one: it
+   * is still animating out after a dismissal, or a restore drag has pulled it
+   * back into the DOM so it can follow the finger up. */
+  private readonly panelTransient = signal(false);
+  /** Whether the panel is in the DOM at all — its state, plus the in-between. */
+  protected readonly actionsMounted = computed(() => this.actionsShown() || this.panelTransient());
   /** The return gesture is the one thing a user cannot find by accident, so it
    * is shown once, on the first dismissal, then retired (like the nav hint). */
   protected readonly restoreHintSeen = signal(false);
@@ -187,6 +261,12 @@ export class Story {
   /** More than one frame, so paging is meaningful. */
   protected readonly multiFrame = computed(() => this.frameCount() > 1);
 
+  constructor() {
+    // A settle that is still pending when the story goes away has nothing left
+    // to commit to.
+    inject(DestroyRef).onDestroy(() => this.clearSettle());
+  }
+
   /** The tap zones. A swipe that ends over one of them is still followed by a
    * click, and that click is not a tap — it has already been acted on. */
   protected next(): void {
@@ -213,12 +293,19 @@ export class Story {
    */
   protected onSwipeStart(event: PointerEvent): void {
     this.swiped = false;
+    this.dragged = false;
+    this.tracking = !this.reducedMotion();
+    // A gesture takes the panel back from whatever it was doing: an interrupted
+    // settle is retargeted from where the finger now is, never finished behind it.
+    this.clearSettle();
     if (this.editing() || this.managing()) {
       this.swipeStartX = null;
       return;
     }
     this.swipeStartX = event.clientX;
     this.swipeStartY = event.clientY;
+    this.prevSample = { y: event.clientY, t: this.now() };
+    this.lastSample = this.prevSample;
   }
 
   /** The gesture began on the action cluster, so a downward swipe dismisses it. */
@@ -227,10 +314,37 @@ export class Story {
     this.swipeOrigin = 'actions';
   }
 
-  /** The gesture began on the bottom edge, so an upward swipe restores. */
+  /**
+   * The gesture began on the bottom edge, so an upward swipe restores. The panel
+   * is not in the DOM at that point, so it is mounted now — parked off screen
+   * before the frame is painted — and the drag pulls it up from there.
+   */
   protected onEdgeSwipeStart(event: PointerEvent): void {
     this.onSwipeStart(event);
     this.swipeOrigin = 'edge';
+    if (!this.tracking) return;
+    this.panelTransient.set(true);
+    afterNextRender(
+      () => {
+        if (this.swipeOrigin === 'edge') this.applyOffset(this.exitOffsetPx(), false);
+      },
+      { injector: this.injector },
+    );
+  }
+
+  /**
+   * The finger moves. While a gesture that began on the panel is running, the
+   * panel goes with it: down as it is pushed away, up as it is pulled back, and
+   * with rising resistance past either end of its travel.
+   */
+  protected onSwipeMove(event: PointerEvent): void {
+    const origin = this.swipeOrigin;
+    if (this.swipeStartX === null || origin === null) return;
+    this.prevSample = this.lastSample;
+    this.lastSample = { y: event.clientY, t: this.now() };
+    const dy = event.clientY - this.swipeStartY;
+    if (Math.abs(dy) >= TAP_SLOP) this.dragged = true;
+    if (this.tracking) this.applyOffset(this.boundedOffset(origin, dy), false);
   }
 
   /**
@@ -242,28 +356,160 @@ export class Story {
   protected onSwipeEnd(event: PointerEvent): void {
     const startX = this.swipeStartX;
     const origin = this.swipeOrigin;
+    const dragged = this.dragged;
     this.swipeStartX = null;
     this.swipeOrigin = null;
-    if (startX === null) return;
+    this.dragged = false;
+    if (startX === null) {
+      if (origin) this.revertPanel(origin, dragged);
+      return;
+    }
 
     const dx = event.clientX - startX;
     const dy = event.clientY - this.swipeStartY;
-    if (Math.abs(dx) < SWIPE_PX && Math.abs(dy) < SWIPE_PX) return; // a tap
-    this.swiped = true;
+    const travel = Math.max(Math.abs(dx), Math.abs(dy));
+    // A drag that moved the panel is spent on the panel: the click the browser
+    // fires next is the tail of that drag, never a press of the button under it.
+    this.swiped = travel >= SWIPE_PX || (origin !== null && dragged);
 
-    if (Math.abs(dy) > Math.abs(dx)) {
-      if (dy > 0 && origin === 'actions') this.actionsShown.set(false);
-      if (dy < 0 && origin === 'edge') this.showActions();
-      return;
+    const vertical = Math.abs(dy) > Math.abs(dx);
+    if (origin !== null) {
+      if (vertical && this.gestureCompletes(origin, dy)) this.commitPanel(origin);
+      else this.revertPanel(origin, dragged);
     }
-    this.advance(dx < 0 ? 1 : -1);
+    if (!vertical && travel >= SWIPE_PX) this.advance(dx < 0 ? 1 : -1);
   }
 
   /** The pointer was taken away (a scroll took over, the window lost it), so
-   * there is no gesture to finish. */
+   * there is no gesture to finish — the panel goes back where it came from. */
   protected onSwipeCancel(): void {
+    const origin = this.swipeOrigin;
+    const dragged = this.dragged;
     this.swipeStartX = null;
     this.swipeOrigin = null;
+    this.dragged = false;
+    if (origin) this.revertPanel(origin, dragged);
+  }
+
+  /**
+   * Whether the gesture goes through. Either it travelled far enough, or it was
+   * still moving fast enough the moment it ended — so a short flick counts,
+   * measured on the last segment of the drag, which is what makes a gesture that
+   * turned around stay where the finger left it.
+   */
+  private gestureCompletes(origin: SwipeOrigin, dy: number): boolean {
+    // Positive is the way this gesture goes: down for the actions leaving, up
+    // for bringing them back.
+    const direction = origin === 'actions' ? 1 : -1;
+    if (dy * direction >= SWIPE_PX) return true;
+    const recent = (this.lastSample.y - this.prevSample.y) * direction;
+    const elapsed = this.lastSample.t - this.prevSample.t;
+    if (recent <= 0 || elapsed <= 0) return false; // still, or turned around
+    return recent / elapsed > FLICK_VELOCITY;
+  }
+
+  /** The gesture won: finish the move it was making and commit the state when
+   * the panel lands. */
+  private commitPanel(origin: SwipeOrigin): void {
+    if (origin === 'actions') {
+      // Reduced motion: the instant swap, with nothing to watch leave.
+      if (this.tracking) this.settleTo(this.exitOffsetPx(), () => this.finishDismiss());
+      else this.finishDismiss();
+      return;
+    }
+    // Restoring is committed at once — the panel is on screen and staying.
+    this.showActions();
+    this.panelTransient.set(false);
+    if (this.tracking) this.settleTo(0, () => this.clearPanelStyles());
+    else this.clearPanelStyles();
+  }
+
+  /** The gesture fell short: put the panel back where it started. */
+  private revertPanel(origin: SwipeOrigin, dragged: boolean): void {
+    if (origin === 'actions') {
+      if (dragged && this.tracking) this.settleTo(0, () => this.clearPanelStyles());
+      return;
+    }
+    if (!dragged || !this.tracking) {
+      this.panelTransient.set(false);
+      return;
+    }
+    this.settleTo(this.exitOffsetPx(), () => this.panelTransient.set(false));
+  }
+
+  private finishDismiss(): void {
+    this.actionsShown.set(false);
+    this.panelTransient.set(false);
+  }
+
+  /** Move the panel to `px` and commit when it gets there. */
+  private settleTo(px: number, done: () => void): void {
+    this.applyOffset(px, true);
+    this.clearSettle();
+    this.settleTimer = setTimeout(() => {
+      this.settleTimer = null;
+      done();
+    }, SETTLE_MS);
+  }
+
+  private clearSettle(): void {
+    if (this.settleTimer === null) return;
+    clearTimeout(this.settleTimer);
+    this.settleTimer = null;
+  }
+
+  /**
+   * Put the panel where the gesture says it is. Transform only — the panel is a
+   * pure overlay, so nothing it does can move the composition — and written
+   * straight to the one element rather than through a variable on a parent,
+   * which would recalculate every child on every frame of the drag.
+   */
+  private applyOffset(px: number, animate: boolean): void {
+    const el = this.panel()?.nativeElement;
+    if (!el) return;
+    el.style.transition = animate ? SETTLE_TRANSITION : 'none';
+    el.style.transform = `translate3d(0, ${px}px, 0)`;
+  }
+
+  /** Hand the panel back to its classes, once nothing is animating it. */
+  private clearPanelStyles(): void {
+    const el = this.panel()?.nativeElement;
+    if (!el) return;
+    el.style.transition = '';
+    el.style.transform = '';
+  }
+
+  /** Where the drag has put the panel: free in the direction it is going, and
+   * rubber-banded past either end of the travel it has. */
+  private boundedOffset(origin: SwipeOrigin, dy: number): number {
+    const exit = this.exitOffsetPx();
+    // A restore drag starts from off screen; a dismiss drag from the resting place.
+    const raw = (origin === 'edge' ? exit : 0) + dy;
+    // Down is unbounded while the actions are leaving — that is the way out.
+    const max = origin === 'edge' ? exit : Number.POSITIVE_INFINITY;
+    if (raw < 0) return rubberBand(raw, RUBBER_LIMIT);
+    if (raw > max) return max + rubberBand(raw - max, RUBBER_LIMIT);
+    return raw;
+  }
+
+  /** How far the panel travels to clear the screen: its own height plus the
+   * inset it rests on. */
+  private exitOffsetPx(): number {
+    return (this.panel()?.nativeElement.offsetHeight ?? 0) + PANEL_INSET_PX;
+  }
+
+  /** The clock the samples are taken on. Sub-millisecond, unlike a pointer
+   * event's own `timeStamp`, which is whole milliseconds — two moves inside one
+   * millisecond would read as infinitely fast, or as no time at all. */
+  private now(): number {
+    return this.view?.performance.now() ?? 0;
+  }
+
+  /** The OS asked for less movement, so the panel does not follow the finger and
+   * the swap is instant — read per gesture, so changing the setting takes hold
+   * without a reload. */
+  private reducedMotion(): boolean {
+    return this.view?.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
   }
 
   /** Every click ends here, after the handler it was meant for. Whatever the
@@ -289,7 +535,11 @@ export class Story {
   /** The keyboard and screen-reader equivalent of the swipe: one labelled
    * control, off screen until it is focused, that says which way it goes. */
   protected toggleActions(): void {
-    if (this.actionsShown()) this.actionsShown.set(false);
+    this.tracking = !this.reducedMotion();
+    this.clearSettle();
+    // The same two moves the gesture makes, so the panel leaves the same way
+    // whether it was pushed or asked to go.
+    if (this.actionsShown()) this.commitPanel('actions');
     else this.showActions();
   }
 
