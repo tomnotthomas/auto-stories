@@ -1,4 +1,4 @@
-import type { Composition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
+import type { DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
 import { splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
@@ -33,7 +33,7 @@ const EDGE_OFFSET_HPCT = 14;
 /** Built for the middle; the edges are the fallback when the subject is there. */
 const PREFERRED_BANDS: readonly Band[] = ['middle', 'bottom', 'top'];
 
-function compose(content: FrameContent, photo: PhotoAnalysis): Composition {
+function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
   const band = quietestBand(photo.bands, PREFERRED_BANDS);
   // Middle and top both hang from the top edge; only the distance differs.
   const anchor = band === 'bottom' ? 'bottom' : 'top';
@@ -145,6 +145,8 @@ function compose(content: FrameContent, photo: PhotoAnalysis): Composition {
     scrim: null,
     accent: photo.accent,
     parts,
+    // The caption under the card named the place (7.25).
+    consumedLocation: Boolean(location),
   };
 }
 

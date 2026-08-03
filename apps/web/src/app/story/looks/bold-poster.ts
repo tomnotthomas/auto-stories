@@ -1,4 +1,4 @@
-import type { Composition, FrameContent, Look, Part, PhotoAnalysis, TextPart } from '../look';
+import type { DrawnComposition, FrameContent, Look, Part, PhotoAnalysis, TextPart } from '../look';
 import { splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
@@ -24,7 +24,7 @@ const EDGE_OFFSET_HPCT = 7;
 
 const PREFERRED_BANDS: readonly Band[] = ['bottom', 'top'];
 
-function compose(content: FrameContent, photo: PhotoAnalysis): Composition {
+function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
   const band = quietestBand(photo.bands, PREFERRED_BANDS);
   const anchor = band === 'top' ? 'top' : 'bottom';
 
@@ -117,6 +117,8 @@ function compose(content: FrameContent, photo: PhotoAnalysis): Composition {
     scrim: { from: anchor, extentHPct: 66, strength: 0.75 },
     accent: photo.accent,
     parts,
+    // The pill named the place, so no location sticker should (7.25).
+    consumedLocation: Boolean(location),
   };
 }
 

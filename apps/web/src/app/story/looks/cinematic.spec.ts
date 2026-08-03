@@ -1,5 +1,13 @@
 import { DEFAULT_ACCENT } from '../accent-color';
-import type { Composition, FrameContent, Look, PhotoAnalysis, RulePart, TextPart } from '../look';
+import type {
+  Composition,
+  FrameContent,
+  Look,
+  PhotoAnalysis,
+  RulePart,
+  TextPart,
+  HasParts,
+} from '../look';
 import { EDGE_CAPS } from './edge-caps';
 import { SUBTITLE } from './subtitle';
 import { TITLE_CARD } from './title-card';
@@ -35,6 +43,18 @@ const LOOKS: readonly [string, Look][] = [
   ['title-card', TITLE_CARD],
   ['subtitle', SUBTITLE],
   ['edge-caps', EDGE_CAPS],
+];
+
+/**
+ * The frames that separate a Look which draws the place from one which does not
+ * — including the two that trip a Look up: a missing kicker (several Looks put
+ * the place in its slot) and a silent frame (nothing is drawn at all).
+ */
+const LOCATION_CASES: [string, FrameContent][] = [
+  ['a normal frame', CONTENT],
+  ['a frame with no kicker', { ...CONTENT, kicker: undefined }],
+  ['a frame with no place', { ...CONTENT, location: undefined }],
+  ['a silent frame', { ...CONTENT, headline: '' }],
 ];
 
 describe.each(LOOKS)('%s', (id, look) => {
@@ -87,6 +107,20 @@ describe.each(LOOKS)('%s', (id, look) => {
     expect(offsetHPct).toBeGreaterThanOrEqual(0);
     expect(offsetHPct).toBeLessThan(100);
   });
+
+  // 7.25: the place must render once. A Look that sets it in its own design
+  // says so, and the sticker layer then suppresses the duplicate — so the flag
+  // has to describe THIS call, not what the Look does in general.
+  it.each(LOCATION_CASES)(
+    'flags the place as consumed for %s only when it set the place itself',
+    (_case, content) => {
+      const composition = look.compose(content, CALM);
+      const place = content.location?.trim() ?? '';
+      const drawn = place !== '' && allText(composition).includes(place);
+
+      expect(composition.consumedLocation ?? false).toBe(drawn);
+    },
+  );
 
   it('is deterministic', () => {
     expect(look.compose(CONTENT, CALM)).toEqual(look.compose(CONTENT, CALM));
@@ -194,12 +228,12 @@ describe('edge-caps', () => {
 });
 
 /** Every text part of a composition. */
-function textOf(composition: Composition): TextPart[] {
+function textOf(composition: HasParts): TextPart[] {
   return composition.parts.filter((part): part is TextPart => part.kind === 'text');
 }
 
 /** Every rule of a composition, in stack order. */
-function rulesOf(composition: Composition): RulePart[] {
+function rulesOf(composition: HasParts): RulePart[] {
   return composition.parts.filter((part): part is RulePart => part.kind === 'rule');
 }
 
@@ -209,7 +243,7 @@ function runText(part: TextPart): string {
 }
 
 /** All the words a composition renders, joined — order preserved. */
-function allText(composition: Composition): string {
+function allText(composition: HasParts): string {
   return composition.parts
     .map((part) => {
       if (part.kind === 'text') return part.runs.map((run) => run.text).join('');

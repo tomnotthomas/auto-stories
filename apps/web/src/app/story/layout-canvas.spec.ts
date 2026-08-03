@@ -1,3 +1,4 @@
+import { emptySpace } from './quiet-zone';
 import { drawComposition, PAPER, type CompositionColors, type Ctx2D } from './layout-canvas';
 import {
   composeFrame,
@@ -213,6 +214,11 @@ function composition(over: Partial<Composition> = {}): Composition {
     scrim: null,
     accent: COLORS.accent,
     parts: [text({ runs: [{ text: 'Hello world' }] })],
+    // The pipeline's bookkeeping (7.25 slice 2); the renderer ignores it, but a
+    // Composition is not one without it.
+    claimed: [],
+    free: emptySpace(),
+    consumedLocation: false,
     ...over,
   };
 }

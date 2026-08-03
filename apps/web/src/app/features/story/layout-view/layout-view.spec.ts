@@ -11,6 +11,7 @@ import {
   type TagPart,
   type TextPart,
 } from '../../../story/look';
+import { emptySpace } from '../../../story/quiet-zone';
 import { LayoutView } from './layout-view';
 import { LayoutViewHarness } from './layout-view.harness';
 
@@ -21,6 +22,9 @@ const CALM: PhotoAnalysis = {
 
 /** One frame with nothing on it — the base every hand-built case varies. */
 const BLANK: Composition = {
+  claimed: [],
+  free: emptySpace(),
+  consumedLocation: false,
   lookId: 'magazine-masthead',
   ink: 'light',
   leftPct: 7,

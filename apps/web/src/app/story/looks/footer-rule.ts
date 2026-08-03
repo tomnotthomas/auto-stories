@@ -1,4 +1,4 @@
-import type { Composition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
+import type { DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
 import { splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
@@ -26,7 +26,7 @@ const EDGE_OFFSET_HPCT = 7;
 /** Under the picture; the top is the fallback when the base is busy. */
 const PREFERRED_BANDS: readonly Band[] = ['bottom', 'top'];
 
-function compose(content: FrameContent, photo: PhotoAnalysis): Composition {
+function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
   const band = quietestBand(photo.bands, PREFERRED_BANDS);
   const anchor = band === 'top' ? 'top' : 'bottom';
 
@@ -120,6 +120,8 @@ function compose(content: FrameContent, photo: PhotoAnalysis): Composition {
     // a bright shoreline, not enough to shade the picture itself.
     scrim: { from: anchor, extentHPct: 30, strength: 0.45 },
     parts,
+    // The second caption line named the place (7.25).
+    consumedLocation: Boolean(location),
   };
 }
 

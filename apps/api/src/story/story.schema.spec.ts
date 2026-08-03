@@ -46,11 +46,12 @@ describe('STORY_RESPONSE_SCHEMA', () => {
     expect(frameItem().required).toEqual(['photoId', 'order', 'headline']);
   });
 
-  it('keeps the suggestion shape the client still renders', () => {
+  // Decision 7.25: the client places every add-on itself, so the model is not
+  // asked for a zone — what it may say is what the add-on is and how sure it is.
+  it('keeps the suggestion shape the client still renders, with no placement', () => {
     const suggestion = frameItem().properties?.['suggestions']?.items;
     expect(Object.keys(suggestion?.properties ?? {}).sort()).toEqual([
       'confidence',
-      'position',
       'query',
       'type',
     ]);

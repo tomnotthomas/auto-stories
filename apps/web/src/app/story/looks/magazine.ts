@@ -1,4 +1,4 @@
-import type { Composition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
+import type { DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
 import { splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
@@ -29,7 +29,7 @@ const EDGE_OFFSET_HPCT = 8;
 /** Magazine hangs its masthead off the bottom; the top is its fallback. */
 const PREFERRED_BANDS: readonly Band[] = ['bottom', 'top'];
 
-function compose(content: FrameContent, photo: PhotoAnalysis): Composition {
+function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
   const band = quietestBand(photo.bands, PREFERRED_BANDS);
   // The stack reads top-down, so a bottom-anchored masthead is the same list of
   // parts — only the edge it hangs from changes.
@@ -147,6 +147,9 @@ function compose(content: FrameContent, photo: PhotoAnalysis): Composition {
     scrim: { from: anchor, extentHPct: 62, strength: 0.72 },
     accent: photo.accent,
     parts,
+    // The byline row set the place, so a location sticker must not set it again
+    // (7.25). False on a frame with no place: the row was never drawn.
+    consumedLocation: Boolean(location),
   };
 }
 

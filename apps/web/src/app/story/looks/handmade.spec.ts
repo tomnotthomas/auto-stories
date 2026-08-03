@@ -1,5 +1,13 @@
 import { DEFAULT_ACCENT } from '../accent-color';
-import type { Composition, FrameContent, Look, PhotoAnalysis, TagPart, TextPart } from '../look';
+import type {
+  Composition,
+  FrameContent,
+  Look,
+  PhotoAnalysis,
+  TagPart,
+  TextPart,
+  HasParts,
+} from '../look';
 import { INDEX_CARD } from './index-card';
 import { POSTCARD_BACK } from './postcard-back';
 import { SCRAPBOOK } from './scrapbook';
@@ -32,6 +40,18 @@ const CONTENT: FrameContent = {
 };
 
 const HANDMADE: readonly Look[] = [SCRAPBOOK, STICKER_SHEET, ZINE, INDEX_CARD, POSTCARD_BACK];
+
+/**
+ * The frames that separate a Look which draws the place from one which does not
+ * — including the two that trip a Look up: a missing kicker (several Looks put
+ * the place in its slot) and a silent frame (nothing is drawn at all).
+ */
+const LOCATION_CASES: [string, FrameContent][] = [
+  ['a normal frame', CONTENT],
+  ['a frame with no kicker', { ...CONTENT, kicker: undefined }],
+  ['a frame with no place', { ...CONTENT, location: undefined }],
+  ['a silent frame', { ...CONTENT, headline: '' }],
+];
 
 describe.each(HANDMADE.map((look) => [look.id, look] as const))('%s', (id, look) => {
   it('composes the frame it is given', () => {
@@ -104,6 +124,20 @@ describe.each(HANDMADE.map((look) => [look.id, look] as const))('%s', (id, look)
       expect(drawn).toContain(word);
     }
   });
+
+  // 7.25: the place must render once. A Look that sets it in its own design
+  // says so, and the sticker layer then suppresses the duplicate — so the flag
+  // has to describe THIS call, not what the Look does in general.
+  it.each(LOCATION_CASES)(
+    'flags the place as consumed for %s only when it set the place itself',
+    (_case, content) => {
+      const composition = look.compose(content, CALM);
+      const place = content.location?.trim() ?? '';
+      const drawn = place !== '' && everyWord(composition).includes(place);
+
+      expect(composition.consumedLocation ?? false).toBe(drawn);
+    },
+  );
 
   it('is deterministic', () => {
     expect(look.compose(CONTENT, CALM)).toEqual(look.compose(CONTENT, CALM));
@@ -260,10 +294,22 @@ describe('postcard-back', () => {
   });
 });
 
-function texts(composition: Composition): TextPart[] {
+function texts(composition: HasParts): TextPart[] {
   return composition.parts.filter((part): part is TextPart => part.kind === 'text');
 }
 
-function tags(composition: Composition): TagPart[] {
+function tags(composition: HasParts): TagPart[] {
   return composition.parts.filter((part): part is TagPart => part.kind === 'tag');
+}
+
+/** Every word a composition draws — text runs, tags and rows alike. */
+function everyWord(composition: HasParts): string {
+  return composition.parts
+    .map((part) => {
+      if (part.kind === 'text') return part.runs.map((run) => run.text).join('');
+      if (part.kind === 'tag') return part.text;
+      if (part.kind === 'row') return `${part.left} ${part.right}`;
+      return '';
+    })
+    .join(' ');
 }

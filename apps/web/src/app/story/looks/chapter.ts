@@ -1,4 +1,4 @@
-import type { Composition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
+import type { DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
 import { splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
@@ -27,7 +27,7 @@ const CHAPTER_DROP_HPCT = 5.5;
 /** A chapter opens at the top of the page; the bottom is the fallback. */
 const PREFERRED_BANDS: readonly Band[] = ['top', 'bottom'];
 
-function compose(content: FrameContent, photo: PhotoAnalysis): Composition {
+function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
   const band = quietestBand(photo.bands, PREFERRED_BANDS);
   const anchor = band === 'bottom' ? 'bottom' : 'top';
 

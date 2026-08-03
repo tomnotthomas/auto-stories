@@ -1,4 +1,4 @@
-import type { Composition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
+import type { DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
 import { splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
@@ -36,7 +36,7 @@ const RULE_WIDTH_PCT = Math.round((RULE_WPCT / COLUMN_WPCT) * 100);
 /** Top-left is the whole idea; the bottom is the fallback on a busy sky. */
 const PREFERRED_BANDS: readonly Band[] = ['top', 'bottom'];
 
-function compose(content: FrameContent, photo: PhotoAnalysis): Composition {
+function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
   const band = quietestBand(photo.bands, PREFERRED_BANDS);
   const anchor = band === 'bottom' ? 'bottom' : 'top';
 
@@ -105,7 +105,9 @@ function compose(content: FrameContent, photo: PhotoAnalysis): Composition {
     });
   }
 
-  return { ...base, parts };
+  // The spaced capitals under the hairline named the place (7.25). With no
+  // place this Look draws the title alone, and its sticker should still appear.
+  return { ...base, parts, consumedLocation: Boolean(location) };
 }
 
 export const MINIMAL: Look = {

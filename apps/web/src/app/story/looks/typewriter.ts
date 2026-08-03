@@ -1,4 +1,4 @@
-import type { Composition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
+import type { DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
 import { splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
@@ -35,7 +35,7 @@ const EDGE_OFFSET_HPCT = 10;
 /** Set low; the top is the fallback when the bottom of the photo is busy. */
 const PREFERRED_BANDS: readonly Band[] = ['bottom', 'top'];
 
-function compose(content: FrameContent, photo: PhotoAnalysis): Composition {
+function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
   const band = quietestBand(photo.bands, PREFERRED_BANDS);
   const anchor = band === 'top' ? 'top' : 'bottom';
 
@@ -137,6 +137,8 @@ function compose(content: FrameContent, photo: PhotoAnalysis): Composition {
     scrim: { from: anchor, extentHPct: 38, strength: 0.6 },
     accent: photo.accent,
     parts,
+    // The filing line under the note named the place (7.25).
+    consumedLocation: Boolean(location),
   };
 }
 

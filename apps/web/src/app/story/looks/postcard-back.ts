@@ -1,4 +1,4 @@
-import type { Composition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
+import type { DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
 import { splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
@@ -30,7 +30,7 @@ const POSTMARK_TILT_DEG = -6.5;
 /** A message is written under the stamp, so the stack hangs off the bottom. */
 const PREFERRED_BANDS: readonly Band[] = ['bottom', 'top'];
 
-function compose(content: FrameContent, photo: PhotoAnalysis): Composition {
+function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
   const band = quietestBand(photo.bands, PREFERRED_BANDS);
   const anchor = band === 'top' ? 'top' : 'bottom';
 
@@ -127,6 +127,10 @@ function compose(content: FrameContent, photo: PhotoAnalysis): Composition {
     // and it sits straight on the photo.
     scrim: { from: anchor, extentHPct: 56, strength: 0.62 },
     parts,
+    // The place always takes the postmark when the frame has one, so the card
+    // has named it and a location sticker must not (7.25). With no place the
+    // kicker was franked instead and nothing here drew it.
+    consumedLocation: postmark !== undefined && postmark === location,
   };
 }
 

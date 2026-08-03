@@ -6,6 +6,7 @@ import {
   type Look,
   type PhotoAnalysis,
   type TagPart,
+  type HasParts,
 } from '../look';
 import { FADED_ALBUM } from './faded-album';
 import { FILM_POSTCARD } from './film-postcard';
@@ -49,6 +50,18 @@ const SPARSE: readonly FrameContent[] = [
 ];
 
 const WARM_LOOKS: readonly Look[] = [FILM_POSTCARD, POLAROID, SUPER_8, FADED_ALBUM];
+
+/**
+ * The frames that separate a Look which draws the place from one which does not
+ * — including the two that trip a Look up: a missing kicker (several Looks put
+ * the place in its slot) and a silent frame (nothing is drawn at all).
+ */
+const LOCATION_CASES: [string, FrameContent][] = [
+  ['a normal frame', CONTENT],
+  ['a frame with no kicker', { ...CONTENT, kicker: undefined }],
+  ['a frame with no place', { ...CONTENT, location: undefined }],
+  ['a silent frame', { ...CONTENT, headline: '' }],
+];
 
 describe.each(WARM_LOOKS.map((look) => [look.id, look] as const))('%s', (id, look) => {
   it('has the id the contract names it by', () => {
@@ -112,6 +125,20 @@ describe.each(WARM_LOOKS.map((look) => [look.id, look] as const))('%s', (id, loo
       }
     }
   });
+
+  // 7.25: the place must render once. A Look that sets it in its own design
+  // says so, and the sticker layer then suppresses the duplicate — so the flag
+  // has to describe THIS call, not what the Look does in general.
+  it.each(LOCATION_CASES)(
+    'flags the place as consumed for %s only when it set the place itself',
+    (_case, content) => {
+      const composition = look.compose(content, CALM);
+      const place = content.location?.trim() ?? '';
+      const drawn = place !== '' && everyWord(composition).includes(place);
+
+      expect(composition.consumedLocation ?? false).toBe(drawn);
+    },
+  );
 
   it('is deterministic', () => {
     expect(look.compose(CONTENT, CALM)).toEqual(look.compose(CONTENT, CALM));
@@ -282,7 +309,19 @@ function runText(part: { runs: readonly { text: string }[] }): string {
   return part.runs.map((run) => run.text).join('');
 }
 
+/** Every word a composition draws — text runs, tags and rows alike. */
+function everyWord(composition: HasParts): string {
+  return composition.parts
+    .map((part) => {
+      if (part.kind === 'text') return runText(part);
+      if (part.kind === 'tag') return part.text;
+      if (part.kind === 'row') return `${part.left} ${part.right}`;
+      return '';
+    })
+    .join(' ');
+}
+
 /** Every tag of a composition — the group's stamps. */
-function tagParts(composition: Composition): TagPart[] {
+function tagParts(composition: HasParts): TagPart[] {
   return composition.parts.filter((part): part is TagPart => part.kind === 'tag');
 }

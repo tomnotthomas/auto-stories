@@ -1,4 +1,4 @@
-import type { Composition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
+import type { DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
 import { splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
@@ -32,7 +32,7 @@ const EDGE_OFFSET_HPCT = 9;
 /** Lower-left by default; the top is the fallback when the base is busy. */
 const PREFERRED_BANDS: readonly Band[] = ['bottom', 'top'];
 
-function compose(content: FrameContent, photo: PhotoAnalysis): Composition {
+function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
   const band = quietestBand(photo.bands, PREFERRED_BANDS);
   const anchor = band === 'top' ? 'top' : 'bottom';
 
@@ -105,6 +105,9 @@ function compose(content: FrameContent, photo: PhotoAnalysis): Composition {
     // doesn't flicker between shaded and bare from frame to frame.
     scrim: { from: anchor, extentHPct: 52, strength: 0.5 },
     parts,
+    // Only when the place actually stood in as the eyebrow (7.25). With a
+    // kicker written the place went undrawn and its sticker should still show.
+    consumedLocation: eyebrow !== undefined && eyebrow === content.location?.trim(),
   };
 }
 

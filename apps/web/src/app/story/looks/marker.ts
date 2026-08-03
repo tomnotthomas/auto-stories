@@ -1,4 +1,4 @@
-import type { Composition, FrameContent, Look, Part, PhotoAnalysis, Run } from '../look';
+import type { DrawnComposition, FrameContent, Look, Part, PhotoAnalysis, Run } from '../look';
 import { splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
@@ -26,7 +26,7 @@ const TILT_DEG = -1.4;
 /** Marker writes low on the picture; the top is its fallback. */
 const PREFERRED_BANDS: readonly Band[] = ['bottom', 'top'];
 
-function compose(content: FrameContent, photo: PhotoAnalysis): Composition {
+function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
   const band = quietestBand(photo.bands, PREFERRED_BANDS);
   const anchor = band === 'top' ? 'top' : 'bottom';
 
@@ -121,6 +121,8 @@ function compose(content: FrameContent, photo: PhotoAnalysis): Composition {
     accent: photo.accent,
     parts,
     rotationDeg: TILT_DEG,
+    // The hand wrote the place under the line, so no sticker should (7.25).
+    consumedLocation: Boolean(location),
   };
 }
 

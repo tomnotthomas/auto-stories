@@ -1,8 +1,4 @@
-<section
-  class="relative flex h-full flex-col overflow-hidden bg-black text-white"
-  (pointerdown)="onSwipeStart($event)"
-  (pointerup)="onSwipeEnd($event)"
->
+<section class="relative flex h-full flex-col overflow-hidden bg-black text-white">
   @if (current(); as frame) {
     <!-- The story "stage" — everything the viewer sees. It stays in place during
          the hand-off (nothing has left yet); the card sits over the action bar. -->
@@ -33,19 +29,23 @@
       ></div>
 
       <!-- Tap zones: left goes back, right advances (Stories convention). Active in
-         refine too (tap the text itself to edit); off while a sheet is open. -->
+         refine too (tap the text itself to edit); off while a sheet is open.
+         They stop at the same fixed line the composition does, which keeps the
+         bottom edge clear for the swipe that brings the actions back. -->
       @if (!editingFrame() && !managing()) {
         <button
           type="button"
           aria-label="Previous frame"
           (click)="prev()"
-          class="absolute bottom-40 left-0 top-20 z-10 w-2/5"
+          class="absolute left-0 top-20 z-10 w-2/5"
+          [style.bottom.px]="safeBottomPx()"
         ></button>
         <button
           type="button"
           aria-label="Next frame"
           (click)="next()"
-          class="absolute bottom-40 right-0 top-20 z-10 w-3/5"
+          class="absolute right-0 top-20 z-10 w-3/5"
+          [style.bottom.px]="safeBottomPx()"
         ></button>
       }
 
@@ -87,7 +87,8 @@
           [composition]="frame.composition"
           [accent]="frame.composition.accent"
           [light]="frame.light"
-          [safeBottomPx]="ACTION_BAR_PX"
+          [safeBottomPx]="safeBottomPx()"
+          [attr.data-safe-bottom]="safeBottomPx()"
         />
       }
 
@@ -125,12 +126,19 @@
          slice 2 of the frame-harmony plan places them from the free space the
          composition leaves and brings them into refine. -->
       @if (!refining() && !editingFrame() && !managing()) {
-        <app-story-sparks [photoId]="frame.photoId" [suggestions]="frame.suggestions" />
+        <app-story-sparks
+          [photoId]="frame.photoId"
+          [suggestions]="frame.suggestions"
+          [composition]="frame.composition"
+        />
       }
 
       <!-- One-time nav hint: paging a Story isn't obvious on the web (5.3). -->
       @if (!refining() && !editingFrame() && multiFrame() && !navHintSeen()) {
-        <p class="mat-label-small absolute inset-x-0 bottom-[136px] z-10 text-center text-white/70">
+        <p
+          class="mat-label-small absolute inset-x-0 z-10 text-center text-white/70"
+          [style.bottom.px]="safeBottomPx() + 8"
+        >
           Tap or swipe the photo to move through the story
         </p>
       }
@@ -170,22 +178,61 @@
         </div>
       </div>
     } @else if (!handingOff()) {
+      <!-- The three actions: an overlay on the photo, with nothing behind them
+           and nothing reserved for them — the composition clears this strip
+           whether they are drawn or not, so dismissing them never moves the
+           frame. Swipe them down to hand the whole frame back to the photo. -->
       <div class="absolute inset-x-4 bottom-6 z-20 flex flex-col gap-2">
-        <button
-          matButton="filled"
-          class="w-full"
-          [disabled]="exporting()"
-          (click)="postToInstagram()"
-        >
-          <mat-icon>ios_share</mat-icon>
-          {{ exporting() ? 'Preparing…' : 'Post to Instagram' }}
-        </button>
-        <button matButton="tonal" class="w-full" (click)="enterRefine()">
-          <mat-icon>tune</mat-icon>
-          Refine story
-        </button>
-        <button matButton class="w-full text-white" (click)="startOver()">Start over</button>
+        @if (actionsShown()) {
+          <div
+            data-actions
+            class="sheet-enter flex w-full flex-col gap-2"
+            (pointerdown)="onActionsSwipeStart($event)"
+          >
+            <button
+              matButton="filled"
+              class="w-full"
+              [disabled]="exporting()"
+              (click)="postToInstagram()"
+            >
+              <mat-icon>ios_share</mat-icon>
+              {{ exporting() ? 'Preparing…' : 'Post to Instagram' }}
+            </button>
+            <button matButton="tonal" class="w-full" (click)="enterRefine()">
+              <mat-icon>tune</mat-icon>
+              Refine story
+            </button>
+            <button matButton data-start-over class="w-full text-white" (click)="startOver()">
+              Start over
+            </button>
+          </div>
+        }
+        <!-- The same two moves for anyone not making them with a finger: one
+             labelled control, off screen until it takes focus, in the tab order
+             right after the actions it hides. It costs no chrome on the photo. -->
+        <div class="sr-only focus-within:not-sr-only">
+          <button matButton class="w-full text-white" (click)="toggleActions()">
+            {{ actionsShown() ? 'Hide story actions' : 'Show story actions' }}
+          </button>
+        </div>
       </div>
+
+      <!-- Once the actions are gone the bottom edge is theirs alone: it takes
+           the swipe that brings them back, and the tap zones stop well above it
+           so paging cannot swallow the gesture. -->
+      @if (!actionsShown()) {
+        <div
+          data-swipe-restore
+          class="absolute inset-x-0 bottom-0 z-10 flex h-20 items-end justify-center pb-6"
+          (pointerdown)="onEdgeSwipeStart($event)"
+        >
+          @if (!restoreHintSeen()) {
+            <p data-restore-hint aria-hidden="true" class="mat-label-small drop-in text-white/70">
+              Swipe up to bring the buttons back
+            </p>
+          }
+        </div>
+      }
     }
 
     <!-- Hand-off card: shown before we leave, presenting the add-ons; its own

@@ -45,17 +45,8 @@ export const STORY_RESPONSE_SCHEMA: Schema = {
                   enum: ['location', 'mention', 'gif', 'poll', 'music'],
                 },
                 query: { type: Type.STRING },
-                position: {
-                  type: Type.STRING,
-                  enum: [
-                    'top-left',
-                    'top-center',
-                    'top-right',
-                    'bottom-left',
-                    'bottom-center',
-                    'bottom-right',
-                  ],
-                },
+                // No zone: the client places every add-on in the free space the
+                // design leaves, and drops one with no room (decision 7.25).
                 confidence: { type: Type.NUMBER },
               },
               required: ['type', 'query', 'confidence'],

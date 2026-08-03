@@ -7,6 +7,7 @@ import {
   type PhotoAnalysis,
   type RulePart,
   type TextPart,
+  type HasParts,
 } from '../look';
 import { CAPTION_CARD } from './caption-card';
 import { CHAPTER } from './chapter';
@@ -42,6 +43,18 @@ const CONTENT: FrameContent = {
 };
 
 const LOOKS: readonly Look[] = [DUOTONE_BAND, LETTERBOX, CHAPTER, DATELINE, CAPTION_CARD];
+
+/**
+ * The frames that separate a Look which draws the place from one which does not
+ * — including the two that trip a Look up: a missing kicker (Dateline promotes
+ * the place into the kicker's slot) and a silent frame (nothing is drawn).
+ */
+const LOCATION_CASES: [string, FrameContent][] = [
+  ['a normal frame', CONTENT],
+  ['a frame with no kicker', { ...CONTENT, kicker: undefined }],
+  ['a frame with no place', { ...CONTENT, location: undefined }],
+  ['a silent frame', { ...CONTENT, headline: '' }],
+];
 
 describe.each(LOOKS.map((look) => [look.id, look] as const))('%s', (id, look) => {
   it('composes the words it was given', () => {
@@ -123,6 +136,20 @@ describe.each(LOOKS.map((look) => [look.id, look] as const))('%s', (id, look) =>
   it('carries the photo’s accent through', () => {
     expect(look.compose(CONTENT, { ...PHOTO, accent: 'rgb(1, 2, 3)' }).accent).toBe('rgb(1, 2, 3)');
   });
+
+  // 7.25: the place must render once. A Look that sets it in its own design
+  // says so, and the sticker layer then suppresses the duplicate — so the flag
+  // has to describe THIS call, not what the Look does in general.
+  it.each(LOCATION_CASES)(
+    'flags the place as consumed for %s only when it set the place itself',
+    (_case, content) => {
+      const composition = look.compose(content, PHOTO);
+      const place = content.location?.trim() ?? '';
+      const drawn = place !== '' && everyWord(composition).includes(place);
+
+      expect(composition.consumedLocation ?? false).toBe(drawn);
+    },
+  );
 
   it('is deterministic', () => {
     expect(look.compose(CONTENT, PHOTO)).toEqual(look.compose(CONTENT, PHOTO));
@@ -245,12 +272,24 @@ describe('caption-card', () => {
 });
 
 /** The headline a composition ended up carrying — the last text part's words. */
-function headlineOf(composition: Composition): string {
+function headlineOf(composition: HasParts): string {
   const texts = textParts(composition);
   return texts.length === 0 ? '' : runText(texts[texts.length - 1]);
 }
 
-function rulesOf(composition: Composition): RulePart[] {
+/** Every word a composition draws — text runs, tags and rows alike. */
+function everyWord(composition: HasParts): string {
+  return composition.parts
+    .map((part) => {
+      if (part.kind === 'text') return runText(part);
+      if (part.kind === 'tag') return part.text;
+      if (part.kind === 'row') return `${part.left} ${part.right}`;
+      return '';
+    })
+    .join(' ');
+}
+
+function rulesOf(composition: HasParts): RulePart[] {
   return composition.parts.filter((part): part is RulePart => part.kind === 'rule');
 }
 

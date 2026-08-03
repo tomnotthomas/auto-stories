@@ -1,4 +1,4 @@
-import type { Composition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
+import type { DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
 import { splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
@@ -28,7 +28,7 @@ const EDGE_OFFSET_HPCT = 9;
 /** Copy sits at the foot of the page; the top is the fallback. */
 const PREFERRED_BANDS: readonly Band[] = ['bottom', 'top'];
 
-function compose(content: FrameContent, photo: PhotoAnalysis): Composition {
+function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
   const band = quietestBand(photo.bands, PREFERRED_BANDS);
   const anchor = band === 'top' ? 'top' : 'bottom';
 
@@ -101,6 +101,9 @@ function compose(content: FrameContent, photo: PhotoAnalysis): Composition {
     scrim: { from: anchor, extentHPct: 44, strength: 0.62 },
     accent: photo.accent,
     parts,
+    // Only when the place actually took the dateline (7.25). With a kicker
+    // written the place went undrawn, and its sticker should still appear.
+    consumedLocation: label !== undefined && label === content.location?.trim(),
   };
 }
 

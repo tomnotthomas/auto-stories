@@ -1,6 +1,6 @@
 import { DEFAULT_ACCENT } from '../accent-color';
 import type { Composition, FrameContent, Look, PhotoAnalysis, TextPart } from '../look';
-import { textParts } from '../look';
+import { textParts, type HasParts } from '../look';
 import type { BandScores } from '../quiet-zone';
 import { CORNER_NOTE } from './corner-note';
 import { FOOTER_RULE } from './footer-rule';
@@ -40,6 +40,18 @@ const RESTRAINED: readonly Look[] = [
   GALLERY_LABEL,
   CORNER_NOTE,
   FOOTER_RULE,
+];
+
+/**
+ * The frames that separate a Look which draws the place from one which does not
+ * — including the two that trip a Look up: a missing kicker (several Looks put
+ * the place in its slot) and a silent frame (nothing is drawn at all).
+ */
+const LOCATION_CASES: [string, FrameContent][] = [
+  ['a normal frame', CONTENT],
+  ['a frame with no kicker', { ...CONTENT, kicker: undefined }],
+  ['a frame with no place', { ...CONTENT, location: undefined }],
+  ['a silent frame', { ...CONTENT, headline: '' }],
 ];
 
 describe.each(RESTRAINED.map((look) => [look.id, look] as const))('%s', (id, look) => {
@@ -139,6 +151,20 @@ describe.each(RESTRAINED.map((look) => [look.id, look] as const))('%s', (id, loo
   it('is deterministic', () => {
     expect(look.compose(CONTENT, PHOTO)).toEqual(look.compose(CONTENT, PHOTO));
   });
+
+  // 7.25: the place must render once. A Look that sets it in its own design
+  // says so, and the sticker layer then suppresses the duplicate — so the flag
+  // has to describe THIS call, not what the Look does in general.
+  it.each(LOCATION_CASES)(
+    'flags the place as consumed for %s only when it set the place itself',
+    (_case, content) => {
+      const composition = look.compose(content, PHOTO);
+      const place = content.location?.trim() ?? '';
+      const drawn = place !== '' && everyWord(composition).includes(place);
+
+      expect(composition.consumedLocation ?? false).toBe(drawn);
+    },
+  );
 
   it('stays restrained: no tilt, no marks, no photo treatment', () => {
     const composition = look.compose(CONTENT, PHOTO);
@@ -345,13 +371,25 @@ function runText(part: TextPart): string {
   return part.runs.map((run) => run.text).join('');
 }
 
+/** Every word a composition draws — text runs, tags and rows alike. */
+function everyWord(composition: HasParts): string {
+  return composition.parts
+    .map((part) => {
+      if (part.kind === 'text') return runText(part);
+      if (part.kind === 'tag') return part.text;
+      if (part.kind === 'row') return `${part.left} ${part.right}`;
+      return '';
+    })
+    .join(' ');
+}
+
 /** Every word a composition sets, joined — order preserved. */
-function allText(composition: Composition): string {
+function allText(composition: HasParts): string {
   return textParts(composition).map(runText).join(' ');
 }
 
 /** The text part carrying `text`. Fails loudly rather than returning undefined. */
-function named(composition: Composition, text: string): TextPart {
+function named(composition: HasParts, text: string): TextPart {
   const part = textParts(composition).find((candidate) => runText(candidate) === text);
   if (!part) throw new Error(`no part sets “${text}”`);
   return part;

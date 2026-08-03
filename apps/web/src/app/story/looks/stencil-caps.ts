@@ -1,4 +1,4 @@
-import type { Composition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
+import type { DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
 import { splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
@@ -53,7 +53,7 @@ function sizeFor(headline: string): number {
   return (step ?? SIZE_STEPS[SIZE_STEPS.length - 1]).fontSizeWPct;
 }
 
-function compose(content: FrameContent, photo: PhotoAnalysis): Composition {
+function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
   const band = quietestBand(photo.bands, PREFERRED_BANDS);
   // A composition hangs off one of two edges, so the middle is reached by
   // hanging off the bottom and standing well clear of it.
@@ -151,6 +151,8 @@ function compose(content: FrameContent, photo: PhotoAnalysis): Composition {
     scrim: { from: anchor, extentHPct: 92, strength: 0.52 },
     accent: photo.accent,
     parts,
+    // The bottom line of the print named the place (7.25).
+    consumedLocation: Boolean(location),
   };
 }
 

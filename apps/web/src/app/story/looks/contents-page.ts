@@ -1,4 +1,4 @@
-import type { Composition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
+import type { DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
 import { splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
@@ -32,7 +32,7 @@ const EDGE_OFFSET_HPCT = 10;
 /** An index opens a page, so this Look hangs off the top. */
 const PREFERRED_BANDS: readonly Band[] = ['top', 'bottom'];
 
-function compose(content: FrameContent, photo: PhotoAnalysis): Composition {
+function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
   const band = quietestBand(photo.bands, PREFERRED_BANDS);
   const anchor = band === 'top' ? 'top' : 'bottom';
 
@@ -136,6 +136,9 @@ function compose(content: FrameContent, photo: PhotoAnalysis): Composition {
     scrim: null,
     accent: photo.accent,
     parts,
+    // The index row carried the place on its right (7.25). A kicker alone still
+    // draws the row, so this tracks the place itself, not the row.
+    consumedLocation: location !== '',
   };
 }
 

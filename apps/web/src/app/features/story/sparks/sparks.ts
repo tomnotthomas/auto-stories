@@ -1,32 +1,10 @@
 import { Component, computed, inject, input } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
-import type {
-  Suggestion,
-  SuggestionPositionEnum,
-  SuggestionTypeEnum,
-} from '@auto-stories/api-types';
+import type { Suggestion, SuggestionTypeEnum } from '@auto-stories/api-types';
 
-import { StoryService } from '../../../story/story.service';
-
-/**
- * TODO(slice 2): sparks are still placed by a fixed zone table. Slice 2 of the
- * frame-harmony plan places every sticker from the free-space map the
- * composition hands on, and drops `position` from the contract — at which point
- * this table and `SPARK_FALLBACK_ZONE` go away. Until then the numbers below are
- * the ones `zoneToPlacement` used, moved here unchanged so behaviour is
- * identical after the caption layer that owned them was deleted (7.25 slice 1).
- */
-const ZONE_TO_SPOT: Record<SuggestionPositionEnum, { xPct: number; yPct: number }> = {
-  'top-left': { xPct: 42, yPct: 22 },
-  'top-center': { xPct: 50, yPct: 22 },
-  'top-right': { xPct: 58, yPct: 22 },
-  'bottom-left': { xPct: 42, yPct: 56 },
-  'bottom-center': { xPct: 50, yPct: 56 },
-  'bottom-right': { xPct: 58, yPct: 56 },
-};
-
-/** Where a suggestion goes when the model named no zone. */
-const SPARK_FALLBACK_ZONE: SuggestionPositionEnum = 'bottom-center';
+import { StoryService, sparkKey } from '../../../story/story.service';
+import type { Composition } from '../../../story/look';
+import { bestCell, cellBox, claim, emptySpace } from '../../../story/quiet-zone';
 
 /** A suggestion resolved for the overlay: which type-shaped marker to draw, the
  * exact term it previews, and where it sits. Dismissed ones are filtered out. */
@@ -53,6 +31,14 @@ interface MusicView {
  * *sees* what it is (no mystery dot, no tutorial). Music is story-level and docks
  * as a chip, not a marker.
  *
+ * Placement comes from the composition, not from the model and not from a table
+ * (7.25 slice 2). The Look claims the box its design occupies and hands on what
+ * is left; each sticker takes the calmest cell still free, most confident first,
+ * and claims it so the next one cannot land on it. A sticker with no free cell
+ * is **dropped** — nothing is better than a collision. A location the design
+ * already drew itself (Magazine's byline, Scrapbook's taped tag) is dropped too,
+ * so the place name never appears twice.
+ *
  * The markers are **passive previews** — you can't drag or swipe them. The one
  * interaction model in the story is the caption's tap-to-edit; a spark gesture
  * that behaved differently (a sideways flick that dismissed) read as confusing,
@@ -76,27 +62,69 @@ export class StorySparks {
   readonly photoId = input('');
   /** The current frame's suggestions (0–2), straight off the contract. */
   readonly suggestions = input<readonly Suggestion[]>([]);
+  /**
+   * The frame's composition — the stage before this one. It carries both things
+   * placement needs (`free`, `consumedLocation`), so one binding is enough and
+   * the two can never be passed out of step with each other. Optional: until the
+   * binding exists the layer falls back to an empty map, which places stickers as
+   * if the photo were flat and no design had claimed anything.
+   */
+  readonly composition = input<Composition | null>(null);
 
-  /** The positioned suggestions (music excluded, dismissed hidden), each keeping
-   * its original index so its state stays keyed. */
+  /** The placed suggestions (music excluded, dismissed hidden, anything with no
+   * room dropped), each keeping its original index so its state stays keyed. */
   protected readonly sparks = computed<SparkView[]>(() => {
     const states = this.story.sparks();
     const id = this.photoId();
-    const out: SparkView[] = [];
-    this.suggestions().forEach((suggestion, index) => {
-      if (suggestion.type === 'music') return; // story-level; docked chip, not a marker
-      const state = states.get(`${id}#${index}`);
-      if (state?.dismissed) return;
-      const base = ZONE_TO_SPOT[suggestion.position ?? SPARK_FALLBACK_ZONE];
-      out.push({
+    const composition = this.composition();
+    const consumedLocation = composition?.consumedLocation ?? false;
+
+    const candidates = this.suggestions()
+      .map((suggestion, index) => ({ suggestion, index }))
+      .filter(({ suggestion, index }) => {
+        if (suggestion.type === 'music') return false; // story-level; docked chip
+        if (states.get(sparkKey(id, index))?.dismissed) return false;
+        // The design drew the place name itself — don't draw it a second time.
+        return !(consumedLocation && suggestion.type === 'location');
+      });
+
+    let space = composition?.free ?? emptySpace();
+    const placed = new Map<number, SparkView>();
+
+    // A spot the user dragged to is fixed: used unchanged, and subtracted from
+    // the map first so nothing is auto-placed on top of it.
+    for (const { suggestion, index } of candidates) {
+      const state = states.get(sparkKey(id, index));
+      const xPct = state?.xPct;
+      const yPct = state?.yPct;
+      if (xPct === undefined || yPct === undefined) continue;
+      placed.set(index, { index, type: suggestion.type, query: suggestion.query, xPct, yPct });
+      space = claim(space, cellBox(space, { xPct, yPct, busy: 0 }));
+    }
+
+    // The rest take the calmest free cell, most confident first, each claiming
+    // what it took. One with nowhere honest to go is dropped (7.25).
+    const automatic = candidates
+      .filter(({ index }) => !placed.has(index))
+      .sort((a, b) => b.suggestion.confidence - a.suggestion.confidence);
+    for (const { suggestion, index } of automatic) {
+      const cell = bestCell(space);
+      if (!cell) continue;
+      space = claim(space, cellBox(space, cell));
+      placed.set(index, {
         index,
         type: suggestion.type,
         query: suggestion.query,
-        xPct: state?.xPct ?? base.xPct,
-        yPct: state?.yPct ?? base.yPct,
+        xPct: cell.xPct,
+        yPct: cell.yPct,
       });
-    });
-    return out;
+    }
+
+    // Draw in suggestion order — placement follows confidence, but the DOM order
+    // stays the frame's own so markers don't re-shuffle between renders.
+    return candidates
+      .map(({ index }) => placed.get(index))
+      .filter((view): view is SparkView => view !== undefined);
   });
 
   /** Story-level music suggestions (no anchor) for the docked chip. */
@@ -106,7 +134,7 @@ export class StorySparks {
     const out: MusicView[] = [];
     this.suggestions().forEach((suggestion, index) => {
       if (suggestion.type !== 'music') return;
-      if (states.get(`${id}#${index}`)?.dismissed) return;
+      if (states.get(sparkKey(id, index))?.dismissed) return;
       out.push({ index, query: suggestion.query });
     });
     return out;

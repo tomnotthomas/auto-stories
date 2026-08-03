@@ -32,7 +32,14 @@ import { TITLE_CARD } from './looks/title-card';
 import { SUBTITLE } from './looks/subtitle';
 import { EDGE_CAPS } from './looks/edge-caps';
 import { LETTERBOX } from './looks/letterbox';
-import type { Band, BandScores } from './quiet-zone';
+import {
+  claim,
+  emptySpace,
+  type Band,
+  type BandScores,
+  type Box,
+  type FreeSpace,
+} from './quiet-zone';
 
 /**
  * The Looks engine (decision 7.24).
@@ -81,8 +88,11 @@ export interface FrameContent {
 export interface PhotoAnalysis {
   /** Accent hue sampled from the image. */
   readonly accent: string;
-  /** How busy each horizontal third is. */
+  /** How busy each horizontal third is — how the design picks its band. */
   readonly bands: BandScores;
+  /** Per-cell busyness, for placing stickers into what the design leaves free
+   * (7.25 slice 2). Optional so a caller that only needs the design can omit it. */
+  readonly space?: FreeSpace;
 }
 
 /** A stretch of headline, flagged when the Look should mark it. */
@@ -250,14 +260,40 @@ export interface Composition {
    * a Look's treatment never discards the cohesion match.
    */
   readonly photoFilter?: string;
+  /**
+   * What the design occupies, so later stages can avoid it (7.25 slice 2).
+   * Estimated by the Look from its own parts rather than measured: a sticker
+   * needs to *avoid* the design, not butt against it, so an over-estimate is the
+   * right error — and estimating keeps composing pure, which is what stops the
+   * preview and the export disagreeing about anything.
+   */
+  readonly claimed: readonly Box[];
+  /** What is left after the design claimed its box. Stickers place into this. */
+  readonly free: FreeSpace;
+  /**
+   * The design drew the place name itself (Magazine's byline, Scrapbook's taped
+   * tag), so a location sticker must not draw it again — that double-location is
+   * the live bug this slice removes.
+   */
+  readonly consumedLocation: boolean;
 }
+
+/**
+ * What a Look actually draws. The free-space bookkeeping (`claimed`, `free`) is
+ * added by {@link composeFrame} from the parts themselves, so a Look never has
+ * to describe its own geometry twice — and cannot describe it wrongly.
+ */
+export type DrawnComposition = Omit<Composition, 'claimed' | 'free' | 'consumedLocation'> & {
+  /** Set by the Looks that draw the place name themselves. */
+  readonly consumedLocation?: boolean;
+};
 
 /** A Look: the grammar that turns words + a photo reading into a composition. */
 export interface Look {
   readonly id: LookId;
   /** Bands this Look would like to sit in, best first. */
   readonly prefer: readonly Band[];
-  compose(content: FrameContent, photo: PhotoAnalysis): Composition;
+  compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition;
 }
 
 /**
@@ -379,8 +415,14 @@ function jitter(seed: string, salt: number): number {
   return ((hash >>> 0) % 1000) / 1000;
 }
 
+/** Anything with parts — a drawn composition or a finished one. Helpers only
+ * ever read the parts, so they should not demand the pipeline's bookkeeping. */
+export interface HasParts {
+  readonly parts: readonly Part[];
+}
+
 /** Every text part of a composition — the convenience most callers want. */
-export function textParts(composition: Composition): TextPart[] {
+export function textParts(composition: HasParts): TextPart[] {
   return composition.parts.filter((part): part is TextPart => part.kind === 'text');
 }
 
@@ -401,7 +443,58 @@ export function composeFrame(
   content: FrameContent,
   photo: PhotoAnalysis,
 ): Composition {
-  return lookFor(id).compose(content, photo);
+  const drawn = lookFor(id).compose(content, photo);
+  const claimed = claimedBoxes(drawn);
+  const free = claimed.reduce(claim, photo.space ?? emptySpace());
+  return { ...drawn, claimed, free, consumedLocation: drawn.consumedLocation ?? false };
+}
+
+/**
+ * The area a composition covers, estimated from its own parts (7.25 slice 2).
+ *
+ * A composition cannot know its rendered height — that depends on text
+ * measurement inside each renderer — so this estimates instead, and deliberately
+ * over-estimates. A sticker only has to avoid the design, so being generous is
+ * the safe direction to be wrong in, and estimating keeps composing pure.
+ *
+ * A silent frame claims nothing: there is no design to avoid.
+ */
+export function claimedBoxes(drawn: DrawnComposition): readonly Box[] {
+  if (drawn.parts.length === 0) return [];
+
+  const heightHPct = drawn.parts.reduce((total, part) => total + partHeightHPct(part), 0);
+  const panelPad = drawn.panel ? drawn.panel.padHPct * 2 : 0;
+  const full = drawn.panel?.fullWidth === true;
+  const left = full ? 0 : Math.max(0, drawn.leftPct - (drawn.panel?.padWPct ?? 0));
+  const right = full ? 0 : Math.max(0, drawn.rightPct - (drawn.panel?.padWPct ?? 0));
+  const height = Math.min(100, heightHPct + panelPad);
+  const top =
+    drawn.anchor === 'bottom'
+      ? Math.max(0, 100 - drawn.offsetHPct - height)
+      : Math.min(100 - height, drawn.offsetHPct);
+
+  return [{ xPct: left, yPct: top, wPct: Math.max(0, 100 - left - right), hPct: height }];
+}
+
+/** One part's height, in % of frame height. Type is authored as a % of frame
+ * WIDTH, and the frame is 9:16, so a point of width is 0.5625 of a point of
+ * height. Multi-line text is allowed for generously. */
+function partHeightHPct(part: Part): number {
+  const gap = part.gapHPct;
+  if (part.kind === 'rule') return gap + part.thicknessHPct;
+
+  const widthToHeight = 9 / 16;
+  if (part.kind === 'tag' || part.kind === 'row') {
+    return gap + part.fontSizeWPct * widthToHeight * part.lineHeight * 1.8;
+  }
+
+  // Estimate the wrap: how many characters fit one line at this size, against a
+  // column of this width. Round up, and never claim less than one line.
+  const chars = part.runs.reduce((total, run) => total + run.text.length, 0);
+  const columnWPct = 100 - part.gapHPct * 0;
+  const perLine = Math.max(6, (columnWPct / part.fontSizeWPct) * 0.52);
+  const lines = Math.max(1, Math.ceil(chars / perLine));
+  return gap + lines * part.fontSizeWPct * widthToHeight * part.lineHeight;
 }
 
 function trimTrailingSpace(

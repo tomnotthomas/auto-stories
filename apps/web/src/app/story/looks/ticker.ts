@@ -1,4 +1,4 @@
-import type { Composition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
+import type { DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
 import { splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
@@ -49,7 +49,7 @@ function sizeFor(headline: string): number {
   return (step ?? SIZE_STEPS[SIZE_STEPS.length - 1]).fontSizeWPct;
 }
 
-function compose(content: FrameContent, photo: PhotoAnalysis): Composition {
+function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
   const band = quietestBand(photo.bands, PREFERRED_BANDS);
   const anchor = band === 'top' ? 'top' : 'bottom';
 
@@ -132,6 +132,9 @@ function compose(content: FrameContent, photo: PhotoAnalysis): Composition {
       radiusWPct: 0,
       fullWidth: true,
     },
+    // The dateline strip carried the place at its right end (7.25). A kicker
+    // alone still draws the strip, so this tracks the place, not the strip.
+    consumedLocation: location !== '',
   };
 }
 

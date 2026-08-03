@@ -1,4 +1,4 @@
-import type { Composition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
+import type { DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
 import { splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
@@ -30,7 +30,7 @@ const PAIR_GAP_HPCT = 0.24;
 /** A masthead sits at the top of the page; the foot is its fallback. */
 const PREFERRED_BANDS: readonly Band[] = ['top', 'bottom'];
 
-function compose(content: FrameContent, photo: PhotoAnalysis): Composition {
+function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
   const band = quietestBand(photo.bands, PREFERRED_BANDS);
   const anchor = band === 'top' ? 'top' : 'bottom';
 
@@ -125,6 +125,8 @@ function compose(content: FrameContent, photo: PhotoAnalysis): Composition {
     scrim: { from: anchor, extentHPct: 58, strength: 0.7 },
     accent: photo.accent,
     parts,
+    // The dateline under the rules named the place (7.25).
+    consumedLocation: Boolean(location),
   };
 }
 

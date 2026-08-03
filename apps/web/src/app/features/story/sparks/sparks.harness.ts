@@ -1,5 +1,12 @@
 import { ComponentHarness } from '@angular/cdk/testing';
 
+/** Where one marker ended up, in % of the frame — the placement decision itself. */
+export interface SparkPlacement {
+  readonly type: string;
+  readonly xPct: number;
+  readonly yPct: number;
+}
+
 /** Page-object harness for the sparks overlay. Exposes intent; asserts nothing. */
 export class StorySparksHarness extends ComponentHarness {
   static hostSelector = 'app-story-sparks';
@@ -18,6 +25,18 @@ export class StorySparksHarness extends ComponentHarness {
   async markerTypes(): Promise<string[]> {
     const els = await this.markers();
     return Promise.all(els.map(async (el) => (await el.getAttribute('data-spark-type')) ?? ''));
+  }
+
+  /** Where each marker sits, in order — what the placement pass decided. */
+  async placements(): Promise<SparkPlacement[]> {
+    const els = await this.markers();
+    return Promise.all(
+      els.map(async (el) => ({
+        type: (await el.getAttribute('data-spark-type')) ?? '',
+        xPct: Number(await el.getAttribute('data-spark-x')),
+        yPct: Number(await el.getAttribute('data-spark-y')),
+      })),
+    );
   }
 
   /** The term previewed on each marker, in order. */

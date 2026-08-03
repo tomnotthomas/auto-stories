@@ -1,6 +1,5 @@
 import {
   DEFAULT_LOOK,
-  DEFAULT_SUGGESTION_POSITION,
   MAX_SUGGESTIONS_PER_FRAME,
   normalizeLook,
   normalizeSuggestions,
@@ -14,7 +13,10 @@ describe('normalizeSuggestions', () => {
     expect(normalizeSuggestions({})).toEqual([]);
   });
 
-  it('keeps a valid placed suggestion with its position', () => {
+  // Decision 7.25: the client places every add-on from the free space the
+  // design leaves, so a zone the model emits is not just unused — it was never
+  // informed by the photo. It must not cross the boundary.
+  it('keeps a valid suggestion and drops any placement the model sent', () => {
     const out = normalizeSuggestions([
       {
         type: 'location',
@@ -24,26 +26,26 @@ describe('normalizeSuggestions', () => {
       },
     ]);
     expect(out).toEqual([
-      {
-        type: 'location',
-        query: 'Blue Bottle Coffee',
-        position: 'bottom-left',
-        confidence: 0.9,
-      },
+      { type: 'location', query: 'Blue Bottle Coffee', confidence: 0.9 },
     ]);
   });
 
-  it('drops the position for music (story-level, not placed)', () => {
-    const [music] = normalizeSuggestions([
-      {
-        type: 'music',
-        query: 'warm indie folk',
-        position: 'top-right',
+  it('keeps every suggestion type, none of them placed', () => {
+    const out = normalizeSuggestions(
+      ['location', 'mention', 'gif', 'poll', 'music'].map((type) => ({
+        type,
+        query: 'q',
         confidence: 0.7,
-      },
-    ]);
-    expect(music.type).toBe('music');
-    expect(music.position).toBeUndefined();
+      })),
+    );
+    // Capped per frame, so assert on what survives the cap.
+    expect(out).toHaveLength(MAX_SUGGESTIONS_PER_FRAME);
+    for (const type of ['location', 'mention', 'gif', 'poll', 'music']) {
+      const [only] = normalizeSuggestions([
+        { type, query: 'q', confidence: 1 },
+      ]);
+      expect(only).toEqual({ type, query: 'q', confidence: 1 });
+    }
   });
 
   it('drops items with an invalid type or empty query', () => {
@@ -56,38 +58,24 @@ describe('normalizeSuggestions', () => {
     ).toEqual([]);
   });
 
+  it('drops entries that are not objects at all', () => {
+    expect(normalizeSuggestions([null, 'location', 7])).toEqual([]);
+  });
+
   it('clamps confidence to [0,1] and defaults a non-numeric one', () => {
     const out = normalizeSuggestions([
-      {
-        type: 'poll',
-        query: 'Cake or pie?',
-        position: 'top-center',
-        confidence: 5,
-      },
-      { type: 'gif', query: 'cake', position: 'top-left', confidence: 'high' },
+      { type: 'poll', query: 'Cake or pie?', confidence: 5 },
+      { type: 'gif', query: 'cake', confidence: 'high' },
     ]);
     expect(out[0].confidence).toBe(1);
     expect(out[1].confidence).toBeGreaterThanOrEqual(0);
     expect(out[1].confidence).toBeLessThanOrEqual(1);
   });
 
-  it('falls back to a default position for a placed type with an invalid one', () => {
-    const [s] = normalizeSuggestions([
-      {
-        type: 'location',
-        query: 'Dolores Park',
-        position: 'middle',
-        confidence: 0.8,
-      },
-    ]);
-    expect(s.position).toBe(DEFAULT_SUGGESTION_POSITION);
-  });
-
   it('caps the number of suggestions per frame', () => {
     const many = Array.from({ length: 5 }, (_, i) => ({
       type: 'gif',
       query: `q${i}`,
-      position: 'top-left',
       confidence: 0.5,
     }));
     expect(normalizeSuggestions(many)).toHaveLength(MAX_SUGGESTIONS_PER_FRAME);

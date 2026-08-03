@@ -90,6 +90,121 @@ describe('Story', () => {
     expect(story.phase()).toBe('example');
   });
 
+  describe('swiping the actions away', () => {
+    it('shows the three story actions to begin with', async () => {
+      expect(await (await render()).isActionBarVisible()).toBe(true);
+    });
+
+    it('dismisses the actions on a swipe down', async () => {
+      const harness = await render();
+      await harness.swipeActionsAway();
+      expect(await harness.isActionBarVisible()).toBe(false);
+    });
+
+    it('brings them back on a swipe up from the bottom edge', async () => {
+      const harness = await render();
+      await harness.swipeActionsAway();
+      await harness.swipeActionsBack();
+
+      expect(await harness.isActionBarVisible()).toBe(true);
+      // Back in working order, not just back on screen.
+      await harness.clickStartOver();
+      expect(story.phase()).toBe('example');
+    });
+
+    it('ignores a swipe down that did not start on the actions', async () => {
+      const harness = await render();
+      await harness.swipeDownOnPhoto();
+      expect(await harness.isActionBarVisible()).toBe(true);
+    });
+
+    it('ignores a swipe up that did not start at the bottom edge', async () => {
+      const harness = await render();
+      await harness.swipeActionsAway();
+      await harness.swipeUpOnPhoto();
+      expect(await harness.isActionBarVisible()).toBe(false);
+    });
+
+    it('does not fire the button the swipe started on', async () => {
+      const harness = await render();
+      // A drag is still followed by a click on the element it began on, so a
+      // swipe made across the buttons must never start the story over.
+      await harness.swipeAcrossStartOver();
+
+      expect(story.phase()).toBe('story');
+      expect(await harness.getHeadline()).toBe('Then she blew out the candle');
+    });
+
+    it('never moves the composition — the reservation is the same either way', async () => {
+      const harness = await render();
+      const shown = await harness.reservedBottomPx();
+
+      await harness.swipeActionsAway();
+      expect(await harness.reservedBottomPx()).toBe(shown);
+
+      await harness.swipeActionsBack();
+      expect(await harness.reservedBottomPx()).toBe(shown);
+    });
+
+    it('still pages the story while the actions are dismissed', async () => {
+      const harness = await render();
+      await harness.swipeActionsAway();
+      await harness.tapNext();
+      expect(await harness.getHeadline()).toBe('Then she blew out the candle');
+    });
+
+    it('shows the way back once, after the first dismissal', async () => {
+      const harness = await render();
+      expect(await harness.hasRestoreHint()).toBe(false);
+
+      await harness.swipeActionsAway();
+      expect(await harness.hasRestoreHint()).toBe(true);
+
+      await harness.swipeActionsBack();
+      await harness.swipeActionsAway();
+      expect(await harness.hasRestoreHint()).toBe(false);
+    });
+
+    it('dismisses and restores from the keyboard, without a gesture', async () => {
+      const harness = await render();
+      expect(await harness.actionsToggleLabel()).toMatch(/Hide/);
+
+      await harness.clickActionsToggle();
+      expect(await harness.isActionBarVisible()).toBe(false);
+      expect(await harness.actionsToggleLabel()).toMatch(/Show/);
+
+      await harness.clickActionsToggle();
+      expect(await harness.isActionBarVisible()).toBe(true);
+    });
+  });
+
+  describe('paging by swipe', () => {
+    it('advances a frame on a swipe left', async () => {
+      const harness = await render();
+      await harness.swipeToNextFrame();
+      expect(await harness.getHeadline()).toBe('Then she blew out the candle');
+    });
+
+    it('advances only one frame, even though the swipe ends on a tap zone', async () => {
+      const harness = await renderFrames([
+        { photoId: 'a', order: 1, headline: 'one' },
+        { photoId: 'b', order: 2, headline: 'two' },
+        { photoId: 'c', order: 3, headline: 'three' },
+      ]);
+
+      await harness.swipeToNextFrame();
+
+      expect(await harness.getHeadline()).toBe('two');
+    });
+
+    it('goes back a frame on a swipe right', async () => {
+      const harness = await render();
+      await harness.tapNext();
+      await harness.swipeToPreviousFrame();
+      expect(await harness.getHeadline()).toBe('Everyone made it to the lake');
+    });
+  });
+
   describe('refine', () => {
     it('keeps rendering the same composition it shows in view mode', async () => {
       const harness = await render();
