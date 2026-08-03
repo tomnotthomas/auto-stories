@@ -25,9 +25,9 @@ describe('App (e2e)', () => {
         // (decision 7.24); it no longer emits any geometry.
         look: 'magazine-masthead',
         frames: [
-          { photoId: 'p1', order: 1, caption: 'first', headline: 'First' },
-          { photoId: 'p2', order: 2, caption: 'second', headline: 'Second' },
-          { photoId: 'p3', order: 3, caption: 'third', headline: 'Third' },
+          { photoId: 'p1', order: 1, headline: 'First' },
+          { photoId: 'p2', order: 2, headline: 'Second' },
+          { photoId: 'p3', order: 3, headline: 'Third' },
         ],
       }),
     });
@@ -116,7 +116,7 @@ describe('App (e2e)', () => {
       expect(['queued', 'processing', 'done']).toContain(res.body.status);
     });
 
-    it('finishes the job with an ordered, captioned story', async () => {
+    it('finishes the job with an ordered story, each frame with its words', async () => {
       const story = await generate({
         story: 'beach day with the crew',
         tone: 'chill',
@@ -133,7 +133,6 @@ describe('App (e2e)', () => {
       expect(story.frames[0]).toMatchObject({
         photoId: 'p1',
         order: 1,
-        caption: 'first',
         headline: 'First',
       });
       expect(story.partial).toBe(false);

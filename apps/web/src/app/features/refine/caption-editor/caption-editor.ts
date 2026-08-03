@@ -5,9 +5,26 @@ import { MatSliderModule } from '@angular/material/slider';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { TextFieldModule } from '@angular/cdk/text-field';
 
-import { FramePlacement } from '../../../story/story.service';
+/**
+ * Where the edited text sits and how big it is, as the host stores it: box
+ * centre as a percentage of the frame, plus a size multiplier. Percentages keep
+ * it correct across the phone-frame and full-bleed layouts (5.10).
+ *
+ * Only a host that can *store* a placement passes one. The story's frames no
+ * longer have one — the Look owns placement (7.25) — so there the editor is text
+ * only; the first-open example still teaches drag + resize on its own copy.
+ */
+export interface FramePlacement {
+  readonly xPct: number;
+  readonly yPct: number;
+  readonly scale: number;
+}
 
-/** Caption font size at scale 1; the size slider multiplies it. */
+/** The smart default: centred in the always-visible band — high enough that the
+ * edit sheet never covers it — unscaled (1.5). */
+export const DEFAULT_PLACEMENT: FramePlacement = { xPct: 50, yPct: 46, scale: 1 };
+
+/** Text font size at scale 1; the size slider multiplies it. */
 const BASE_FONT_PX = 24;
 /**
  * The caption lives in one fixed, always-visible band: high enough to clear the
@@ -63,14 +80,15 @@ export function pinchedScale(startScale: number, startDist: number, dist: number
 }
 
 /**
- * The refine caption editor (approach 5.9, mockup refine-text.html). Edits the
- * caption directly in the frame — drag to move, size it, toggle its legibility
- * background, or regenerate it — with a Material bottom sheet for the controls.
+ * The refine text editor (approach 5.9, mockup refine-text.html). Edits a
+ * frame's words directly on the frame, with a Material bottom sheet for the
+ * controls.
  *
  * Purely presentational: the parent (Story / Example) owns the frame state and
- * reacts to the outputs. That keeps it reusable for the first-open example,
- * which teaches the same interaction (5.9) but has nothing to regenerate, so it
- * passes `demo` to hide that action.
+ * reacts to the outputs — and each control appears only when the parent has
+ * somewhere to put its result. The example passes `demo` (nothing to
+ * regenerate); the story passes no `placement` or `legibility`, because there
+ * the Look owns placement and lays its own scrim (7.25).
  */
 @Component({
   selector: 'app-caption-editor',
@@ -84,28 +102,35 @@ export function pinchedScale(startScale: number, startDist: number, dist: number
   templateUrl: './caption-editor.html',
 })
 export class CaptionEditor implements OnInit {
-  readonly caption = input.required<string>();
-  readonly placement = input.required<FramePlacement>();
-  readonly legibility = input.required<boolean>();
-  /** True while a caption regenerate is in flight. */
+  /** The frame's words — the one piece of text on the photo (7.25). */
+  readonly headline = input.required<string>();
+  /** Where the text sits, when the host stores a placement; null → text only
+   * (no drag, no pinch, no size slider). */
+  readonly placement = input<FramePlacement | null>(null);
+  /** The host's legibility background, when it has one; null → no toggle. */
+  readonly legibility = input<boolean | null>(null);
+  /** True while a regenerate is in flight. */
   readonly busy = input(false);
   /** First-open example: hide Regenerate (no real photos to regenerate from). */
   readonly demo = input(false);
-  /** Editing an extra text block (not the caption): offer Remove. */
+  /** Offer Remove for a block the host can delete. */
   readonly removable = input(false);
 
-  readonly captionChange = output<string>();
+  readonly headlineChange = output<string>();
   readonly placementChange = output<Partial<FramePlacement>>();
   readonly legibilityToggle = output<void>();
   readonly regenerate = output<void>();
   readonly remove = output<void>();
   readonly done = output<void>();
 
-  /** Local copy of the caption while editing, so typing never fights the parent. */
+  /** Local copy of the text while editing, so typing never fights the parent. */
   protected readonly draft = signal('');
-  /** Where the caption sits while editing — its stored placement, unchanged. */
-  protected readonly posX = signal(50);
-  protected readonly posY = signal(DRAG_MIN_Y);
+  /** Where the text sits while editing — its stored placement, unchanged. */
+  protected readonly posX = signal(DEFAULT_PLACEMENT.xPct);
+  protected readonly posY = signal(DEFAULT_PLACEMENT.yPct);
+  /** True when the host can store a placement, so the move/resize controls have
+   * somewhere to land. */
+  protected readonly movable = computed(() => this.placement() !== null);
 
   /** Live finger positions (clientX/clientY) keyed by pointerId: 1 → drag, 2 → pinch. */
   private readonly pointers = new Map<number, { x: number; y: number }>();
@@ -118,32 +143,39 @@ export class CaptionEditor implements OnInit {
   /** The element holding pointer capture (the caption box), so we release on it. */
   private captureEl: HTMLElement | null = null;
 
-  /** Rendered caption size, in px, from the placement scale. */
-  protected readonly fontSize = computed(() => Math.round(BASE_FONT_PX * this.placement().scale));
+  /** Rendered text size, in px, from the placement scale. */
+  protected readonly fontSize = computed(() => Math.round(BASE_FONT_PX * this.scale()));
+
+  /** The stored size multiplier, or 1 when the host keeps no placement. */
+  protected readonly scale = computed(() => this.placement()?.scale ?? 1);
 
   ngOnInit(): void {
-    this.draft.set(this.caption());
-    // Open exactly where the caption is displayed — no lift — so it doesn't jump
-    // on open or snap back on Done. Placement already lives in the visible band.
-    this.posX.set(this.placement().xPct);
-    this.posY.set(this.placement().yPct);
+    this.draft.set(this.headline());
+    // Open exactly where the text is displayed — no lift — so it doesn't jump on
+    // open or snap back on Done. Placement already lives in the visible band.
+    const placement = this.placement();
+    if (placement) {
+      this.posX.set(placement.xPct);
+      this.posY.set(placement.yPct);
+    }
   }
 
-  protected onCaptionInput(event: Event): void {
+  protected onHeadlineInput(event: Event): void {
     const value = (event.target as HTMLTextAreaElement).value;
     this.draft.set(value);
-    this.captionChange.emit(value);
+    this.headlineChange.emit(value);
   }
 
   protected onScale(scale: number): void {
     this.placementChange.emit({ scale });
   }
 
-  /** A finger lands on the caption. One finger drags (record the grab offset so
-   * it won't jump); a second finger starts a pinch (record distance + scale). */
+  /** A finger lands on the text. One finger drags (record the grab offset so it
+   * won't jump); a second finger starts a pinch (record distance + scale). */
   protected startDrag(event: PointerEvent, surface: HTMLElement): void {
-    // Capture on the caption box (currentTarget), not whichever child was under
-    // the finger, so capture lives on the stable touch-action:none element.
+    if (!this.movable()) return;
+    // Capture on the text box (currentTarget), not whichever child was under the
+    // finger, so capture lives on the stable touch-action:none element.
     const box = event.currentTarget as HTMLElement;
     box.setPointerCapture?.(event.pointerId);
     this.captureEl = box;
@@ -151,7 +183,7 @@ export class CaptionEditor implements OnInit {
     const rect = surface.getBoundingClientRect();
     if (this.pointers.size === 2) {
       this.pinchStartDist = this.pointerDistance();
-      this.pinchStartScale = this.placement().scale;
+      this.pinchStartScale = this.scale();
     } else {
       this.seatGrab(event.clientX, event.clientY, rect);
     }

@@ -1,7 +1,6 @@
 import { firstValueFrom } from 'rxjs';
 import type { GenerateResponse } from '@auto-stories/api-types';
 import { ApiErrors } from '../common/api-exception';
-import { DEFAULT_STYLE } from '../story/caption-style';
 import { JobService } from './job.service';
 
 /** A promise plus its resolve/reject, so a test can control when work settles. */
@@ -16,15 +15,7 @@ function deferred<T>() {
 }
 
 const STORY: GenerateResponse = {
-  frames: [
-    {
-      photoId: 'p1',
-      order: 1,
-      caption: 'A day at the lake.',
-      headline: 'A day at the lake.',
-      style: DEFAULT_STYLE,
-    },
-  ],
+  frames: [{ photoId: 'p1', order: 1, headline: 'A day at the lake.' }],
   look: 'magazine-masthead',
   partial: false,
 };

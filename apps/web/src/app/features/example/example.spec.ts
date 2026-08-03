@@ -53,7 +53,7 @@ describe('Example', () => {
   it('reflects an edited example caption', async () => {
     await harness.tapCaption();
     const editor = await harness.getEditor();
-    await editor!.setCaption('My own words');
+    await editor!.setHeadline('My own words');
     await editor!.clickDone();
     expect(await harness.getCaptionText()).toContain('My own words');
   });

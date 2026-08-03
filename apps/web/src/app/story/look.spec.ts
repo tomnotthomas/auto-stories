@@ -126,11 +126,7 @@ describe('composeFrame', () => {
   });
 
   it('drops the kicker part entirely when there is no kicker', () => {
-    const composition = composeFrame(
-      DEFAULT_LOOK_ID,
-      { headline: CONTENT.headline },
-      PHOTO,
-    );
+    const composition = composeFrame(DEFAULT_LOOK_ID, { headline: CONTENT.headline }, PHOTO);
 
     expect(textParts(composition).map(runText)).not.toContain('The Ascent');
   });
@@ -145,11 +141,7 @@ describe('composeFrame', () => {
   });
 
   it('skips the mark when the emphasis is not in the headline', () => {
-    const composition = composeFrame(
-      DEFAULT_LOOK_ID,
-      { ...CONTENT, emphasis: 'elsewhere' },
-      PHOTO,
-    );
+    const composition = composeFrame(DEFAULT_LOOK_ID, { ...CONTENT, emphasis: 'elsewhere' }, PHOTO);
     const marked = textParts(composition)
       .flatMap((part) => part.runs)
       .filter((run) => run.emphasised);
@@ -189,6 +181,17 @@ describe('composeFrame', () => {
     });
 
     expect(composition.accent).toBe('rgb(1, 2, 3)');
+  });
+
+  it('composes a silent frame to nothing at all', () => {
+    // No words is a real choice (7.26). Everything the Look draws exists to
+    // frame the words, so a masthead around an empty column would read broken.
+    for (const headline of ['', '   ']) {
+      const composition = composeFrame(DEFAULT_LOOK_ID, { kicker: 'The Ascent', headline }, PHOTO);
+
+      expect(composition.parts).toEqual([]);
+      expect(composition.scrim).toBeNull();
+    }
   });
 
   it('is deterministic', () => {

@@ -1,9 +1,32 @@
 import { Component, computed, inject, input } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
-import type { Suggestion, SuggestionTypeEnum } from '@auto-stories/api-types';
+import type {
+  Suggestion,
+  SuggestionPositionEnum,
+  SuggestionTypeEnum,
+} from '@auto-stories/api-types';
 
-import { DEFAULT_STYLE, zoneToPlacement } from '../../../story/caption-style';
 import { StoryService } from '../../../story/story.service';
+
+/**
+ * TODO(slice 2): sparks are still placed by a fixed zone table. Slice 2 of the
+ * frame-harmony plan places every sticker from the free-space map the
+ * composition hands on, and drops `position` from the contract — at which point
+ * this table and `SPARK_FALLBACK_ZONE` go away. Until then the numbers below are
+ * the ones `zoneToPlacement` used, moved here unchanged so behaviour is
+ * identical after the caption layer that owned them was deleted (7.25 slice 1).
+ */
+const ZONE_TO_SPOT: Record<SuggestionPositionEnum, { xPct: number; yPct: number }> = {
+  'top-left': { xPct: 42, yPct: 22 },
+  'top-center': { xPct: 50, yPct: 22 },
+  'top-right': { xPct: 58, yPct: 22 },
+  'bottom-left': { xPct: 42, yPct: 56 },
+  'bottom-center': { xPct: 50, yPct: 56 },
+  'bottom-right': { xPct: 58, yPct: 56 },
+};
+
+/** Where a suggestion goes when the model named no zone. */
+const SPARK_FALLBACK_ZONE: SuggestionPositionEnum = 'bottom-center';
 
 /** A suggestion resolved for the overlay: which type-shaped marker to draw, the
  * exact term it previews, and where it sits. Dismissed ones are filtered out. */
@@ -64,7 +87,7 @@ export class StorySparks {
       if (suggestion.type === 'music') return; // story-level; docked chip, not a marker
       const state = states.get(`${id}#${index}`);
       if (state?.dismissed) return;
-      const base = zoneToPlacement(suggestion.position ?? DEFAULT_STYLE.position);
+      const base = ZONE_TO_SPOT[suggestion.position ?? SPARK_FALLBACK_ZONE];
       out.push({
         index,
         type: suggestion.type,

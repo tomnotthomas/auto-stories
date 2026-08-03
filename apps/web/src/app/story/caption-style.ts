@@ -1,45 +1,12 @@
-import type { Style, StylePositionEnum } from '@auto-stories/api-types';
-
-import { type FramePlacement } from './story.service';
-
-/** The style a hand-added frame gets until the model restyles it — a calm,
- * centred default. Mirrors the backend's `normalizeStyle` default. */
-export const DEFAULT_STYLE: Style = {
-  font: 'inter',
-  weight: 'regular',
-  case: 'normal',
-  align: 'center',
-  size: 'm',
-  position: 'bottom-center',
-  letterbox: 'blur',
-};
-
 /**
- * The AI picks a caption `position` (one of six anchor zones, kept off the
- * subject in the middle); we turn that into the starting {@link FramePlacement}
- * the user can then drag. Percentages of the frame, matching DEFAULT_PLACEMENT's
- * convention (box centre + scale).
- *
- * Both axes stay inside the always-visible band the editor drag also clamps to
- * (caption-editor DRAG_MIN/MAX_X/Y): the caption box is `w-[78%]`, so its centre
- * must sit within [~40, ~60] horizontally to stay on-frame, and top/bottom stay
- * high/low enough to clear the top progress row and the bottom action bar.
+ * Readability, computed on the device from the pixels — never by the model
+ * (decision 7.10). The Look owns placement and its own scrim (7.25); what is
+ * left here is the one thing a Look with `ink: 'auto'` still needs: is the photo
+ * dark or light where the type lands.
  */
-const ZONE_TO_PLACEMENT: Record<StylePositionEnum, FramePlacement> = {
-  'top-left': { xPct: 42, yPct: 22, scale: 1 },
-  'top-center': { xPct: 50, yPct: 22, scale: 1 },
-  'top-right': { xPct: 58, yPct: 22, scale: 1 },
-  'bottom-left': { xPct: 42, yPct: 56, scale: 1 },
-  'bottom-center': { xPct: 50, yPct: 56, scale: 1 },
-  'bottom-right': { xPct: 58, yPct: 56, scale: 1 },
-};
-
-export function zoneToPlacement(position: StylePositionEnum): FramePlacement {
-  return ZONE_TO_PLACEMENT[position];
-}
 
 /** What the device computes for readability (never the model): text colour and
- * whether a scrim is drawn behind the caption. */
+ * whether a scrim is drawn behind the type. */
 export interface Readable {
   /** true → light (white) text on a dark area; false → dark text on a light area. */
   readonly light: boolean;
@@ -54,8 +21,8 @@ const SCRIM_BAND = 0.18;
 
 /**
  * Average relative luminance (0..1, Rec. 709) of RGBA pixels — the brightness of
- * the photo under the caption box. Pure; the impure "decode + sample the region"
- * step lives in the renderer.
+ * the photo under the type. Pure; the impure "decode + sample the region" step
+ * lives in the renderer.
  */
 export function averageLuminance(rgba: Uint8ClampedArray): number {
   const pixels = Math.floor(rgba.length / 4);
@@ -68,7 +35,7 @@ export function averageLuminance(rgba: Uint8ClampedArray): number {
 }
 
 /**
- * Given the average luminance under the caption, pick white-vs-dark text and
+ * Given the average luminance under the type, pick white-vs-dark text and
  * whether a scrim is needed. Deterministic and pure — this is the readability
  * the model does NOT decide (decisions 7.10).
  */
@@ -80,11 +47,12 @@ export function pickReadable(luminance: number): Readable {
 }
 
 /**
- * Sample the photo's average luminance in the band where the caption sits, so
+ * Sample the photo's average luminance in the band centred on `yPct` (a
+ * percentage of the frame height — where the composition hangs its type), so
  * {@link pickReadable} can pick a legible colour. Impure (decodes to a canvas);
  * returns 0.5 (→ scrim, white text) if a 2D context isn't available.
  */
-export function sampleLuminance(bitmap: ImageBitmap, placement: FramePlacement): number {
+export function sampleLuminance(bitmap: ImageBitmap, yPct: number): number {
   const W = 32;
   const H = 12;
   const canvas = new OffscreenCanvas(W, H);
@@ -93,10 +61,7 @@ export function sampleLuminance(bitmap: ImageBitmap, placement: FramePlacement):
   const sx = bitmap.width * 0.1;
   const sw = bitmap.width * 0.8;
   const bandH = bitmap.height * 0.16;
-  const sy = Math.max(
-    0,
-    Math.min(bitmap.height - bandH, (bitmap.height * placement.yPct) / 100 - bandH / 2),
-  );
+  const sy = Math.max(0, Math.min(bitmap.height - bandH, (bitmap.height * yPct) / 100 - bandH / 2));
   ctx.drawImage(bitmap, sx, sy, sw, bandH, 0, 0, W, H);
   return averageLuminance(ctx.getImageData(0, 0, W, H).data);
 }

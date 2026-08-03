@@ -33,7 +33,7 @@
       ></div>
 
       <!-- Tap zones: left goes back, right advances (Stories convention). Active in
-         refine too (tap the caption itself to edit); off while a sheet is open. -->
+         refine too (tap the text itself to edit); off while a sheet is open. -->
       @if (!editingFrame() && !managing()) {
         <button
           type="button"
@@ -79,123 +79,51 @@
         </div>
       }
 
-      <!-- The frame under the story's Look (decision 7.24): deterministic
-         composition, drawn identically here and in the export. Refine still
-         edits the legacy caption path for now. -->
-      @if (frame.composition && !refining() && !editingFrame()) {
+      <!-- The frame under the story's Look (decision 7.24/7.25): the ONE thing
+         drawn on the photo, in view and in refine alike, and drawn identically
+         here and in the export. Refine edits the words it renders. -->
+      @if (!editingFrame()) {
         <app-layout-view
           [composition]="frame.composition"
-          [accent]="frame.accent"
+          [accent]="frame.composition.accent"
           [light]="frame.light"
           [safeBottomPx]="ACTION_BAR_PX"
         />
       }
 
-      <!-- The caption, at the placement the user gave it. In refine it becomes a
-         tappable, editable-looking layer; the editor overlay opens on tap.
-         Hidden while the editor is open, or when a composition supersedes it. -->
-      @if (!editingFrame() && (refining() || !frame.composition)) {
-        <div
-          class="absolute z-20 w-[78%] max-w-[320px] -translate-x-1/2 -translate-y-1/2"
-          [style.left.%]="frame.placement.xPct"
-          [style.top.%]="frame.placement.yPct"
+      <!-- Refine: a tap target over the composition (never instead of it) that
+         opens the editor for this frame's words. It covers the band the Look
+         hangs its type in, so tapping elsewhere still pages the story. -->
+      @if (refining() && !editingFrame() && !managing()) {
+        <button
+          type="button"
+          data-edit-text
+          aria-label="Edit this frame's text"
+          (click)="editHeadline(frame.photoId)"
+          class="press absolute inset-x-3 z-20 h-2/5 rounded-2xl border-[1.5px] border-dashed border-white/60"
+          [class.top-24]="frame.composition.anchor === 'top'"
+          [class.bottom-44]="frame.composition.anchor === 'bottom'"
         >
-          @if (refining()) {
-            @if (!coachSeen()) {
-              <div
-                class="mat-label-large coach-bob absolute -top-12 left-1/2 flex items-center gap-1.5 whitespace-nowrap rounded-full bg-primary px-3 py-1.5 text-on-primary shadow-lg"
-              >
-                <mat-icon class="h-[18px] w-[18px] text-[18px] leading-none">touch_app</mat-icon>
-                Tap to edit &amp; move
-              </div>
-            }
-            <button
-              type="button"
-              (click)="editCaption(frame.photoId)"
-              class="press story-caption relative block w-full rounded-2xl border-[1.5px] border-dashed border-white/60 px-4 py-3 leading-tight"
-              [class]="frame.scrimClass"
-              [style.fontFamily]="frame.fontFamily"
-              [style.fontWeight]="frame.fontWeight"
-              [style.textAlign]="frame.textAlign"
-              [style.textTransform]="frame.textTransform"
-              [style.color]="frame.color"
-              [style.fontSize.px]="frame.placement.scale * 24 * frame.sizeMult * frame.fitMult"
-            >
-              {{ frame.caption }}
-              <mat-icon
-                class="absolute -right-2.5 -top-2.5 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-[16px] text-on-primary shadow-lg"
-                >edit</mat-icon
-              >
-            </button>
-          } @else {
-            <p
-              class="story-caption leading-tight"
-              [class]="frame.scrimClass ? 'rounded-2xl px-4 py-3 ' + frame.scrimClass : ''"
-              [style.fontFamily]="frame.fontFamily"
-              [style.fontWeight]="frame.fontWeight"
-              [style.textAlign]="frame.textAlign"
-              [style.textTransform]="frame.textTransform"
-              [style.color]="frame.color"
-              [style.fontSize.px]="frame.placement.scale * 24 * frame.sizeMult * frame.fitMult"
-            >
-              {{ frame.caption }}
-            </p>
-          }
-        </div>
-      }
-
-      <!-- Extra placed text blocks besides the caption — the editorial layer (a
-         small line + a bigger line). In refine each is tappable to edit/move/
-         resize; in view it's read-only. Hidden when a layout supersedes them. -->
-      @if (!editingFrame() && (refining() || !frame.composition)) {
-        @for (t of frame.extraTexts; track t.index) {
-          <div
-            class="absolute z-20 w-[78%] max-w-[320px] -translate-x-1/2 -translate-y-1/2"
-            [style.left.%]="t.placement.xPct"
-            [style.top.%]="t.placement.yPct"
+          <mat-icon
+            class="absolute -right-2.5 -top-2.5 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-[16px] text-on-primary shadow-lg"
+            >edit</mat-icon
           >
-            @if (refining()) {
-              <button
-                type="button"
-                (click)="editExtra(frame.photoId, t.index)"
-                class="press story-caption relative block w-full rounded-2xl border-[1.5px] border-dashed border-white/60 px-4 py-3 leading-tight"
-                [class]="t.scrimClass"
-                [style.fontFamily]="t.fontFamily"
-                [style.fontWeight]="t.fontWeight"
-                [style.textAlign]="t.textAlign"
-                [style.textTransform]="t.textTransform"
-                [style.color]="t.color"
-                [style.fontSize.px]="t.placement.scale * 24 * t.sizeMult * t.fitMult"
-              >
-                {{ t.text }}
-                <mat-icon
-                  class="absolute -right-2.5 -top-2.5 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-[16px] text-on-primary shadow-lg"
-                  >edit</mat-icon
-                >
-              </button>
-            } @else {
-              <p
-                data-extra-text
-                class="story-caption leading-tight"
-                [class]="t.scrimClass ? 'rounded-2xl px-4 py-3 ' + t.scrimClass : ''"
-                [style.fontFamily]="t.fontFamily"
-                [style.fontWeight]="t.fontWeight"
-                [style.textAlign]="t.textAlign"
-                [style.textTransform]="t.textTransform"
-                [style.color]="t.color"
-                [style.fontSize.px]="t.placement.scale * 24 * t.sizeMult * t.fitMult"
-              >
-                {{ t.text }}
-              </p>
-            }
-          </div>
-        }
+          @if (!coachSeen()) {
+            <span
+              class="mat-label-large coach-bob absolute -top-11 left-1/2 flex -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-full bg-primary px-3 py-1.5 text-on-primary shadow-lg"
+            >
+              <mat-icon class="h-[18px] w-[18px] text-[18px] leading-none">touch_app</mat-icon>
+              Tap to edit the text
+            </span>
+          }
+        </button>
       }
 
       <!-- Sparks: the AI's optional Instagram add-ons for this frame, shown as
-         tappable dots the user copies into Instagram during the hand-off. View
-         mode only — refine has its own gestures, and nothing is baked into the
-         export (decision 7.10). -->
+         passive markers the user copies into Instagram during the hand-off.
+         Nothing is baked into the export (decision 7.10). View mode only for now;
+         slice 2 of the frame-harmony plan places them from the free space the
+         composition leaves and brings them into refine. -->
       @if (!refining() && !editingFrame() && !managing()) {
         <app-story-sparks [photoId]="frame.photoId" [suggestions]="frame.suggestions" />
       }
@@ -210,7 +138,7 @@
     <!-- /story-stage -->
 
     <!-- Bottom action bar. In refine it's a solid sheet (own surface, clear of the
-         photo) with the frame-level actions; the caption is edited on the photo.
+         photo) with the frame-level actions; the text is edited on the photo.
          Hidden in the hand-off state — the tray is the post-share screen. -->
     @if (refining()) {
       <div
@@ -225,10 +153,6 @@
             Done
           </button>
         </div>
-        <button matButton="tonal" class="w-full" [disabled]="!canAddText()" (click)="addText()">
-          <mat-icon>add</mat-icon>
-          {{ canAddText() ? 'Add a text block' : 'Up to 2 text blocks per photo' }}
-        </button>
         <div class="flex gap-3">
           <button matButton="tonal" class="flex-1" (click)="openManage()">
             <mat-icon>photo_library</mat-icon>
@@ -314,21 +238,15 @@
       </div>
     }
 
-    <!-- Text editor overlay — the caption, or an extra text block. Extras have no
-         Regenerate and gain a Remove action instead. -->
-    @if (editingBlock(); as block) {
+    <!-- Text editor overlay — the frame's words. No placement or legibility is
+         passed: the Look owns where the type sits and lays its own scrim (7.25),
+         so the editor offers only what the story can actually store. -->
+    @if (editingFrame(); as editing) {
       <app-caption-editor
-        [caption]="block.text"
-        [placement]="block.placement"
-        [legibility]="block.legibility"
+        [headline]="editing.headline"
         [busy]="regenBusy()"
-        [demo]="!editingIsCaption()"
-        [removable]="!editingIsCaption()"
-        (captionChange)="onCaption($event)"
-        (placementChange)="onPlacement($event)"
-        (legibilityToggle)="onLegibility()"
-        (regenerate)="regenerateCaption()"
-        (remove)="removeCurrentText()"
+        (headlineChange)="onHeadline($event)"
+        (regenerate)="regenerateHeadline()"
         (done)="closeEditor()"
       />
     }

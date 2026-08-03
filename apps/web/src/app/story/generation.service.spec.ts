@@ -44,11 +44,15 @@ describe('GenerationService', () => {
   it('lands the finished story on the payoff when generation succeeds', async () => {
     outcome = {
       ok: true,
-      response: { frames: [{ photoId: 'p1', order: 1, caption: 'By the water', headline: 'By the water', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } }], partial: true, look: 'magazine-masthead' },
+      response: {
+        frames: [{ photoId: 'p1', order: 1, headline: 'By the water' }],
+        partial: true,
+        look: 'magazine-masthead',
+      },
     };
     await generation.generate();
     expect(story.phase()).toBe('story');
-    expect(story.frames()[0].caption).toBe('By the water');
+    expect(story.frames()[0].headline).toBe('By the water');
     expect(story.partial()).toBe(true);
   });
 
@@ -59,44 +63,41 @@ describe('GenerationService', () => {
     expect(story.error()).toEqual({ code: 'timeout', message: 'took too long' });
   });
 
-  it('regenerates only the target caption, keeping the rest of the refined story', async () => {
+  it("regenerates only the target frame's words, keeping the rest of the refined story", async () => {
     story.completeStory(
       [
-        { photoId: 'p1', order: 1, caption: 'first', headline: 'first', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } },
-        { photoId: 'p2', order: 2, caption: 'second', headline: 'second', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } },
+        { photoId: 'p1', order: 1, headline: 'first' },
+        { photoId: 'p2', order: 2, headline: 'second' },
       ],
       false,
     );
-    story.setPlacement('p1', { xPct: 20, yPct: 20 });
 
     outcome = {
       ok: true,
       response: {
         frames: [
-          { photoId: 'p1', order: 1, caption: 'first — reworded', headline: 'first — reworded', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } },
-          { photoId: 'p2', order: 2, caption: 'second — reworded', headline: 'second — reworded', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } },
+          { photoId: 'p1', order: 1, headline: 'first — reworded' },
+          { photoId: 'p2', order: 2, headline: 'second — reworded' },
         ],
         look: 'magazine-masthead',
       },
     };
-    const applied = await generation.regenerateCaption('p2');
+    const applied = await generation.regenerateHeadline('p2');
 
     expect(applied).toBe(true);
-    expect(story.frames().find((f) => f.photoId === 'p2')?.caption).toBe('second — reworded');
-    // The untouched frame keeps its caption and the placement the user set.
-    const p1 = story.frames().find((f) => f.photoId === 'p1');
-    expect(p1?.caption).toBe('first');
-    expect(p1?.placement).toEqual({ xPct: 20, yPct: 20, scale: 1 });
-    // A caption regenerate must not bounce the user off the payoff.
+    expect(story.frames().find((f) => f.photoId === 'p2')?.headline).toBe('second — reworded');
+    // The untouched frame keeps its words.
+    expect(story.frames().find((f) => f.photoId === 'p1')?.headline).toBe('first');
+    // A regenerate must not bounce the user off the payoff.
     expect(story.phase()).toBe('story');
   });
 
-  it('leaves the caption untouched when a regenerate fails', async () => {
-    story.completeStory([{ photoId: 'p1', order: 1, caption: 'first', headline: 'first', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } }], false);
+  it('leaves the words untouched when a regenerate fails', async () => {
+    story.completeStory([{ photoId: 'p1', order: 1, headline: 'first' }], false);
     outcome = { ok: false, code: 'network', message: 'nope' };
-    const applied = await generation.regenerateCaption('p1');
+    const applied = await generation.regenerateHeadline('p1');
     expect(applied).toBe(false);
-    expect(story.frames()[0].caption).toBe('first');
+    expect(story.frames()[0].headline).toBe('first');
     expect(story.phase()).toBe('story');
   });
 
@@ -106,22 +107,25 @@ describe('GenerationService', () => {
       const [a, b, c] = story.photos();
       story.completeStory(
         [
-          { photoId: a.id, order: 1, caption: 'first', headline: 'first', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } },
-          { photoId: b.id, order: 2, caption: 'second', headline: 'second', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } },
-          { photoId: c.id, order: 3, caption: 'third', headline: 'third', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } },
+          { photoId: a.id, order: 1, headline: 'first' },
+          { photoId: b.id, order: 2, headline: 'second' },
+          { photoId: c.id, order: 3, headline: 'third' },
         ],
         false,
       );
-      story.setPlacement(a.id, { xPct: 20, yPct: 20 });
+      story.setHeadline(a.id, 'kept by hand');
       story.addPhotos([imageFile('d.jpg')]);
       return story.photos()[3].id;
     }
 
-    it('appends the added photo captioned by the model, keeping the story', async () => {
+    it('appends the added photo with the words the model wrote, keeping the story', async () => {
       const newId = seedStoryPlusOne();
       outcome = {
         ok: true,
-        response: { frames: [{ photoId: newId, order: 1, caption: 'the newcomer', headline: 'the newcomer', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } }], look: 'magazine-masthead' },
+        response: {
+          frames: [{ photoId: newId, order: 1, headline: 'the newcomer' }],
+          look: 'magazine-masthead',
+        },
       };
 
       await generation.captionNewPhotos();
@@ -129,9 +133,9 @@ describe('GenerationService', () => {
       const frames = story.frames();
       expect(frames).toHaveLength(4);
       expect(frames[3].photoId).toBe(newId);
-      expect(frames[3].caption).toBe('the newcomer');
-      // Existing frames and their placements are untouched.
-      expect(frames[0].placement).toEqual({ xPct: 20, yPct: 20, scale: 1 });
+      expect(frames[3].headline).toBe('the newcomer');
+      // Existing frames are untouched.
+      expect(frames[0].headline).toBe('kept by hand');
       expect(story.phase()).toBe('story');
     });
 
@@ -149,7 +153,10 @@ describe('GenerationService', () => {
         },
         streamStory: async () => ({
           ok: true,
-          response: { frames: [{ photoId: newId, order: 1, caption: 'x', headline: 'x', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } }], look: 'magazine-masthead' },
+          response: {
+            frames: [{ photoId: newId, order: 1, headline: 'x' }],
+            look: 'magazine-masthead',
+          },
         }),
       };
 
@@ -158,14 +165,14 @@ describe('GenerationService', () => {
       expect(sent?.mustInclude).toEqual([newId]);
     });
 
-    it('still appends the photo (empty caption) when generation fails', async () => {
+    it('still appends the photo (empty words) when generation fails', async () => {
       const newId = seedStoryPlusOne();
       outcome = { ok: false, code: 'network', message: 'nope' };
 
       await generation.captionNewPhotos();
 
       const added = story.frames().find((f) => f.photoId === newId);
-      expect(added?.caption).toBe('');
+      expect(added?.headline).toBe('');
       // Never bounced off the payoff.
       expect(story.phase()).toBe('story');
     });
@@ -174,9 +181,9 @@ describe('GenerationService', () => {
       const [a, b, c] = story.photos();
       story.completeStory(
         [
-          { photoId: a.id, order: 1, caption: 'first', headline: 'first', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } },
-          { photoId: b.id, order: 2, caption: 'second', headline: 'second', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } },
-          { photoId: c.id, order: 3, caption: 'third', headline: 'third', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } },
+          { photoId: a.id, order: 1, headline: 'first' },
+          { photoId: b.id, order: 2, headline: 'second' },
+          { photoId: c.id, order: 3, headline: 'third' },
         ],
         false,
       );

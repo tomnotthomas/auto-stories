@@ -1,32 +1,12 @@
-import type { Style } from '@auto-stories/api-types';
-
-/** The self-hosted display face for captions (bundled woff2, @font-face in
- * styles.css). Loaded before the canvas draws via {@link loadCaptionFonts}. */
-export const DISPLAY_FONT = 'Bricolage Grotesque';
-
 /**
- * Maps the AI's caption `style` to a concrete font stack. The story caption is a
- * headline, so the default leads with the self-hosted display face
- * ({@link DISPLAY_FONT}); serif / mono / rounded remain distinct for the model's
- * other choices, each with a system fallback.
+ * The bundled faces the canvas export paints with. A Look names its own font
+ * stacks (see `looks/magazine.ts`) — this module only makes sure those faces are
+ * actually loaded before the canvas draws, and holds the length-based type fit.
  */
-export function fontFamily(font: Style['font']): string {
-  switch (font) {
-    case 'playfair':
-      // The serif slot renders the self-hosted Fraunces (soft, editorial), with
-      // system serifs as fallback.
-      return '"Fraunces", Georgia, "Times New Roman", serif';
-    case 'space-mono':
-      return 'ui-monospace, "SF Mono", Menlo, monospace';
-    case 'caveat':
-      // The handwriting slot renders self-hosted Shantell Sans — a modern,
-      // genuine hand (Caveat read dated). Gives a frame a personal voice.
-      return '"Shantell Sans", "Bradley Hand", "Segoe Script", cursive';
-    case 'inter':
-    default:
-      return `"${DISPLAY_FONT}", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif`;
-  }
-}
+
+/** The self-hosted display face (bundled woff2, @font-face in styles.css).
+ * Loaded before the canvas draws via {@link loadCaptionFonts}. */
+export const DISPLAY_FONT = 'Bricolage Grotesque';
 
 /**
  * Ensure the display face is loaded before a caption is drawn to canvas — a
@@ -51,37 +31,14 @@ export async function loadCaptionFonts(): Promise<void> {
   ]).catch(() => undefined);
 }
 
-export function fontWeightCss(weight: Style['weight']): number {
-  return weight === 'bold' ? 700 : 400;
-}
-
-export function textTransformCss(textCase: Style['case']): 'none' | 'uppercase' {
-  return textCase === 'upper' ? 'uppercase' : 'none';
-}
-
-export function textAlignCss(align: Style['align']): 'left' | 'center' | 'right' {
-  return align;
-}
-
-/** Size bucket → a multiplier applied on top of the base caption size + the
- * user's drag scale. */
-export function sizeScale(size: Style['size']): number {
-  switch (size) {
-    case 's':
-      return 0.8;
-    case 'l':
-      return 1.35;
-    case 'm':
-    default:
-      return 1;
-  }
-}
-
 /**
- * Content-aware type fit: a size multiplier from the caption's length, so a
- * short caption reads as a big headline and a long one shrinks to fit the box
- * instead of overflowing. Deterministic and clamped; sits on top of the size
- * bucket + the user's drag scale, which still adjust from here.
+ * Content-aware type fit: a size multiplier from the text's length, so a short
+ * headline reads big and a long one shrinks to fit instead of overflowing.
+ * Deterministic and clamped.
+ *
+ * TODO(slice 3): apply this per Look rather than globally — each Look declares
+ * its own length budget (frame-harmony-plan slice 3). Held here, unused, until
+ * that lands; the legacy caption layer that called it is gone (7.25 slice 1).
  */
 export function fitMultiplier(text: string): number {
   const length = text.trim().length;

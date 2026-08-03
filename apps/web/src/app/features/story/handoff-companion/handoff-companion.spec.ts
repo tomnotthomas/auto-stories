@@ -1,24 +1,14 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import { Clipboard } from '@angular/cdk/clipboard';
-import type { Frame, Style, Suggestion } from '@auto-stories/api-types';
+import type { Frame, Suggestion } from '@auto-stories/api-types';
 
 import { HandoffCompanion } from './handoff-companion';
 import { HandoffCompanionHarness } from './handoff-companion.harness';
 import { StoryService } from '../../../story/story.service';
 
-const STYLE: Style = {
-  font: 'inter',
-  weight: 'regular',
-  case: 'normal',
-  align: 'center',
-  size: 'm',
-  position: 'bottom-center',
-  letterbox: 'blur',
-};
-
 function frame(photoId: string, order: number, suggestions: Suggestion[]): Frame {
-  return { photoId, order, caption: `caption ${order}`, headline: `caption ${order}`, style: STYLE, suggestions };
+  return { photoId, order, headline: `headline ${order}`, suggestions };
 }
 
 function imageFile(name: string): File {

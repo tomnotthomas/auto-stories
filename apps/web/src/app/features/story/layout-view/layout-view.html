@@ -38,13 +38,18 @@
             [style.background]="accentColor"
           ></i>
         }
+        <!-- One span per run, with the interpolation flush against the tags. A
+             run already carries its own spacing, so any whitespace the template
+             adds shows up in the words — an @if/@else here rendered
+             "cousins , one cake". Whitespace-only nodes BETWEEN the spans are
+             stripped, so only this tight form is safe. -->
         <span data-layout-lines class="block text-balance">
           @for (run of part.runs; track $index) {
-            @if (run.emphasised && markStyle(part)) {
-              <span data-layout-mark [style.boxShadow]="markStyle(part)">{{ run.text }}</span>
-            } @else {
-              {{ run.text }}
-            }
+            <span
+              [attr.data-layout-mark]="markFor(part, run) ? '' : null"
+              [style.boxShadow]="markFor(part, run)"
+              >{{ run.text }}</span
+            >
           }
         </span>
       </div>

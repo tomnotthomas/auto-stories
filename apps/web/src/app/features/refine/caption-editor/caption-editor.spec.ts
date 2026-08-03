@@ -1,14 +1,19 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 
-import { CaptionEditor, draggedPosition, pinchedScale } from './caption-editor';
+import {
+  CaptionEditor,
+  DEFAULT_PLACEMENT,
+  draggedPosition,
+  pinchedScale,
+  type FramePlacement,
+} from './caption-editor';
 import { CaptionEditorHarness } from './caption-editor.harness';
-import { DEFAULT_PLACEMENT, FramePlacement } from '../../../story/story.service';
 
 interface Overrides {
-  caption?: string;
-  placement?: FramePlacement;
-  legibility?: boolean;
+  headline?: string;
+  placement?: FramePlacement | null;
+  legibility?: boolean | null;
   busy?: boolean;
   demo?: boolean;
   removable?: boolean;
@@ -27,30 +32,36 @@ describe('CaptionEditor', () => {
 
     fixture = TestBed.createComponent(CaptionEditor);
     const ref = fixture.componentRef;
-    ref.setInput('caption', overrides.caption ?? 'By the water');
-    ref.setInput('placement', overrides.placement ?? DEFAULT_PLACEMENT);
-    ref.setInput('legibility', overrides.legibility ?? true);
+    ref.setInput('headline', overrides.headline ?? 'By the water');
+    ref.setInput(
+      'placement',
+      overrides.placement === undefined ? DEFAULT_PLACEMENT : overrides.placement,
+    );
+    ref.setInput('legibility', overrides.legibility === undefined ? true : overrides.legibility);
     ref.setInput('busy', overrides.busy ?? false);
     ref.setInput('demo', overrides.demo ?? false);
     ref.setInput('removable', overrides.removable ?? false);
     fixture.detectChanges();
 
-    const harness = await TestbedHarnessEnvironment.harnessForFixture(fixture, CaptionEditorHarness);
+    const harness = await TestbedHarnessEnvironment.harnessForFixture(
+      fixture,
+      CaptionEditorHarness,
+    );
     return { harness, instance: fixture.componentInstance };
   }
 
   afterEach(() => fixture?.destroy());
 
-  it('shows the caption ready to edit', async () => {
-    const { harness } = await render({ caption: 'One candle' });
-    expect(await harness.getCaption()).toBe('One candle');
+  it('shows the text ready to edit', async () => {
+    const { harness } = await render({ headline: 'One candle' });
+    expect(await harness.getHeadline()).toBe('One candle');
   });
 
-  it('emits the rewritten caption as the user edits', async () => {
+  it('emits the rewritten text as the user edits', async () => {
     const { harness, instance } = await render();
     let edited = '';
-    instance.captionChange.subscribe((value) => (edited = value));
-    await harness.setCaption('Rewritten by hand');
+    instance.headlineChange.subscribe((value) => (edited = value));
+    await harness.setHeadline('Rewritten by hand');
     expect(edited).toBe('Rewritten by hand');
   });
 
@@ -68,6 +79,26 @@ describe('CaptionEditor', () => {
     instance.legibilityToggle.subscribe(() => (toggled = true));
     await harness.toggleLegibility();
     expect(toggled).toBe(true);
+  });
+
+  // In the story the Look owns placement and lays its own scrim (7.25), so the
+  // host stores neither — and a control with nowhere to write is not offered.
+  it('hides the size control when the host stores no placement', async () => {
+    const { harness } = await render({ placement: null });
+    expect(await harness.hasSize()).toBe(false);
+  });
+
+  it('hides the legibility toggle when the host stores no background', async () => {
+    const { harness } = await render({ legibility: null });
+    expect(await harness.hasLegibility()).toBe(false);
+  });
+
+  it('still edits the text when there is no placement to move', async () => {
+    const { harness, instance } = await render({ placement: null, legibility: null });
+    let edited = '';
+    instance.headlineChange.subscribe((value) => (edited = value));
+    await harness.setHeadline('Golden hour');
+    expect(edited).toBe('Golden hour');
   });
 
   it('asks for a regenerate when the button is pressed', async () => {
@@ -96,12 +127,12 @@ describe('CaptionEditor', () => {
     expect(done).toBe(true);
   });
 
-  it('hides Remove for the caption (not removable)', async () => {
+  it('hides Remove when the host cannot delete the block', async () => {
     const { harness } = await render();
     expect(await harness.hasRemove()).toBe(false);
   });
 
-  it('offers Remove for a removable (extra) text block', async () => {
+  it('offers Remove for a removable text block', async () => {
     const { harness } = await render({ removable: true });
     expect(await harness.hasRemove()).toBe(true);
   });

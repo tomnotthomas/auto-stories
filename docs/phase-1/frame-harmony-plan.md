@@ -1,0 +1,257 @@
+# Frame harmony — build the frame as a pipeline (live review, 2026-08-03)
+
+Follows the Looks engine P1 (#109). The Look composes well on its own; everything
+*else* on the frame does not know the Look exists.
+
+## The problem, plainly
+Three things draw on the photo **at the same time**, and none can see the others.
+
+| Layer | Placed by | Looks at the photo? | Sees the other layers? |
+| --- | --- | --- | --- |
+| The design (the Look) | quiet-zone bands | yes | no |
+| The text (caption / `texts`) | `zoneToPlacement(style.position)` | no | no |
+| The location + other sparks | `zoneToPlacement(suggestion.position)` | no | no |
+
+`ZONE_TO_PLACEMENT` sends every `bottom-*` zone to `yPct: 56` — the vertical
+middle. That is why a location lands mid-frame, on the subject, and on top of the
+type. Nothing ever looked at the picture; that table was tuned to clear the
+action bar, not to find empty space.
+
+## The fix: a pipeline, at two levels
+
+The pipeline has a **story level that runs once** and a **frame level that runs
+per image**. The split is what makes a story look like a set rather than five
+unrelated pictures.
+
+```
+STORY LEVEL — once, before any image is touched
+  1. order the photos into a narrative
+  2. write the words for each frame
+  3. choose the design language — ONE Look, held across every frame
+     (all three are the single model call)
+
+FRAME LEVEL — only after the above is fixed, then all frames at once
+  4..7 (below), per image, 3–4 in flight
+```
+
+**Nothing at the frame level may change a story-level decision.** The Look is
+chosen once and held; a frame never picks its own. That is the guarantee of
+consistency, and it is also what makes the frame level safe to parallelise —
+every frame is reading the same fixed decisions, so no frame depends on another.
+
+### The frame level
+Build the frame in stages. **Each stage sees everything the stages before it put
+down**, and hands the next stage an updated map of what is still free.
+
+```
+photo (+ the story's fixed words and Look)
+  └─▶ 4. read the picture      → where is it busy? where are the subjects?
+        └─▶ 5. lay the design  → the story's Look, restrained. Claims its area.
+              └─▶ 6. set the text → placed on picture + design, not on the picture alone
+                    └─▶ 7. place the stickers → whatever room is genuinely left
+```
+
+Stage 4 is **every Instagram element**, not just the location: location, mention,
+poll, gif — and music, which is story-level and has no anchor, so it keeps its
+fixed home. They are placed in confidence order while room remains, and the ones
+that do not fit are dropped.
+
+Two rules make the pipeline work:
+
+- **Each stage subtracts.** A stage takes the free-space map, uses some of it, and
+  passes on what remains. A later stage can never overlap an earlier one.
+- **A stage may decline.** If there is no honest room left, the location is not
+  placed — it is dropped. Nothing is better than a collision.
+
+## Why the order is this order
+- The **design** goes first because it is the constant. It is what makes two
+  frames in one story look like a set, so it should not be pushed around by a
+  place name.
+- The **text** goes second because it is the variable part, and it needs to fit
+  *inside* the design, not just somewhere on the photo.
+- The **stickers** go last because they are the least important thing on the
+  frame, and the first thing that should be dropped when room runs out.
+
+## What "restrained" means for the design
+The story is not fully told on the image. The type is a caption on a photo, not a
+poster, so it should stay small enough not to dominate the picture while still
+reading as designed. Concretely: the design claims a modest band, and the words
+fit that band; the band does not grow to fit the words.
+
+## The defects this pipeline removes
+
+### 1. View and refine show different words (a correctness bug)
+- View renders `frame.composition`, built from **`headline`**.
+- Refine renders the legacy caption layer, built from **`caption`**.
+- `setCaption()` writes `caption`, so **editing a caption in refine changes nothing in the story**.
+- Cause: `story.html` makes the two mutually exclusive.
+
+### 2. The location renders twice
+Since P1 a `location` suggestion feeds Magazine's byline row *and* still draws as
+an on-frame spark marker.
+
+### 3. The location cannot be moved
+Sparks render only when `!refining()`, so refine offers no way to move one.
+
+### 4. The model writes text without knowing how much fits
+It chooses `headline`, `caption`, `texts[]`, `style.position` and
+`suggestion.position` with no signal about the design, and no length limit. It
+also still emits placement, which 7.24 said it never would again.
+
+## Slices
+
+### Slice 1 — one text per frame
+- Drop the caption/headline split. `headline` is the frame's words.
+- Refine renders the **same** composition as view and edits `headline`.
+- Delete `texts` / `TextBlock` and `Style` outright. `letterbox` looked worth keeping but is dead — it is normalized and defaulted and no renderer ever reads it, since `drawCover` always cover-fits.
+
+### Slice 2 — the pipeline itself
+- Give the composition a **free-space map** it subtracts from, rather than a band score it reads once.
+- The design claims its area; the text is fitted into it; the stickers are placed into what is left, by the same quiet-zone logic — never by a fixed zone.
+- **All sticker types go through stage 4**, not just the location: location, mention, poll, gif. They keep their on-frame preview (7.23) — they are placed properly, not moved off the photo. Music stays story-level with its fixed home.
+- Place them in confidence order while room remains; drop the ones that do not fit. `Suggestion.confidence` already exists for this.
+- A location the Look draws itself (Magazine byline, Scrapbook tape tag, Poster pill) is consumed by the design and must **not** also draw as a sticker — that is today's double-location bug.
+- Drop `position` from `Suggestion` in the contract; stage 4 decides placement.
+
+### Slice 3 — the designer and the content creator, working from one brief
+
+Two parties decide a frame together: a **designer**, who builds the frame and
+says where things go, and a **content creator**, who fills it while making sure
+the story is actually told. Neither can do the frame alone — design without story
+is decoration, story without design is a note on a picture.
+
+They do **not** take turns. A real back-and-forth means several model calls per
+frame, which is exactly what 7.23 was and why it timed out. Instead they share a
+brief, and meet deterministically:
+
+- The **content creator picks a density** for each photo — how much this moment
+  needs. It has seen the photo, so this is its judgement to make.
+- The **designer publishes what it can set at each density** — the slot, the type
+  ramp, whether a kicker exists, how many characters fit before it stops looking
+  designed.
+- **They resolve in code**: density picks the slot; if the words overflow it, the
+  Look re-ramps or trims. That is the back-and-forth, done instantly, per frame,
+  in parallel, at no cost.
+
+The model still decides what the image needs — it just decides knowing what the
+design will do with each answer.
+
+#### The density set
+
+| Density | What it is | Roughly |
+| --- | --- | --- |
+| `silent` | the photo speaks for itself | no text |
+| `beat` | a label, an exhale | 1–3 words |
+| `line` | one sentence that lands the moment | 4–12 words |
+| `thought` | something reflective — clearly more text | 2–3 lines, 15–35 words |
+| `question` | invites the viewer to answer | one short question |
+
+- `thought` must feel **deliberately bigger** than `line` or the model collapses
+  the two. The design gives it a different slot, not just more words in the same one.
+- `question` is strictly a different axis from the others — they are about *how
+  much*, it is about *what for*. It is still one rung of the same enum, so the
+  model cannot emit nonsense like "silent + question", and so a Look can set a
+  question differently from a statement: it invites a reply.
+- A `question` frame is what should pair with Instagram's poll/question sticker
+  in stage 4, so the two stop being unrelated decisions.
+- **`silent` is a legitimate choice, not a failure.** Slice 1 currently drops a
+  frame with no `headline`; that is wrong under this model and must be undone —
+  see below.
+
+#### Also in this slice
+- Each Look declares a per-density budget (e.g. Magazine `beat` ≤ 24 chars, `line` ≤ 42).
+- The Look is picked in the same call that writes the words, so the budget cannot be tailored to it in that prompt. State every Look's budget in the prompt **and** clamp on the client, because the model will still miss.
+- Extend the content-aware type fit (`fitMultiplier`, 5ccf7a8) per Look and per density instead of globally.
+
+#### Correction to slice 1
+Slice 1 made a frame with a missing or blank `headline` **unusable, and dropped
+it**. That was right while every frame had to carry words; it is wrong once
+`silent` exists. When density lands, no-text must mean "the photo speaks for
+itself" and the frame must survive.
+
+#### If a real critique is still needed
+Do **one pass over the whole story**, not one per frame — a single extra model
+call reviewing every frame together. Per-frame review is 7.23, which timed out on
+every story.
+
+### Slice 4 — know a face from a plate of food
+- The P1 detector scores three bands by luminance variance + edge density. It moves the masthead off a busy bottom, but it cannot tell a subject from clutter.
+- Saliency (Looks plan P4) is what fixes "it goes to the food". Bring it forward if slices 1–3 do not settle it.
+
+### Slice 5 — prepare every frame at once
+Once the model has returned, each frame's preparation is independent work. Today
+both passes run one frame at a time:
+
+| Where | Today | Should be |
+| --- | --- | --- |
+| `story.service.ts:315` `computeReadable()` | `for (const frame …)` with `await createImageBitmap` inside — decode + analyse one photo at a time | all frames in flight together |
+| `story-exporter.service.ts:26` | `for (let i = 0 …)` with `await renderFrame` — one PNG at a time | same |
+
+- **Only the frame level parallelises.** The story level (order, words, Look) is
+  decided once, up front, and every frame reads the same fixed result. Parallelising
+  that would let frames disagree about the design language, which is the whole
+  thing the Look exists to prevent.
+- Run the pipeline per frame concurrently; the stages stay ordered *within* a
+  frame, but frames do not wait on each other.
+- **Bound the concurrency** (3–4 in flight), do not use a naive `Promise.all`.
+  Export builds a 1080×1920 canvas per frame — ten at once is ~80 MB of canvas,
+  which mobile Safari will not survive. Decode has the same shape at smaller scale.
+- Keep the existing per-frame `try/catch`: one frame failing must not take the
+  story down, which is already the behaviour and must survive the change.
+
+## Slice 0 (do this FIRST) — build the other five Looks
+
+Live review: a Halloween-with-the-family story rendered corporate, cold and
+in-your-face, and the type dominated the picture.
+
+**Cause, from the code and two live generations:** the model's Look choice is
+fine — "loud chaotic bachelor party" chose `bold-poster`, "grandmother's 90th,
+everyone crying and laughing" chose `film-postcard`. But `look.ts` implements
+only Magazine:
+
+```ts
+const REGISTRY = { [MAGAZINE.id]: MAGAZINE };
+lookFor(id) => (id && REGISTRY[id]) || REGISTRY[DEFAULT_LOOK_ID];  // everything → Magazine
+```
+
+So **every story renders as Magazine Masthead** — the board calls it "the most
+overtly designed" of the six, and it sets the largest type in the set (headline
+at 9.4% of frame width). Neither the warmth (Scrapbook, Film Postcard) nor the
+restraint (Minimal, Quiet Editorial) is reachable.
+
+This is the P1→P2 gap, and it outranks slices 2–5: harmonious placement of a
+Look nobody wanted is worth less than having the right Look. Build the remaining
+five (Looks-engine plan P2), then resume the pipeline slices.
+
+It also partly answers "the font is too much in the forefront": it is not that
+type is inherently too loud, it is that the loudest of the six is being applied
+to every story. Slice 3's density then handles the rest.
+
+## Slice 6 — let the action bar fold away
+
+The three buttons (Post to Instagram / Refine story / Start over) cover the
+bottom of every frame and cannot be dismissed, so the picture can never be seen
+on its own.
+
+- Fold them away so the frame is unobstructed, with an obvious, cheap way back.
+- Note the interaction with the `safeBottomPx` inset added in P1: the preview
+  currently reserves 160px for this bar. When the bar folds, that reservation
+  should go with it, or a folded bar leaves the composition floating oddly high.
+
+## Sequencing
+**0 first** — every story currently wears the loudest of the six Looks, which
+outranks everything below it. Then 1 → 2 → 3, then 4 only if needed. Slice 6 is
+independent and small. Slices 1 and 2 both touch the contract, so they
+land as one contract change or strictly in that order, so the deployed contract
+never half-migrates.
+
+Slice 5 is independent of the rest — it changes how many frames run at once, not
+what a frame does — so it can land at any point. Doing it **after** slice 2 is
+better: the pipeline is more work per frame, so the parallel win is larger, and
+there is no point optimising a layout that is about to be replaced.
+
+## Open question
+Is the *design* (rules, accent tab, byline furniture) separate from the *text*
+(kicker, headline), or are they one stack? P1 built them as one stack. The
+pipeline reads more naturally if the design defines a slot and the words flow
+into it — that is the assumption above, and it needs confirming before slice 2.

@@ -35,6 +35,24 @@ function compose(content: FrameContent, photo: PhotoAnalysis): Composition {
   // parts — only the edge it hangs from changes.
   const anchor = band === 'top' ? 'top' : 'bottom';
 
+  // Silent: the photo speaks for itself (decision 7.26). Everything the Look
+  // draws exists to frame the words, so with no words there is nothing to
+  // frame — no rule, no tab, no byline, and no scrim, since a scrim only exists
+  // to keep type readable. A masthead around an empty column reads as broken.
+  if (!content.headline.trim()) {
+    return {
+      lookId: 'magazine-masthead',
+      ink: 'light',
+      leftPct: COLUMN_INSET_WPCT,
+      rightPct: COLUMN_INSET_WPCT,
+      anchor,
+      offsetHPct: EDGE_OFFSET_HPCT,
+      scrim: null,
+      accent: photo.accent,
+      parts: [],
+    };
+  }
+
   const parts: Part[] = [];
 
   // `.kick` — an all-caps eyebrow behind a small accent tab. Dropped entirely

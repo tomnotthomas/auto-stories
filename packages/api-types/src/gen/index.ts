@@ -12,7 +12,5 @@ export type { JobState, JobStateStatusEnum } from "./models/JobState.js";
 export type { Look, LookEnum } from "./models/Look.js";
 export type { Photo } from "./models/Photo.js";
 export type { StreamJobEvents200, StreamJobEvents404, StreamJobEventsPathParams, StreamJobEventsQuery, StreamJobEventsQueryResponse } from "./models/StreamJobEvents.js";
-export type { Style, StyleAlignEnum, StyleCaseEnum, StyleFontEnum, StyleLetterboxEnum, StylePositionEnum, StyleSizeEnum, StyleWeightEnum } from "./models/Style.js";
 export type { Suggestion, SuggestionPositionEnum, SuggestionTypeEnum } from "./models/Suggestion.js";
-export type { TextBlock, TextBlockAlignEnum, TextBlockCaseEnum, TextBlockFontEnum, TextBlockPositionEnum, TextBlockSizeEnum, TextBlockWeightEnum } from "./models/TextBlock.js";
 export type { Tone, ToneEnum } from "./models/Tone.js";

@@ -1,23 +1,20 @@
 import { TestBed } from '@angular/core/testing';
-import type { Style } from '@auto-stories/api-types';
 
 import { MAX_PHOTOS, MAX_STORY_LENGTH, StoryService, sparkKey } from './story.service';
-import { zoneToPlacement } from './caption-style';
+import { DEFAULT_ACCENT } from './accent-color';
+import { textParts } from './look';
 
 function imageFile(name = 'photo.jpg'): File {
   return new File(['bytes'], name, { type: 'image/jpeg' });
 }
 
-/** A valid caption style for Frame fixtures (the model always returns one). */
-const STYLE: Style = {
-  font: 'inter',
-  weight: 'regular',
-  case: 'normal',
-  align: 'center',
-  size: 'm',
-  position: 'bottom-center',
-  letterbox: 'blur',
-};
+/** The words a composition rendered, in order — the only thing drawn on a frame
+ * now that the Look owns the whole of it (7.25). */
+function composedText(service: StoryService, photoId: string): string[] {
+  const frame = service.frames().find((f) => f.photoId === photoId);
+  if (!frame) throw new Error(`no frame ${photoId}`);
+  return textParts(frame.composition).map((part) => part.runs.map((run) => run.text).join(''));
+}
 
 describe('StoryService', () => {
   let service: StoryService;
@@ -114,15 +111,40 @@ describe('StoryService', () => {
   });
 
   it('shows the payoff with the finished frames, ready to refine', () => {
-    const frames = [{ photoId: 'p1', order: 1, caption: 'By the water', headline: 'By the water', style: STYLE }];
+    const frames = [{ photoId: 'p1', order: 1, headline: 'By the water' }];
     service.completeStory(frames, true);
     expect(service.phase()).toBe('story');
     expect(service.partial()).toBe(true);
-    // Each frame gains editable placement + legibility state for refine.
     const [frame] = service.frames();
-    expect(frame).toMatchObject({ photoId: 'p1', order: 1, caption: 'By the water', style: STYLE });
-    expect(frame.placement).toEqual(zoneToPlacement(STYLE.position));
-    expect(frame.legibility).toBe(true);
+    expect(frame).toMatchObject({ photoId: 'p1', order: 1, headline: 'By the water' });
+  });
+
+  it('composes every frame the moment the story arrives, so nothing renders a hole', () => {
+    // The photo has not been decoded yet, so the reading is the neutral one —
+    // but the frame still has a full composition to draw (7.25).
+    service.completeStory([{ photoId: 'p1', order: 1, headline: 'By the water' }], false);
+    const [frame] = service.frames();
+    expect(frame.analysis).toEqual({
+      accent: DEFAULT_ACCENT,
+      bands: { top: 0, middle: 0, bottom: 0 },
+    });
+    expect(composedText(service, 'p1')).toEqual(['By the water']);
+  });
+
+  it('composes under the story Look, holding it across every frame', () => {
+    service.completeStory(
+      [
+        { photoId: 'p1', order: 1, kicker: 'The coast', headline: 'Golden hour' },
+        { photoId: 'p2', order: 2, headline: 'Then the tide' },
+      ],
+      false,
+      'magazine-masthead',
+    );
+    expect(service.frames().map((f) => f.composition.lookId)).toEqual([
+      'magazine-masthead',
+      'magazine-masthead',
+    ]);
+    expect(composedText(service, 'p1')).toEqual(['The coast', 'Golden hour']);
   });
 
   it('shows the error screen with a specific failure', () => {
@@ -135,7 +157,7 @@ describe('StoryService', () => {
     service.addPhotos([imageFile('a.jpg')]);
     service.setStoryLine('something');
     service.setTone('funny');
-    service.completeStory([{ photoId: 'photo-1', order: 1, caption: 'x', headline: 'x', style: STYLE }], false);
+    service.completeStory([{ photoId: 'photo-1', order: 1, headline: 'x' }], false);
     service.failStory({ code: 'timeout', message: 'took too long' });
 
     service.reset();
@@ -152,32 +174,34 @@ describe('StoryService', () => {
     const seedFour = () =>
       service.completeStory(
         [
-          { photoId: 'p1', order: 1, caption: 'first', headline: 'first', style: STYLE },
-          { photoId: 'p2', order: 2, caption: 'second', headline: 'second', style: STYLE },
-          { photoId: 'p3', order: 3, caption: 'third', headline: 'third', style: STYLE },
-          { photoId: 'p4', order: 4, caption: 'fourth', headline: 'fourth', style: STYLE },
+          { photoId: 'p1', order: 1, headline: 'first' },
+          { photoId: 'p2', order: 2, headline: 'second' },
+          { photoId: 'p3', order: 3, headline: 'third' },
+          { photoId: 'p4', order: 4, headline: 'fourth' },
         ],
         false,
       );
 
-    it('edits a caption by photo id', () => {
+    it("rewrites a frame's words by photo id", () => {
       seedFour();
-      service.setCaption('p2', 'rewritten');
-      expect(service.frames().find((f) => f.photoId === 'p2')?.caption).toBe('rewritten');
+      service.setHeadline('p2', 'rewritten');
+      expect(service.frames().find((f) => f.photoId === 'p2')?.headline).toBe('rewritten');
     });
 
-    it('moves and resizes a caption, merging partial placement updates', () => {
+    it('recomposes the edited frame, so the new words are the ones drawn', () => {
       seedFour();
-      service.setPlacement('p1', { xPct: 30, yPct: 40 });
-      service.setPlacement('p1', { scale: 1.5 });
-      expect(service.frames()[0].placement).toEqual({ xPct: 30, yPct: 40, scale: 1.5 });
+      service.setHeadline('p2', 'rewritten');
+      expect(composedText(service, 'p2')).toEqual(['rewritten']);
+      // Only that frame changes.
+      expect(composedText(service, 'p1')).toEqual(['first']);
     });
 
-    it('toggles the legibility background of a frame', () => {
+    it('recomposes from the photo reading already on the frame', () => {
       seedFour();
-      expect(service.frames()[0].legibility).toBe(true);
-      service.toggleLegibility('p1');
-      expect(service.frames()[0].legibility).toBe(false);
+      const before = service.frames()[1].analysis;
+      service.setHeadline('p2', 'rewritten');
+      expect(service.frames()[1].analysis).toBe(before);
+      expect(service.frames()[1].composition.accent).toBe(before.accent);
     });
 
     it('reorders frames and re-indexes the narrative order', () => {
@@ -192,10 +216,10 @@ describe('StoryService', () => {
       const pooled = service.photos()[0].id;
       service.completeStory(
         [
-          { photoId: 'p1', order: 1, caption: 'first', headline: 'first', style: STYLE },
-          { photoId: pooled, order: 2, caption: 'second', headline: 'second', style: STYLE },
-          { photoId: 'p3', order: 3, caption: 'third', headline: 'third', style: STYLE },
-          { photoId: 'p4', order: 4, caption: 'fourth', headline: 'fourth', style: STYLE },
+          { photoId: 'p1', order: 1, headline: 'first' },
+          { photoId: pooled, order: 2, headline: 'second' },
+          { photoId: 'p3', order: 3, headline: 'third' },
+          { photoId: 'p4', order: 4, headline: 'fourth' },
         ],
         false,
       );
@@ -209,9 +233,9 @@ describe('StoryService', () => {
     it('refuses to drop below the minimum photo count', () => {
       service.completeStory(
         [
-          { photoId: 'p1', order: 1, caption: 'a', headline: 'a', style: STYLE },
-          { photoId: 'p2', order: 2, caption: 'b', headline: 'b', style: STYLE },
-          { photoId: 'p3', order: 3, caption: 'c', headline: 'c', style: STYLE },
+          { photoId: 'p1', order: 1, headline: 'a' },
+          { photoId: 'p2', order: 2, headline: 'b' },
+          { photoId: 'p3', order: 3, headline: 'c' },
         ],
         false,
       );
@@ -221,23 +245,22 @@ describe('StoryService', () => {
 
     it('appends a hand-added photo as a new frame, keeping the rest', () => {
       seedFour();
-      service.setPlacement('p1', { xPct: 10, yPct: 10 });
-      service.appendFrame({ photoId: 'p5', order: 99, caption: 'newcomer', headline: 'newcomer', style: STYLE });
+      service.setHeadline('p1', 'edited by hand');
+      service.appendFrame({ photoId: 'p5', order: 99, headline: 'newcomer' });
 
       const frames = service.frames();
       expect(frames.map((f) => f.photoId)).toEqual(['p1', 'p2', 'p3', 'p4', 'p5']);
       expect(frames.map((f) => f.order)).toEqual([1, 2, 3, 4, 5]);
-      const p5 = frames[4];
-      expect(p5.caption).toBe('newcomer');
-      expect(p5.placement).toEqual(zoneToPlacement(STYLE.position));
-      expect(p5.legibility).toBe(true);
-      // The existing frame keeps the placement the user set.
-      expect(frames[0].placement).toEqual({ xPct: 10, yPct: 10, scale: 1 });
+      // The appended frame arrives already composed, like every other one.
+      expect(frames[4].headline).toBe('newcomer');
+      expect(composedText(service, 'p5')).toEqual(['newcomer']);
+      // The existing frame keeps the words the user set.
+      expect(frames[0].headline).toBe('edited by hand');
     });
 
     it('ignores appending a photo already in the story', () => {
       seedFour();
-      service.appendFrame({ photoId: 'p2', order: 9, caption: 'dupe', headline: 'dupe', style: STYLE });
+      service.appendFrame({ photoId: 'p2', order: 9, headline: 'dupe' });
       expect(service.frames()).toHaveLength(4);
     });
 
@@ -249,8 +272,7 @@ describe('StoryService', () => {
   });
 
   describe('sparks (per-suggestion user edits)', () => {
-    const seed = () =>
-      service.completeStory([{ photoId: 'p1', order: 1, caption: 'a', headline: 'a', style: STYLE }], false);
+    const seed = () => service.completeStory([{ photoId: 'p1', order: 1, headline: 'a' }], false);
 
     it('starts with no spark edits', () => {
       seed();
@@ -286,7 +308,7 @@ describe('StoryService', () => {
       seed();
       service.dismissSpark('p1', 0);
       expect(service.sparks().size).toBe(1);
-      service.completeStory([{ photoId: 'p9', order: 1, caption: 'fresh', headline: 'fresh', style: STYLE }], false);
+      service.completeStory([{ photoId: 'p9', order: 1, headline: 'fresh' }], false);
       expect(service.sparks().size).toBe(0);
     });
 
@@ -296,14 +318,13 @@ describe('StoryService', () => {
           {
             photoId: 'p1',
             order: 1,
-            caption: 'a', headline: 'a',
-            style: STYLE,
+            headline: 'a',
             suggestions: [
               { type: 'location', query: 'Tartine', confidence: 0.9 },
               { type: 'music', query: 'indie folk', confidence: 0.6 },
             ],
           },
-          { photoId: 'p2', order: 2, caption: 'b', headline: 'b', style: STYLE },
+          { photoId: 'p2', order: 2, headline: 'b' },
         ],
         false,
       );
@@ -316,75 +337,6 @@ describe('StoryService', () => {
     it('reports no kept suggestions when the story has none', () => {
       seed();
       expect(service.keptSuggestionCount()).toBe(0);
-    });
-  });
-
-  describe('extra text blocks', () => {
-    const seed = () =>
-      service.completeStory(
-        [
-          {
-            photoId: 'p1',
-            order: 1,
-            caption: 'cap', headline: 'cap',
-            style: STYLE,
-            texts: [
-              {
-                text: 'we ate',
-                font: 'playfair',
-                weight: 'bold',
-                case: 'normal',
-                align: 'right',
-                size: 'l',
-                position: 'top-right',
-              },
-            ],
-          },
-        ],
-        false,
-      );
-
-    it('builds editable extra-text state from the frame texts', () => {
-      seed();
-      const [frame] = service.frames();
-      expect(frame.extraTexts).toHaveLength(1);
-      expect(frame.extraTexts[0]).toMatchObject({
-        text: 'we ate',
-        font: 'playfair',
-        size: 'l',
-        legibility: true,
-      });
-      expect(frame.extraTexts[0].placement).toEqual(zoneToPlacement('top-right'));
-    });
-
-    it('edits an extra block text and placement', () => {
-      seed();
-      service.setExtraText('p1', 0, 'we ate everything');
-      service.setExtraPlacement('p1', 0, { xPct: 30 });
-      const block = service.frames()[0].extraTexts[0];
-      expect(block.text).toBe('we ate everything');
-      expect(block.placement.xPct).toBe(30);
-    });
-
-    it('toggles an extra block background', () => {
-      seed();
-      expect(service.frames()[0].extraTexts[0].legibility).toBe(true);
-      service.toggleExtraLegibility('p1', 0);
-      expect(service.frames()[0].extraTexts[0].legibility).toBe(false);
-    });
-
-    it('adds an extra block (returning its index), capped at 2', () => {
-      seed();
-      expect(service.addExtraText('p1')).toBe(1);
-      expect(service.frames()[0].extraTexts).toHaveLength(2);
-      expect(service.addExtraText('p1')).toBe(-1);
-      expect(service.frames()[0].extraTexts).toHaveLength(2);
-    });
-
-    it('removes an extra block', () => {
-      seed();
-      service.removeExtraText('p1', 0);
-      expect(service.frames()[0].extraTexts).toHaveLength(0);
     });
   });
 });

@@ -1,93 +1,47 @@
-import type { WritableSignal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import type { Frame } from '@auto-stories/api-types';
 
 import { Story } from './story';
 import { StoryHarness } from './story.harness';
-import { StoryService, type EditableFrame } from '../../story/story.service';
+import { StoryService } from '../../story/story.service';
 import { StoryExporter } from '../../story/story-exporter.service';
-import { composeFrame, type Composition, type PhotoAnalysis } from '../../story/look';
-
-/** An evenly lit photo, so the Look's band choice is not what's under test. */
-const CALM_PHOTO: PhotoAnalysis = {
-  accent: '#e8663a',
-  bands: { top: 0.1, middle: 0.1, bottom: 0.1 },
-};
-
-/**
- * Put a composition on a frame directly. The service composes frames inside
- * computeReadable(), which needs a decoded bitmap — jsdom has no canvas, so the
- * render path is exercised by seeding the same state the decode would produce.
- */
-function setComposition(service: StoryService, photoId: string, composition: Composition): void {
-  const frames = (service as unknown as { _frames: WritableSignal<readonly EditableFrame[]> })
-    ._frames;
-  frames.update((list) =>
-    list.map((frame) => (frame.photoId === photoId ? { ...frame, composition } : frame)),
-  );
-}
 
 const frames: Frame[] = [
-  { photoId: 'a', order: 1, caption: 'Everyone made it to the lake', headline: 'Everyone made it to the lake', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } },
-  { photoId: 'b', order: 2, caption: 'Then she blew out the candle', headline: 'Then she blew out the candle', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } },
+  { photoId: 'a', order: 1, headline: 'Everyone made it to the lake' },
+  { photoId: 'b', order: 2, headline: 'Then she blew out the candle' },
 ];
 
 describe('Story', () => {
   let story: StoryService;
 
-  async function render(partial = false): Promise<StoryHarness> {
+  async function renderFrames(
+    list: Frame[],
+    partial = false,
+    look?: string,
+  ): Promise<StoryHarness> {
     await TestBed.configureTestingModule({ imports: [Story] }).compileComponents();
     story = TestBed.inject(StoryService);
-    story.completeStory(frames, partial);
+    story.completeStory(list, partial, look);
     const fixture = TestBed.createComponent(Story);
     return TestbedHarnessEnvironment.harnessForFixture(fixture, StoryHarness);
   }
 
-  it('shows the first frame caption', async () => {
+  async function render(partial = false): Promise<StoryHarness> {
+    return renderFrames(frames, partial);
+  }
+
+  it("shows the first frame's words", async () => {
     const harness = await render();
-    expect(await harness.getCaption()).toBe('Everyone made it to the lake');
+    expect(await harness.getHeadline()).toBe('Everyone made it to the lake');
   });
 
-  it("renders the AI's extra placed text blocks besides the caption", async () => {
-    await TestBed.configureTestingModule({ imports: [Story] }).compileComponents();
-    story = TestBed.inject(StoryService);
-    const style = frames[0].style;
-    story.completeStory(
-      [
-        {
-          photoId: 'a',
-          order: 1,
-          caption: 'we ate everything', headline: 'we ate everything',
-          style,
-          texts: [
-            { text: 'we ate', font: 'playfair', weight: 'bold', case: 'normal', align: 'right', size: 'l', position: 'top-right' },
-            { text: 'brunch · Tartine', font: 'inter', weight: 'regular', case: 'normal', align: 'left', size: 's', position: 'bottom-left' },
-          ],
-        },
-      ],
-      false,
-    );
-    const fixture = TestBed.createComponent(Story);
-    const harness = await TestbedHarnessEnvironment.harnessForFixture(fixture, StoryHarness);
-
-    expect(await harness.getCaption()).toBe('we ate everything');
-    expect(await harness.extraTexts()).toEqual(['we ate', 'brunch · Tartine']);
-  });
-
-  it("renders the frame's composition when it has composed under the story Look", async () => {
-    await TestBed.configureTestingModule({ imports: [Story] }).compileComponents();
-    story = TestBed.inject(StoryService);
-    const style = frames[0].style;
-    const content = { kicker: 'The coast', headline: 'Golden hour' };
-    story.completeStory(
-      [{ photoId: 'a', order: 1, caption: 'we ate everything', ...content, style }],
+  it("renders the frame's composition under the story Look", async () => {
+    const harness = await renderFrames(
+      [{ photoId: 'a', order: 1, kicker: 'The coast', headline: 'Golden hour' }],
       false,
       'magazine-masthead',
     );
-    setComposition(story, 'a', composeFrame('magazine-masthead', content, CALM_PHOTO));
-    const fixture = TestBed.createComponent(Story);
-    const harness = await TestbedHarnessEnvironment.harnessForFixture(fixture, StoryHarness);
 
     const layout = await harness.getLayoutView();
     expect(layout).not.toBeNull();
@@ -97,27 +51,22 @@ describe('Story', () => {
   it('advances to the next frame on tap', async () => {
     const harness = await render();
     await harness.tapNext();
-    expect(await harness.getCaption()).toBe('Then she blew out the candle');
+    expect(await harness.getHeadline()).toBe('Then she blew out the candle');
   });
 
   it('does not advance past the last frame', async () => {
     const harness = await render();
     await harness.tapNext();
     await harness.tapNext();
-    expect(await harness.getCaption()).toBe('Then she blew out the candle');
+    expect(await harness.getHeadline()).toBe('Then she blew out the candle');
   });
 
   it('preloads the current frame and its neighbours so paging stays in sync', async () => {
-    const three: Frame[] = [
-      { photoId: 'a', order: 1, caption: 'one', headline: 'one', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } },
-      { photoId: 'b', order: 2, caption: 'two', headline: 'two', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } },
-      { photoId: 'c', order: 3, caption: 'three', headline: 'three', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } },
-    ];
-    await TestBed.configureTestingModule({ imports: [Story] }).compileComponents();
-    story = TestBed.inject(StoryService);
-    story.completeStory(three, false);
-    const fixture = TestBed.createComponent(Story);
-    const harness = await TestbedHarnessEnvironment.harnessForFixture(fixture, StoryHarness);
+    const harness = await renderFrames([
+      { photoId: 'a', order: 1, headline: 'one' },
+      { photoId: 'b', order: 2, headline: 'two' },
+      { photoId: 'c', order: 3, headline: 'three' },
+    ]);
 
     // On the first frame, the next one is already mounted; the far frame is not.
     expect(await harness.mountedFrameIds()).toEqual(['a', 'b']);
@@ -142,46 +91,58 @@ describe('Story', () => {
   });
 
   describe('refine', () => {
-    it('opens the caption editor when a caption is tapped in refine mode', async () => {
+    it('keeps rendering the same composition it shows in view mode', async () => {
+      const harness = await render();
+      const inView = await harness.getComposedTexts();
+
+      await harness.clickRefine();
+
+      expect(await harness.getLayoutView()).not.toBeNull();
+      expect(await harness.getComposedTexts()).toEqual(inView);
+    });
+
+    it('opens the text editor when the composition is tapped in refine mode', async () => {
       const harness = await render();
       await harness.clickRefine();
       expect(await harness.getEditor()).toBeNull();
-      await harness.tapCaption();
+      await harness.tapText();
       expect(await harness.getEditor()).not.toBeNull();
     });
 
-    it('adds an extra text block and opens its editor', async () => {
+    it('opens the editor on the words the composition is rendering', async () => {
       const harness = await render();
       await harness.clickRefine();
-      await harness.clickAddText();
-
-      expect(story.frames()[0].extraTexts).toHaveLength(1);
-      expect(await harness.getEditor()).not.toBeNull();
+      await harness.tapText();
+      expect(await (await harness.getEditor())!.getHeadline()).toBe('Everyone made it to the lake');
     });
 
     it('marks the coach mark seen once the user starts editing', async () => {
       const harness = await render();
       await harness.clickRefine();
-      await harness.tapCaption();
+      await harness.tapText();
       expect(story.coachSeen()).toBe(true);
     });
 
-    it('edits the caption of the current frame through the editor', async () => {
+    it("edits the frame's words, and the composition renders the edit", async () => {
       const harness = await render();
       await harness.clickRefine();
-      await harness.tapCaption();
+      await harness.tapText();
       const editor = await harness.getEditor();
-      await editor!.setCaption('A brand new line');
-      expect(story.frames()[0].caption).toBe('A brand new line');
+      await editor!.setHeadline('A brand new line');
+      await editor!.clickDone();
+
+      expect(story.frames()[0].headline).toBe('A brand new line');
+      // The whole point of 7.25: the edit lands in the one thing that renders.
+      expect(await harness.getHeadline()).toBe('A brand new line');
     });
 
-    it('toggles legibility of the current frame through the editor', async () => {
+    it('offers no placement or legibility controls — the Look owns both', async () => {
       const harness = await render();
       await harness.clickRefine();
-      await harness.tapCaption();
+      await harness.tapText();
       const editor = await harness.getEditor();
-      await editor!.toggleLegibility();
-      expect(story.frames()[0].legibility).toBe(false);
+      expect(await editor!.hasSize()).toBe(false);
+      expect(await editor!.hasLegibility()).toBe(false);
     });
 
     it('lists every frame on the reorder & remove screen', async () => {
@@ -199,19 +160,17 @@ describe('Story', () => {
       await harness.clickDone();
       // Back in view mode: tap zones page the story again.
       await harness.tapNext();
-      expect(await harness.getCaption()).toBe('Then she blew out the candle');
+      expect(await harness.getHeadline()).toBe('Then she blew out the candle');
     });
   });
 
   describe('hand-off', () => {
-    const STYLE = frames[0].style;
     let post: ReturnType<typeof vi.fn>;
 
     const withLocation: Frame = {
       photoId: 'a',
       order: 1,
-      caption: 'By the lake', headline: 'By the lake',
-      style: STYLE,
+      headline: 'By the lake',
       suggestions: [{ type: 'location', query: 'Bixby Bridge', confidence: 0.9 }],
     };
 
@@ -242,7 +201,7 @@ describe('Story', () => {
     });
 
     it('hands off directly, with no card, when there are no add-ons', async () => {
-      const harness = await postWith([{ photoId: 'a', order: 1, caption: 'x', headline: 'x', style: STYLE }]);
+      const harness = await postWith([{ photoId: 'a', order: 1, headline: 'x' }]);
 
       expect(await harness.hasTray()).toBe(false);
       expect(post).toHaveBeenCalledTimes(1);
