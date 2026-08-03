@@ -1,4 +1,12 @@
-import type { Density, DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
+import type {
+  DensityRamp,
+  DrawnComposition,
+  FrameContent,
+  Look,
+  Part,
+  PhotoAnalysis,
+  Rung,
+} from '../look';
 import { resolveDensity, splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
@@ -32,27 +40,29 @@ const EDGE_OFFSET_HPCT = 9;
 /** Lower-left by default; the top is the fallback when the base is busy. */
 const PREFERRED_BANDS: readonly Band[] = ['bottom', 'top'];
 
-/** How the line is set at one density. */
-interface Rung {
-  readonly fontSizeWPct: number;
-  readonly lineHeight: number;
-}
-
 /**
  * What this Look sets at each density (7.26). The restraint is the point, so even
  * the `beat` rung stays under the display sizes the loud group opens at — this
  * Look is never a masthead. What density buys here is the `thought` rung:
  * Fraunces at book weight, small and openly leaded, is exactly how a reflective
  * passage wants to be set, and it is the same voice, not a shrunken headline.
+ *
+ * The budgets are read off this column, not off the catalogue's word counts: 80
+ * of the frame's 100 widths, Fraunces at the `line` size, is about four and a
+ * half words to the line, and the Look holds its shape for two or three of them.
+ * The `thought` rung nearly doubles the words per line, and a reflective passage
+ * is allowed four lines — beyond that the empty half of the frame is gone and
+ * with it the reason to pick this Look.
  */
-const LINE: Rung = { fontSizeWPct: 6, lineHeight: 1.18 };
-const HEADLINE: Record<Density, Rung> = {
+const LINE: Rung = { fontSizeWPct: 6, lineHeight: 1.18, maxWords: 12 };
+export const QUIET_EDITORIAL_RAMP: DensityRamp = {
   // A frame that states `silent` and then writes words has words, and words are
-  // always drawn; a truly wordless frame returns before this is read.
-  silent: LINE,
-  beat: { fontSizeWPct: 8.4, lineHeight: 1.08 },
+  // always drawn; a truly wordless frame returns before this is read. The rung
+  // still carries no budget, because the rung is the absence of words.
+  silent: { ...LINE, maxWords: 0 },
+  beat: { fontSizeWPct: 8.4, lineHeight: 1.08, maxWords: 3 },
   line: LINE,
-  thought: { fontSizeWPct: 4.1, lineHeight: 1.38 },
+  thought: { fontSizeWPct: 4.1, lineHeight: 1.38, maxWords: 26 },
   question: LINE,
 };
 
@@ -113,8 +123,8 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
     runs: splitEmphasis(content.headline, content.emphasis),
     fontFamily: FRAUNCES,
     fontWeight: 400,
-    fontSizeWPct: HEADLINE[density].fontSizeWPct,
-    lineHeight: HEADLINE[density].lineHeight,
+    fontSizeWPct: QUIET_EDITORIAL_RAMP[density].fontSizeWPct,
+    lineHeight: QUIET_EDITORIAL_RAMP[density].lineHeight,
     letterSpacingEm: -0.005,
     textTransform: 'none',
     textAlign: 'left',
@@ -137,6 +147,7 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
 }
 
 export const QUIET_EDITORIAL: Look = {
+  ramp: QUIET_EDITORIAL_RAMP,
   id: 'quiet-editorial',
   prefer: PREFERRED_BANDS,
   compose,

@@ -1,10 +1,11 @@
 import type {
-  Density,
+  DensityRamp,
   DrawnComposition,
   FrameContent,
   Look,
   Part,
   PhotoAnalysis,
+  Rung,
   TextPart,
 } from '../look';
 import { resolveDensity, splitEmphasis } from '../look';
@@ -32,29 +33,37 @@ const EDGE_OFFSET_HPCT = 7;
 
 const PREFERRED_BANDS: readonly Band[] = ['bottom', 'top'];
 
-/** How the headline is set at one density. */
-interface Rung {
-  readonly fontSizeWPct: number;
-  readonly lineHeight: number;
-}
-
 /**
  * What this Look sets at each density (7.26). A poster is loud at every rung —
  * even the smallest step here is caps at 800 weight, larger than most Looks'
  * headline — but a `thought` set at poster size would be ten lines of shouting
  * that runs off the frame, so it comes down to a size that can hold a paragraph
  * and still read as a poster.
+ *
+ * **This Look has the tightest word budget in the catalogue.** Everything it
+ * sets is capitals, tracked tight, across a 90% column: at the `line` size a
+ * capital costs roughly 7% of the frame width, so a line holds about twelve
+ * characters — two words. Twelve words, the rung's own ceiling, is six lines of
+ * caps covering a third of the photograph, which is why `line` stops at six.
+ * `thought` takes the same reasoning to its end: 7.26 allows 15–35 words, and
+ * this Look accepts only the shortest of those. Thirty-five words at 6.2% caps
+ * fits inside the frame without overflowing and still stops being a poster —
+ * nine lines of solid capitals is a page of shouting with a picture behind it.
+ * A model writing long for this design should be told to pick another.
  */
-const LINE: Rung = { fontSizeWPct: 11.5, lineHeight: 0.94 };
-const HEADLINE: Record<Density, Rung> = {
+const LINE: Rung = { fontSizeWPct: 11.5, lineHeight: 0.94, maxWords: 6 };
+export const BOLD_POSTER_RAMP: DensityRamp = {
   // A frame that states `silent` and then writes words has words, and words are
-  // always drawn; a truly wordless frame returns before this is read.
-  silent: LINE,
+  // always drawn; a truly wordless frame returns before this is read. The size
+  // is `line`'s because that is what those stray words get set at; the budget is
+  // zero because a silent frame is not written to.
+  silent: { ...LINE, maxWords: 0 },
   // Three words at album-cover scale — the size this Look was drawn for.
-  beat: { fontSizeWPct: 16.5, lineHeight: 0.88 },
+  beat: { fontSizeWPct: 16.5, lineHeight: 0.88, maxWords: 3 },
   line: LINE,
-  thought: { fontSizeWPct: 6.2, lineHeight: 1.08 },
-  // A question is a statement's length, and a poster asks it just as loudly.
+  thought: { fontSizeWPct: 6.2, lineHeight: 1.08, maxWords: 16 },
+  // A question is a statement's length, and a poster asks it just as loudly —
+  // same measure, same capitals, so the same handful of words.
   question: LINE,
 };
 
@@ -103,7 +112,7 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
   // second-guess — so the Look decides here.
   const runs = splitEmphasis(content.headline, content.emphasis);
   const marked = runs.some((run) => run.emphasised);
-  const rung = HEADLINE[resolveDensity(content)];
+  const rung = BOLD_POSTER_RAMP[resolveDensity(content)];
   const headline: TextPart = {
     kind: 'text',
     runs,
@@ -158,6 +167,7 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
 }
 
 export const BOLD_POSTER: Look = {
+  ramp: BOLD_POSTER_RAMP,
   id: 'bold-poster',
   prefer: PREFERRED_BANDS,
   compose,

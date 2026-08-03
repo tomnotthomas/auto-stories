@@ -2,8 +2,10 @@ import { DEFAULT_ACCENT } from '../accent-color';
 import {
   DENSITIES,
   textParts,
+  wordBudget,
   type Composition,
   type Density,
+  type DensityRamp,
   type FrameContent,
   type Look,
   type PhotoAnalysis,
@@ -11,12 +13,11 @@ import {
   type TextPart,
   type HasParts,
 } from '../look';
-import { CAPTION_CARD } from './caption-card';
-import { CHAPTER } from './chapter';
-import { DATELINE } from './dateline';
-import { DUOTONE_BAND } from './duotone-band';
-import { INDEX_CARD } from './index-card';
-import { LETTERBOX } from './letterbox';
+import { CAPTION_CARD, CAPTION_CARD_RAMP } from './caption-card';
+import { CHAPTER, CHAPTER_RAMP } from './chapter';
+import { DATELINE, DATELINE_RAMP } from './dateline';
+import { DUOTONE_BAND, DUOTONE_BAND_RAMP } from './duotone-band';
+import { LETTERBOX, LETTERBOX_RAMP } from './letterbox';
 
 /**
  * The five graphic Looks — the ones whose character comes from something drawn
@@ -160,75 +161,123 @@ describe.each(LOOKS.map((look) => [look.id, look] as const))('%s', (id, look) =>
 });
 
 /**
- * Every Look in this file, plus Index Card — a card Look like Caption Card,
- * covered for its other behaviour in `handmade.spec.ts`.
+ * Every Look in this file, each with the ramp it publishes — no subset. The two
+ * halves of 7.26 are declared together (what the design can set, and how much it
+ * can carry), so they are tested together.
  */
-const RAMPED: readonly Look[] = [
-  DUOTONE_BAND,
-  LETTERBOX,
-  CHAPTER,
-  DATELINE,
-  CAPTION_CARD,
-  INDEX_CARD,
+const RAMPED: readonly (readonly [Look, DensityRamp])[] = [
+  [DUOTONE_BAND, DUOTONE_BAND_RAMP],
+  [LETTERBOX, LETTERBOX_RAMP],
+  [CHAPTER, CHAPTER_RAMP],
+  [DATELINE, DATELINE_RAMP],
+  [CAPTION_CARD, CAPTION_CARD_RAMP],
 ];
 
 /** The same words at every rung, so only the stated density differs (7.26). */
 const PROBE = 'Where the mountain meets its mirror';
 
-describe.each(RAMPED.map((look) => [look.id, look] as const))('%s density', (_id, look) => {
-  it('sets a thought in a visibly different slot from a beat', () => {
-    // 7.26's named failure: `thought` collapsing into `line` (or into `beat`).
-    // Same words both times — the size difference is the density, nothing else.
-    expect(headlineFor(look, 'thought').fontSizeWPct).toBeLessThan(
-      headlineFor(look, 'beat').fontSizeWPct * 0.75,
-    );
-  });
-
-  it('steps the headline down from beat to line to thought', () => {
-    const beat = headlineFor(look, 'beat').fontSizeWPct;
-    const line = headlineFor(look, 'line').fontSizeWPct;
-    const thought = headlineFor(look, 'thought').fontSizeWPct;
-
-    expect(beat).toBeGreaterThan(line);
-    expect(line).toBeGreaterThan(thought);
-  });
-
-  it('still sets the words at every rung the model can state', () => {
-    // Including `silent`: a frame that says silent and then writes words has
-    // words, and words are always drawn.
-    for (const density of DENSITIES) {
-      expect(everyWord(look.compose({ ...CONTENT, density }, PHOTO))).toContain(CONTENT.headline);
-    }
-  });
+it('publishes a ramp for every Look in this file', () => {
+  // The pairing above is hand-written, so it is checked rather than trusted: a
+  // Look added to the file without its ramp would otherwise skip every density
+  // contract below without a single test going red.
+  expect(RAMPED.map(([look]) => look)).toEqual(LOOKS);
 });
+
+describe.each(RAMPED.map(([look, ramp]) => [look.id, look, ramp] as const))(
+  '%s density',
+  (_id, look, ramp) => {
+    it('sets a thought in a visibly different slot from a beat', () => {
+      // 7.26's named failure: `thought` collapsing into `line` (or into `beat`).
+      // Same words both times — the size difference is the density, nothing else.
+      expect(headlineFor(look, 'thought').fontSizeWPct).toBeLessThan(
+        headlineFor(look, 'beat').fontSizeWPct * 0.75,
+      );
+    });
+
+    it('steps the headline down from beat to line to thought', () => {
+      const beat = headlineFor(look, 'beat').fontSizeWPct;
+      const line = headlineFor(look, 'line').fontSizeWPct;
+      const thought = headlineFor(look, 'thought').fontSizeWPct;
+
+      expect(beat).toBeGreaterThan(line);
+      expect(line).toBeGreaterThan(thought);
+    });
+
+    it('opens the leading over the same three rungs', () => {
+      // The step is taken in the leading as well as the size, in every Look:
+      // held constant, a `thought` reads as a shrunken headline instead of as
+      // running text, and the words it was given are the ones that suffer.
+      const beat = headlineFor(look, 'beat').lineHeight;
+      const line = headlineFor(look, 'line').lineHeight;
+      const thought = headlineFor(look, 'thought').lineHeight;
+
+      expect(line).toBeGreaterThan(beat);
+      expect(thought).toBeGreaterThan(line);
+    });
+
+    it('still sets the words at every rung the model can state', () => {
+      // Including `silent`: a frame that says silent and then writes words has
+      // words, and words are always drawn.
+      for (const density of DENSITIES) {
+        expect(everyWord(look.compose({ ...CONTENT, density }, PHOTO))).toContain(CONTENT.headline);
+      }
+    });
+
+    it('asks for no words at all at silent', () => {
+      expect(wordBudget(ramp, 'silent')).toBe(0);
+    });
+
+    it('sets its whole word budget without dropping below its own smallest type', () => {
+      // The half of 7.26 the type ramp cannot state on its own: a Look may only
+      // claim the words it can still set as itself. A budget that composes below
+      // the Look's smallest rung is a budget it cannot honour.
+      for (const density of DENSITIES) {
+        const budget = wordBudget(ramp, density);
+        if (budget === 0) continue;
+
+        const headline = words(budget);
+        const set = headlineFor(look, density, headline);
+
+        expect(set.fontSizeWPct).toBeGreaterThanOrEqual(smallestRung(ramp));
+      }
+    });
+
+    it('asks for fewer words the larger it sets them', () => {
+      // `silent` is excluded: its nought says the rung wants no words, which is
+      // not a measurement of what the type could hold.
+      const rungs = DENSITIES.filter((density) => density !== 'silent').map(
+        (density) => ramp[density],
+      );
+
+      for (const bigger of rungs) {
+        for (const smaller of rungs) {
+          if (bigger.fontSizeWPct > smaller.fontSizeWPct) {
+            expect(bigger.maxWords).toBeLessThanOrEqual(smaller.maxWords);
+          }
+        }
+      }
+    });
+  },
+);
+
+/** The smallest type this Look sets anywhere on its ramp. */
+function smallestRung(ramp: DensityRamp): number {
+  return Math.min(...DENSITIES.map((density) => ramp[density].fontSizeWPct));
+}
 
 /**
- * The Looks that take part of the step in the leading as well as the size, so a
- * `thought` reads as running text rather than as a shrunken headline. Not a
- * contract on every Look: a design may hold its leading and put the whole step
- * into the size instead.
+ * A headline of `count` words. One fixed word, because a budget is a claim about
+ * an average measure rather than about a particular sentence — and a fixed one
+ * keeps the check deterministic.
  */
-const LEADED: readonly Look[] = [
-  DUOTONE_BAND,
-  LETTERBOX,
-  CHAPTER,
-  DATELINE,
-  CAPTION_CARD,
-  INDEX_CARD,
-];
-
-describe.each(LEADED.map((look) => [look.id, look] as const))('%s leading', (_id, look) => {
-  it('opens the leading for a thought', () => {
-    expect(headlineFor(look, 'thought').lineHeight).toBeGreaterThan(
-      headlineFor(look, 'line').lineHeight,
-    );
-  });
-});
+function words(count: number): string {
+  return Array.from({ length: count }, () => 'river').join(' ');
+}
 
 /** The headline part this Look composes at one density. */
-function headlineFor(look: Look, density: Density): TextPart {
-  const composition = look.compose({ headline: PROBE, density }, PHOTO);
-  const part = textParts(composition).find((candidate) => runText(candidate) === PROBE);
+function headlineFor(look: Look, density: Density, headline: string = PROBE): TextPart {
+  const composition = look.compose({ headline, density }, PHOTO);
+  const part = textParts(composition).find((candidate) => runText(candidate) === headline);
   if (!part) throw new Error(`${look.id} sets no headline at density “${density}”`);
   return part;
 }

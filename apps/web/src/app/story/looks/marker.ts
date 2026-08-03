@@ -1,11 +1,12 @@
 import type {
-  Density,
+  DensityRamp,
   DrawnComposition,
   FrameContent,
   Look,
   Part,
   PhotoAnalysis,
   Run,
+  Rung,
 } from '../look';
 import { resolveDensity, splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
@@ -34,27 +35,38 @@ const TILT_DEG = -1.4;
 /** Marker writes low on the picture; the top is its fallback. */
 const PREFERRED_BANDS: readonly Band[] = ['bottom', 'top'];
 
-/** How the writing is set at one density. */
-interface Rung {
-  readonly fontSizeWPct: number;
-  readonly lineHeight: number;
-}
-
 /**
  * What this Look sets at each density (7.26). Handwriting has a natural size:
  * too big and it stops reading as a hand, too small and the swipe of highlighter
  * loses the word underneath. A `beat` gets the full-page scrawl; a `thought` is
  * written at note size and leaded further apart, the way a longer passage
  * actually gets written by hand.
+ *
+ * The budgets are the most generous of this group, and deliberately so: the
+ * others are display type, and this is writing. A note on a photograph is
+ * allowed to run to four or five lines the way a caption never is — nobody looks
+ * at a handwritten note and counts the words. Shantell at the `line` size takes
+ * about twenty-one characters across the 82% column, so three lines is the
+ * rung's full twelve; the `thought` size takes half as much again per line and
+ * five lines of writing is still a note, which is twenty-four words. What sets
+ * the ceiling here is not the frame — that would hold more — it is that a sixth
+ * line turns the photograph into stationery. The swipe is unaffected either way:
+ * it marks one phrase, never the passage.
  */
-const LINE: Rung = { fontSizeWPct: 7.2, lineHeight: 1.32 };
-const HEADLINE: Record<Density, Rung> = {
+const LINE: Rung = { fontSizeWPct: 7.2, lineHeight: 1.32, maxWords: 12 };
+export const MARKER_RAMP: DensityRamp = {
   // A frame that states `silent` and then writes words has words, and words are
-  // always drawn; a truly wordless frame returns before this is read.
-  silent: LINE,
-  beat: { fontSizeWPct: 9.6, lineHeight: 1.24 },
+  // always drawn; a truly wordless frame returns before this is read. The size
+  // is `line`'s because that is what those stray words get set at; the budget is
+  // zero because a silent frame is not written to.
+  silent: { ...LINE, maxWords: 0 },
+  // Three words scrawled across the picture, which is what a beat looks like in
+  // a hand.
+  beat: { fontSizeWPct: 9.6, lineHeight: 1.24, maxWords: 3 },
   line: LINE,
-  thought: { fontSizeWPct: 4.6, lineHeight: 1.46 },
+  thought: { fontSizeWPct: 4.6, lineHeight: 1.46, maxWords: 24 },
+  // A question is written in the same hand at the same size, so it gets the same
+  // three lines.
   question: LINE,
 };
 
@@ -78,7 +90,7 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
     };
   }
 
-  const density = resolveDensity(content);
+  const rung = MARKER_RAMP[resolveDensity(content)];
   const parts: Part[] = [];
 
   const kicker = content.kicker?.trim();
@@ -107,10 +119,10 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
     runs,
     fontFamily: SHANTELL,
     fontWeight: 700,
-    fontSizeWPct: HEADLINE[density].fontSizeWPct,
+    fontSizeWPct: rung.fontSizeWPct,
     // Shantell's ascenders and descenders are long, and the swipe sits inside
     // the line box, so the leading is looser than a grotesque would need.
-    lineHeight: HEADLINE[density].lineHeight,
+    lineHeight: rung.lineHeight,
     letterSpacingEm: 0,
     textTransform: 'none',
     textAlign: 'left',
@@ -165,6 +177,7 @@ function hasMark(runs: readonly Run[]): boolean {
 }
 
 export const MARKER: Look = {
+  ramp: MARKER_RAMP,
   id: 'marker',
   prefer: PREFERRED_BANDS,
   compose,

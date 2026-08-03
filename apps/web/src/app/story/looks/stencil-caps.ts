@@ -1,4 +1,12 @@
-import type { Density, DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
+import type {
+  DensityRamp,
+  DrawnComposition,
+  FrameContent,
+  Look,
+  Part,
+  PhotoAnalysis,
+  Rung,
+} from '../look';
 import { resolveDensity, splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
@@ -31,12 +39,6 @@ const EDGE_OFFSET_HPCT = 9;
 /** Centred is the point, so the middle band is what this Look actually wants. */
 const PREFERRED_BANDS: readonly Band[] = ['middle', 'bottom', 'top'];
 
-/** How the stencil is set at one density. */
-interface Rung {
-  readonly fontSizeWPct: number;
-  readonly lineHeight: number;
-}
-
 /**
  * What this Look sets at each density (7.26). At 13.5% of the frame's width
  * roughly seven capitals fit on a line, which is what makes a `beat` look
@@ -48,15 +50,32 @@ interface Rung {
  * This replaces a ramp that guessed from the headline's character count. Density
  * is the model saying what it meant, which is a better thing to size to than how
  * long the sentence happened to run.
+ *
+ * **With Bold Poster, this is the tightest budget in the catalogue**, and for a
+ * reason the type ramp cannot fix: the letters are outlined, centred and tracked
+ * open, which is the most expensive way there is to set a word. At the `line`
+ * size a capital costs about 6.3% of the frame's width, so the 84% column holds
+ * thirteen characters — two words to a line — and three lines is already the
+ * whole calm middle of the photograph. `thought` is where the honest number
+ * matters: 7.26 allows 15–35 words, and thirty-five of them here is eleven lines
+ * of outlined capitals. That fits inside the frame; it is simply no longer a
+ * screen print, it is a page of text with a photograph behind it. Thirteen words
+ * — four lines — is the last rung where the outline still reads as the graphic,
+ * so a model with more to say than that should be picking another design.
  */
-const LINE: Rung = { fontSizeWPct: 9.6, lineHeight: 0.94 };
-const HEADLINE: Record<Density, Rung> = {
+const LINE: Rung = { fontSizeWPct: 9.6, lineHeight: 0.94, maxWords: 6 };
+export const STENCIL_CAPS_RAMP: DensityRamp = {
   // A frame that states `silent` and then writes words has words, and words are
-  // always drawn; a truly wordless frame returns before this is read.
-  silent: LINE,
-  beat: { fontSizeWPct: 13.5, lineHeight: 0.9 },
+  // always drawn; a truly wordless frame returns before this is read. The size
+  // is `line`'s because that is what those stray words get set at; the budget is
+  // zero because a silent frame is not written to.
+  silent: { ...LINE, maxWords: 0 },
+  // Three words across two lines of screen-printed caps — what the Look is for.
+  beat: { fontSizeWPct: 13.5, lineHeight: 0.9, maxWords: 3 },
   line: LINE,
-  thought: { fontSizeWPct: 6.4, lineHeight: 1.06 },
+  thought: { fontSizeWPct: 6.4, lineHeight: 1.06, maxWords: 13 },
+  // A question is a statement's length and is printed just as large, so it gets
+  // the same measure and the same two words to the line.
   question: LINE,
 };
 
@@ -84,7 +103,7 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
     };
   }
 
-  const density = resolveDensity(content);
+  const rung = STENCIL_CAPS_RAMP[resolveDensity(content)];
   const parts: Part[] = [];
 
   // The print run line — small, wide-tracked, in the accent. This is the Look's
@@ -115,8 +134,8 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
     runs: splitEmphasis(content.headline, content.emphasis),
     fontFamily: BRICOLAGE,
     fontWeight: 800,
-    fontSizeWPct: HEADLINE[density].fontSizeWPct,
-    lineHeight: HEADLINE[density].lineHeight,
+    fontSizeWPct: rung.fontSizeWPct,
+    lineHeight: rung.lineHeight,
     letterSpacingEm: 0.02,
     textTransform: 'uppercase',
     textAlign: 'center',
@@ -165,6 +184,7 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
 }
 
 export const STENCIL_CAPS: Look = {
+  ramp: STENCIL_CAPS_RAMP,
   id: 'stencil-caps',
   prefer: PREFERRED_BANDS,
   compose,

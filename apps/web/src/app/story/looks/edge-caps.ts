@@ -1,4 +1,12 @@
-import type { Density, DrawnComposition, FrameContent, Look, PhotoAnalysis, Run } from '../look';
+import type {
+  Density,
+  DrawnComposition,
+  FrameContent,
+  Look,
+  PhotoAnalysis,
+  Run,
+  Rung,
+} from '../look';
 import { resolveDensity, splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
@@ -28,13 +36,13 @@ const EDGE_OFFSET_HPCT = 3.5;
 /** The foot of the frame; the head is the fallback when the foot is busy. */
 const PREFERRED_BANDS: readonly Band[] = ['bottom', 'top'];
 
-/** How the spine is set at one density. */
-interface Rung {
-  readonly fontSizeWPct: number;
-  readonly lineHeight: number;
-  /** The tracking, which is most of what makes this Look read as a spine. */
+/**
+ * The shared rung plus the tracking, which is most of what makes this Look read
+ * as a spine — so here it steps with the density rather than being fixed.
+ */
+type SpineRung = Rung & {
   readonly letterSpacingEm: number;
-}
+};
 
 /**
  * What this Look sets at each density (7.26). Tracking is the Look, and tracking
@@ -43,15 +51,26 @@ interface Rung {
  * the tracking in as the words lengthen — wide and airy for a `beat` that spans
  * the frame on one line, close and small for a `thought` set as a block of caps
  * along the edge.
+ *
+ * The budgets are the tightest of the nine, and the tracking is why. At 0.44em
+ * every capital costs half again what it would set solid, so the 92 widths this
+ * line runs across hold about six words — and the place name is set on the same
+ * baseline, out of the same allowance. The `thought` rung halves the tracking
+ * and gains most of a line back, but the type is hard against the edge with
+ * nowhere to grow: two lines is a band, three is a paragraph someone has pushed
+ * off the bottom of the picture.
  */
-const LINE: Rung = { fontSizeWPct: 2.2, lineHeight: 1.3, letterSpacingEm: 0.44 };
-const HEADLINE: Record<Density, Rung> = {
+const LINE: SpineRung = { fontSizeWPct: 2.2, lineHeight: 1.3, letterSpacingEm: 0.44, maxWords: 6 };
+export const EDGE_CAPS_RAMP: Record<Density, SpineRung> = {
   // A frame that states `silent` and then writes words has words, and words are
-  // always drawn; a truly wordless frame returns before this is read.
-  silent: LINE,
-  beat: { fontSizeWPct: 2.6, lineHeight: 1.3, letterSpacingEm: 0.5 },
+  // always drawn; a truly wordless frame returns before this is read. The rung
+  // still carries no budget, because the rung is the absence of words.
+  silent: { ...LINE, maxWords: 0 },
+  // The leading opens with every step up the ramp, here as everywhere: a beat is
+  // one line and wants none of it, a thought is a stack of caps and needs it.
+  beat: { fontSizeWPct: 2.6, lineHeight: 1.2, letterSpacingEm: 0.5, maxWords: 3 },
   line: LINE,
-  thought: { fontSizeWPct: 1.7, lineHeight: 1.55, letterSpacingEm: 0.18 },
+  thought: { fontSizeWPct: 1.7, lineHeight: 1.55, letterSpacingEm: 0.18, maxWords: 16 },
   question: LINE,
 };
 
@@ -76,7 +95,7 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
   }
 
   const location = content.location?.trim();
-  const rung = HEADLINE[resolveDensity(content)];
+  const rung = EDGE_CAPS_RAMP[resolveDensity(content)];
 
   return {
     lookId: 'edge-caps',
@@ -125,6 +144,7 @@ function spineRuns(content: FrameContent, location: string | undefined): Run[] {
 }
 
 export const EDGE_CAPS: Look = {
+  ramp: EDGE_CAPS_RAMP,
   id: 'edge-caps',
   prefer: PREFERRED_BANDS,
   compose,

@@ -1,4 +1,12 @@
-import type { Density, DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
+import type {
+  DensityRamp,
+  DrawnComposition,
+  FrameContent,
+  Look,
+  Part,
+  PhotoAnalysis,
+  Rung,
+} from '../look';
 import { resolveDensity, splitEmphasis } from '../look';
 import type { Band } from '../quiet-zone';
 
@@ -31,27 +39,30 @@ const BAR_PAD_HPCT = 8;
  */
 const PREFERRED_BANDS: readonly Band[] = ['bottom'];
 
-/** How the subtitle is set at one density. */
-interface Rung {
-  readonly fontSizeWPct: number;
-  readonly lineHeight: number;
-}
-
 /**
  * What this Look sets at each density (7.26). A subtitle is read across in the
  * time the shot is held, so the ramp is narrow at the top — a `beat` is a title
  * card, not a poster — and drops properly for a `thought`, which is a subtitle
  * that has to be read in two or three lines without the bar eating the picture.
+ *
+ * The budget is bounded by the bar, not by the frame. The bar spends 16% of the
+ * frame's height on padding before a word is set, and the `thought` rung adds
+ * about 3% a line across a 74%-wide measure of roughly 43 characters: 22 words
+ * is three lines and a bar a quarter of the frame deep, which is as far as a
+ * letterbox can go before it stops being a border on the photograph and becomes
+ * the photograph's bottom half.
  */
-const LINE: Rung = { fontSizeWPct: 5.4, lineHeight: 1.28 };
-const HEADLINE: Record<Density, Rung> = {
+const LINE: Rung = { fontSizeWPct: 5.4, lineHeight: 1.28, maxWords: 10 };
+export const LETTERBOX_RAMP: DensityRamp = {
   // A frame that states `silent` and then writes words has words, and words are
-  // always drawn; a truly wordless frame returns before this is read.
-  silent: LINE,
-  beat: { fontSizeWPct: 6.8, lineHeight: 1.18 },
+  // always drawn; a truly wordless frame returns before this is read. The budget
+  // is still nought: the rung asks for no words at all.
+  silent: { ...LINE, maxWords: 0 },
+  beat: { fontSizeWPct: 6.8, lineHeight: 1.18, maxWords: 3 },
   line: LINE,
-  thought: { fontSizeWPct: 3.6, lineHeight: 1.45 },
-  question: LINE,
+  thought: { fontSizeWPct: 3.6, lineHeight: 1.45, maxWords: 22 },
+  // A line of dialogue that asks something: one line, held for one shot.
+  question: { ...LINE, maxWords: 8 },
 };
 
 function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
@@ -98,7 +109,7 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
   // The subtitle. Set at reading size with open leading: a letterbox line is read
   // across, not scanned, so it stays modest even when the headline is short.
   const density = resolveDensity(content);
-  const rung = HEADLINE[density];
+  const rung = LETTERBOX_RAMP[density];
   parts.push({
     kind: 'text',
     runs: splitEmphasis(content.headline, content.emphasis),
@@ -149,6 +160,7 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
 }
 
 export const LETTERBOX: Look = {
+  ramp: LETTERBOX_RAMP,
   id: 'letterbox',
   prefer: PREFERRED_BANDS,
   compose,

@@ -1,4 +1,12 @@
-import type { Density, DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
+import type {
+  Density,
+  DrawnComposition,
+  FrameContent,
+  Look,
+  Part,
+  PhotoAnalysis,
+  Rung,
+} from '../look';
 import { resolveDensity, splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
@@ -34,31 +42,37 @@ const EDGE_OFFSET_HPCT = 14;
 const PREFERRED_BANDS: readonly Band[] = ['middle', 'bottom', 'top'];
 
 /**
- * How the title is set at one density. Tracking is part of the rung here and is
- * the more important half of it: caps opened to 0.26em are what makes a short
- * title a card, and the same tracking across several lines is what makes a long
- * one unreadable. The bracketed line keeps its character at every rung; the
- * measure and the leading are what change.
+ * The shared rung plus this Look's tracking, which is the more important half of
+ * it: caps opened to 0.26em are what makes a short title a card, and the same
+ * tracking across several lines is what makes a long one unreadable. The
+ * bracketed line keeps its character at every rung; the measure and the leading
+ * are what change.
  */
-interface Rung {
-  readonly fontSizeWPct: number;
-  readonly lineHeight: number;
+type CardRung = Rung & {
   readonly letterSpacingEm: number;
-}
+};
 
 /**
  * What this Look sets at each density (7.26). A title card is written for a
  * `beat` — that is what a film puts between two rules — so the ramp is steep,
  * and the bracket does the work the type gives up at the lower rungs.
+ *
+ * The budgets are the narrowest measure in the set. The column is only 74 widths
+ * — the tracking is meant to do the spanning, not the box — and tracked capitals
+ * at 5 widths cost nearly 4.4 each, which is under three words to the line. A
+ * card is one line, two at the outside. The `thought` rung nearly doubles that
+ * by dropping to 3.4 widths and 0.14em, and the bracket holds four lines before
+ * the pair of rules stops reading as a card and starts reading as a text box.
  */
-const LINE: Rung = { fontSizeWPct: 5, lineHeight: 1.45, letterSpacingEm: 0.26 };
-const HEADLINE: Record<Density, Rung> = {
+const LINE: CardRung = { fontSizeWPct: 5, lineHeight: 1.45, letterSpacingEm: 0.26, maxWords: 5 };
+export const TITLE_CARD_RAMP: Record<Density, CardRung> = {
   // A frame that states `silent` and then writes words has words, and words are
-  // always drawn; a truly wordless frame returns before this is read.
-  silent: LINE,
-  beat: { fontSizeWPct: 6.8, lineHeight: 1.35, letterSpacingEm: 0.34 },
+  // always drawn; a truly wordless frame returns before this is read. The rung
+  // still carries no budget, because the rung is the absence of words.
+  silent: { ...LINE, maxWords: 0 },
+  beat: { fontSizeWPct: 6.8, lineHeight: 1.35, letterSpacingEm: 0.34, maxWords: 3 },
   line: LINE,
-  thought: { fontSizeWPct: 3.4, lineHeight: 1.55, letterSpacingEm: 0.14 },
+  thought: { fontSizeWPct: 3.4, lineHeight: 1.55, letterSpacingEm: 0.14, maxWords: 18 },
   question: LINE,
 };
 
@@ -124,9 +138,9 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
     runs: splitEmphasis(content.headline, content.emphasis),
     fontFamily: BRICOLAGE,
     fontWeight: 400,
-    fontSizeWPct: HEADLINE[density].fontSizeWPct,
-    lineHeight: HEADLINE[density].lineHeight,
-    letterSpacingEm: HEADLINE[density].letterSpacingEm,
+    fontSizeWPct: TITLE_CARD_RAMP[density].fontSizeWPct,
+    lineHeight: TITLE_CARD_RAMP[density].lineHeight,
+    letterSpacingEm: TITLE_CARD_RAMP[density].letterSpacingEm,
     textTransform: 'uppercase',
     textAlign: 'center',
     color: 'ink',
@@ -181,6 +195,7 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
 }
 
 export const TITLE_CARD: Look = {
+  ramp: TITLE_CARD_RAMP,
   id: 'title-card',
   prefer: PREFERRED_BANDS,
   compose,

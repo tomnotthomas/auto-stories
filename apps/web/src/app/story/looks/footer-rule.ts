@@ -1,4 +1,12 @@
-import type { Density, DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
+import type {
+  Density,
+  DrawnComposition,
+  FrameContent,
+  Look,
+  Part,
+  PhotoAnalysis,
+  Rung,
+} from '../look';
 import { resolveDensity, splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
@@ -26,28 +34,42 @@ const EDGE_OFFSET_HPCT = 7;
 /** Under the picture; the top is the fallback when the base is busy. */
 const PREFERRED_BANDS: readonly Band[] = ['bottom', 'top'];
 
-/** How the caption is set at one density. */
-interface Rung {
-  readonly fontSizeWPct: number;
-  readonly lineHeight: number;
-  /** Small capitals want tracking; several lines of them want much less. */
+/**
+ * The shared rung plus this Look's own tracking: small capitals want tracking,
+ * and several lines of them want much less, so the spacing steps with the size
+ * rather than being fixed for the Look.
+ */
+type CaptionRung = Rung & {
   readonly letterSpacingEm: number;
-}
+};
 
 /**
  * What this Look sets at each density (7.26). This is a plate caption, so it is
  * small at every rung and the ramp is about how many lines can sit under the
  * hairline without unbalancing it. Tracking comes down with the size: spaced
  * capitals are legible for a phrase and unreadable for a paragraph.
+ *
+ * The budgets are set by the capitals, not by the column. 84 widths sounds
+ * roomy, but uppercase at 0.12em tracking is about five words to the line, and a
+ * caption centred under a hairline stays balanced for two lines. The `thought`
+ * rung pulls the tracking back to 0.06em and gains three words a line, which
+ * buys a third line — the point past which a symmetrical caption reads as a
+ * paragraph that has been centred by accident.
  */
-const LINE: Rung = { fontSizeWPct: 3.6, lineHeight: 1.4, letterSpacingEm: 0.12 };
-const HEADLINE: Record<Density, Rung> = {
+const LINE: CaptionRung = {
+  fontSizeWPct: 3.6,
+  lineHeight: 1.4,
+  letterSpacingEm: 0.12,
+  maxWords: 10,
+};
+export const FOOTER_RULE_RAMP: Record<Density, CaptionRung> = {
   // A frame that states `silent` and then writes words has words, and words are
-  // always drawn; a truly wordless frame returns before this is read.
-  silent: LINE,
-  beat: { fontSizeWPct: 4.4, lineHeight: 1.3, letterSpacingEm: 0.16 },
+  // always drawn; a truly wordless frame returns before this is read. The rung
+  // still carries no budget, because the rung is the absence of words.
+  silent: { ...LINE, maxWords: 0 },
+  beat: { fontSizeWPct: 4.4, lineHeight: 1.3, letterSpacingEm: 0.16, maxWords: 3 },
   line: LINE,
-  thought: { fontSizeWPct: 2.5, lineHeight: 1.55, letterSpacingEm: 0.06 },
+  thought: { fontSizeWPct: 2.5, lineHeight: 1.55, letterSpacingEm: 0.06, maxWords: 22 },
   question: LINE,
 };
 
@@ -107,7 +129,7 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
   // The caption. Small capitals are approximated the way type is set for print
   // at this size: a small size, generous tracking, uppercase. Runs are split
   // even though nothing marks them, so an emphasis is carried correctly.
-  const rung = HEADLINE[resolveDensity(content)];
+  const rung = FOOTER_RULE_RAMP[resolveDensity(content)];
   parts.push({
     kind: 'text',
     runs: splitEmphasis(content.headline, content.emphasis),
@@ -152,6 +174,7 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
 }
 
 export const FOOTER_RULE: Look = {
+  ramp: FOOTER_RULE_RAMP,
   id: 'footer-rule',
   prefer: PREFERRED_BANDS,
   compose,

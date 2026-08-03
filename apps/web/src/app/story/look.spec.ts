@@ -4,6 +4,9 @@ import {
   composeFrame,
   lookFor,
   lookIds,
+  resolveRung,
+  DENSITIES,
+  DENSITY_WORDS,
   splitEmphasis,
   textParts,
   wrapRuns,
@@ -222,3 +225,80 @@ describe('composeFrame', () => {
 function runText(part: { runs: readonly { text: string }[] }): string {
   return part.runs.map((run) => run.text).join('');
 }
+
+describe('the catalogue as a whole', () => {
+  // These sweep every registered Look. They only became possible once `ramp`
+  // joined the Look interface: while each Look exported its ramp separately,
+  // nothing could enumerate them, and a Look could be added with no ramp at all.
+  // Every hand-maintained list beside this registry has drifted at least once.
+  const looks = lookIds().map((id) => lookFor(id));
+
+  it('every Look publishes a ramp for every density', () => {
+    for (const look of looks) {
+      for (const density of DENSITIES) {
+        expect(look.ramp[density], `${look.id} @ ${density}`).toBeDefined();
+      }
+    }
+  });
+
+  it('every Look carries more words the smaller it sets them', () => {
+    for (const look of looks) {
+      const beat = look.ramp.beat;
+      const thought = look.ramp.thought;
+      expect(thought.fontSizeWPct, look.id).toBeLessThan(beat.fontSizeWPct);
+      expect(thought.maxWords, look.id).toBeGreaterThan(beat.maxWords);
+    }
+  });
+
+  it('no Look claims to hold more than the rung is written to', () => {
+    for (const look of looks) {
+      for (const density of DENSITIES) {
+        expect(look.ramp[density].maxWords, `${look.id} @ ${density}`).toBeLessThanOrEqual(
+          DENSITY_WORDS[density].max,
+        );
+      }
+    }
+  });
+
+  it('a silent rung carries no words', () => {
+    for (const look of looks) {
+      expect(look.ramp.silent.maxWords, look.id).toBe(0);
+    }
+  });
+});
+
+describe('resolveRung', () => {
+  const ramp = lookFor('bold-poster').ramp;
+
+  it('sets a headline at the rung the density asked for when it fits', () => {
+    const words = 'one two three four five six';
+    expect(resolveRung(ramp, 'line', words).fontSizeWPct).toBe(ramp.line.fontSizeWPct);
+  });
+
+  it('steps down when the model writes past what the design can hold', () => {
+    // Bold Poster is the tightest in the catalogue — oversized capitals hold a
+    // couple of words a line. A model that states `line` and writes a paragraph
+    // gets smaller type, not a headline running off the frame.
+    const overlong = Array.from({ length: 30 }, (_, i) => `word${i}`).join(' ');
+
+    expect(resolveRung(ramp, 'line', overlong).fontSizeWPct).toBeLessThan(ramp.line.fontSizeWPct);
+  });
+
+  it('never steps below the smallest type the Look sets', () => {
+    const absurd = Array.from({ length: 400 }, () => 'word').join(' ');
+    const floor = Math.min(...DENSITIES.map((d) => ramp[d].fontSizeWPct).filter((n) => n > 0));
+
+    expect(resolveRung(ramp, 'beat', absurd).fontSizeWPct).toBeGreaterThanOrEqual(floor);
+  });
+
+  it('never truncates the words — it only changes the setting', () => {
+    // Stepping down is non-destructive by construction: it returns a rung, and
+    // has no way to reach the headline. Pinned so a future "just trim it" cannot
+    // land quietly.
+    const long = 'a '.repeat(60).trim();
+    const rung = resolveRung(ramp, 'beat', long);
+
+    expect(rung).toHaveProperty('fontSizeWPct');
+    expect(rung).not.toHaveProperty('text');
+  });
+});

@@ -2,6 +2,7 @@ import { DEFAULT_ACCENT } from '../accent-color';
 import type {
   Composition,
   Density,
+  DensityRamp,
   FrameContent,
   Look,
   PhotoAnalysis,
@@ -9,12 +10,12 @@ import type {
   TextPart,
   HasParts,
 } from '../look';
-import { DENSITIES, textParts } from '../look';
-import { BOLD_POSTER } from './bold-poster';
-import { BROADSHEET } from './broadsheet';
-import { CONTENTS_PAGE } from './contents-page';
-import { MAGAZINE } from './magazine';
-import { PULL_QUOTE } from './pull-quote';
+import { DENSITIES, DENSITY_WORDS, textParts, wordBudget } from '../look';
+import { BOLD_POSTER, BOLD_POSTER_RAMP } from './bold-poster';
+import { BROADSHEET, BROADSHEET_RAMP } from './broadsheet';
+import { CONTENTS_PAGE, CONTENTS_PAGE_RAMP } from './contents-page';
+import { MAGAZINE, MAGAZINE_RAMP } from './magazine';
+import { PULL_QUOTE, PULL_QUOTE_RAMP } from './pull-quote';
 
 /**
  * The editorial Looks (catalogue B, plus Bold Poster from C). Each one has
@@ -140,61 +141,129 @@ describe.each(LOOKS.map((look) => [look.id, look] as [string, Look]))('%s', (_id
   });
 });
 
-/** Every Look in this file: the ramp is a contract, not a per-Look flourish. */
-const RAMPED: readonly Look[] = [BROADSHEET, CONTENTS_PAGE, PULL_QUOTE, BOLD_POSTER, MAGAZINE];
+/**
+ * Every Look in this file, with the ramp it declares. The ramp is a contract,
+ * not a per-Look flourish, so there is no subset here — a Look added to the file
+ * is a Look held to it.
+ */
+const RAMPED: readonly (readonly [Look, DensityRamp])[] = [
+  [BROADSHEET, BROADSHEET_RAMP],
+  [CONTENTS_PAGE, CONTENTS_PAGE_RAMP],
+  [PULL_QUOTE, PULL_QUOTE_RAMP],
+  [BOLD_POSTER, BOLD_POSTER_RAMP],
+  [MAGAZINE, MAGAZINE_RAMP],
+];
 
 /** The same words at every rung, so only the stated density differs (7.26). */
 const PROBE = 'Where the mountain meets its mirror';
 
-describe.each(RAMPED.map((look) => [look.id, look] as const))('%s density', (_id, look) => {
-  it('sets a thought in a visibly different slot from a beat', () => {
-    // 7.26's named failure: `thought` collapsing into `line` (or into `beat`).
-    // Same words both times — the size difference is the density, nothing else.
-    expect(headlineFor(look, 'thought').fontSizeWPct).toBeLessThan(
-      headlineFor(look, 'beat').fontSizeWPct * 0.75,
-    );
-  });
+describe.each(RAMPED.map(([look, ramp]) => [look.id, look, ramp] as const))(
+  '%s density',
+  (_id, look, ramp) => {
+    it('sets a thought in a visibly different slot from a beat', () => {
+      // 7.26's named failure: `thought` collapsing into `line` (or into `beat`).
+      // Same words both times — the size difference is the density, nothing else.
+      expect(headlineFor(look, 'thought').fontSizeWPct).toBeLessThan(
+        headlineFor(look, 'beat').fontSizeWPct * 0.75,
+      );
+    });
 
-  it('steps the headline down from beat to line to thought', () => {
-    const beat = headlineFor(look, 'beat').fontSizeWPct;
-    const line = headlineFor(look, 'line').fontSizeWPct;
-    const thought = headlineFor(look, 'thought').fontSizeWPct;
+    it('steps the headline down from beat to line to thought', () => {
+      const beat = headlineFor(look, 'beat').fontSizeWPct;
+      const line = headlineFor(look, 'line').fontSizeWPct;
+      const thought = headlineFor(look, 'thought').fontSizeWPct;
 
-    expect(beat).toBeGreaterThan(line);
-    expect(line).toBeGreaterThan(thought);
-  });
+      expect(beat).toBeGreaterThan(line);
+      expect(line).toBeGreaterThan(thought);
+    });
 
-  it('still sets the words at every rung the model can state', () => {
-    // Including `silent`: a frame that says silent and then writes words has
-    // words, and words are always drawn.
-    for (const density of DENSITIES) {
-      expect(everyWord(look.compose({ ...CONTENT, density }, PHOTO))).toContain(CONTENT.headline);
-    }
-  });
-});
+    it('opens the leading as the rung grows', () => {
+      // The other half of the same step: a thought set smaller but leaded like a
+      // headline reads as a shrunken headline. Every Look opens it — a design
+      // that put the whole step into the size was the subset this used to allow.
+      const beat = headlineFor(look, 'beat').lineHeight;
+      const line = headlineFor(look, 'line').lineHeight;
+      const thought = headlineFor(look, 'thought').lineHeight;
 
-/**
- * The Looks that take part of the step in the leading as well as the size, so a
- * `thought` reads as running text rather than as a shrunken headline. Not a
- * contract on every Look: a design may hold its leading and put the whole step
- * into the size instead.
- */
-const LEADED: readonly Look[] = [BROADSHEET, CONTENTS_PAGE, BOLD_POSTER, MAGAZINE];
+      expect(line).toBeGreaterThan(beat);
+      expect(thought).toBeGreaterThan(line);
+    });
 
-describe.each(LEADED.map((look) => [look.id, look] as const))('%s leading', (_id, look) => {
-  it('opens the leading for a thought', () => {
-    expect(headlineFor(look, 'thought').lineHeight).toBeGreaterThan(
-      headlineFor(look, 'line').lineHeight,
-    );
-  });
-});
+    it('still sets the words at every rung the model can state', () => {
+      // Including `silent`: a frame that says silent and then writes words has
+      // words, and words are always drawn.
+      for (const density of DENSITIES) {
+        expect(everyWord(look.compose({ ...CONTENT, density }, PHOTO))).toContain(CONTENT.headline);
+      }
+    });
+
+    it('carries fewer words the larger it sets them', () => {
+      // The budget is the design's own statement of what it can hold, so it has
+      // to move against the size — a rung set bigger that claimed to hold more
+      // would be describing a different Look.
+      expect(ramp.beat.fontSizeWPct).toBeGreaterThan(ramp.line.fontSizeWPct);
+      expect(ramp.line.fontSizeWPct).toBeGreaterThan(ramp.thought.fontSizeWPct);
+      expect(wordBudget(ramp, 'beat')).toBeLessThan(wordBudget(ramp, 'line'));
+      expect(wordBudget(ramp, 'line')).toBeLessThan(wordBudget(ramp, 'thought'));
+    });
+
+    it('never claims to hold more than the rung is written to', () => {
+      // 7.26 says how long the words are; the Look says how much of that it can
+      // take. It may take less — Bold Poster does — but never more.
+      for (const density of DENSITIES) {
+        expect(wordBudget(ramp, density)).toBeLessThanOrEqual(DENSITY_WORDS[density].max);
+      }
+      expect(wordBudget(ramp, 'silent')).toBe(0);
+    });
+
+    it('sets a headline of its own budget without dropping below its smallest rung', () => {
+      // The budget has to be one this Look can actually set: written to the word
+      // it published, the frame still composes, and the type is still one of the
+      // sizes the design declared rather than something shrunk to fit.
+      const smallest = Math.min(...DENSITIES.map((density) => ramp[density].fontSizeWPct));
+
+      for (const density of DENSITIES) {
+        const budget = wordBudget(ramp, density);
+        if (budget === 0) continue;
+        const headline = wordsOf(budget);
+        const part = headlineOf(look, headline, density);
+
+        expect(part.fontSizeWPct).toBeGreaterThanOrEqual(smallest);
+      }
+    });
+  },
+);
 
 /** The headline part this Look composes at one density. */
 function headlineFor(look: Look, density: Density): TextPart {
-  const composition = look.compose({ headline: PROBE, density }, PHOTO);
-  const part = textParts(composition).find((candidate) => runText(candidate) === PROBE);
+  return headlineOf(look, PROBE, density);
+}
+
+/** The part carrying these exact words, so a test can probe any headline. */
+function headlineOf(look: Look, headline: string, density: Density): TextPart {
+  const composition = look.compose({ headline, density }, PHOTO);
+  const part = textParts(composition).find((candidate) => runText(candidate) === headline);
   if (!part) throw new Error(`${look.id} sets no headline at density “${density}”`);
   return part;
+}
+
+/** Plain words to fill a budget with — content nobody has to read, of a length
+ * that is the point. Never ends in a question mark, so a stated density is the
+ * only thing under test. */
+function wordsOf(count: number): string {
+  const pool = [
+    'where',
+    'the',
+    'mountain',
+    'meets',
+    'its',
+    'mirror',
+    'and',
+    'the',
+    'light',
+    'goes',
+  ];
+  return Array.from({ length: count }, (_unused, index) => pool[index % pool.length]).join(' ');
 }
 
 describe('broadsheet', () => {
@@ -260,6 +329,36 @@ describe('pull-quote', () => {
     expect(glyphs).toHaveLength(2);
     expect(composition.parts.indexOf(glyphs[0])).toBeLessThan(headlineAt);
     expect(composition.parts.indexOf(glyphs[1])).toBeGreaterThan(headlineAt);
+  });
+
+  // The accent count was a two-glyph rule read off one frame. Setting a question
+  // in the accent as well was considered here and rejected on a concrete ground:
+  // this Look lays no scrim and states `ink: 'auto'`, so `accent` is the hue
+  // sampled off the photograph the words sit on, while `ink` is the tone the
+  // device computed to be legible against it (7.10). A glyph that goes quiet
+  // against the picture costs a mark; the words going quiet costs the frame. So
+  // the rule is kept and widened instead of relaxed: the accent is the quoting,
+  // at every density, and the words are always in the legible ink.
+  it('keeps the accent on the quoting and the words in the legible ink, at every density', () => {
+    for (const density of DENSITIES) {
+      const composition = PULL_QUOTE.compose({ ...CONTENT, density }, PHOTO);
+      const accented = textParts(composition).filter((part) => part.color === 'accent');
+      const headline = textParts(composition).find((part) => runText(part) === CONTENT.headline);
+
+      expect(accented.map(runText)).toEqual(['“', '”']);
+      expect(headline?.color).toBe('ink');
+    }
+  });
+
+  it('asks a question larger than it states a line, and carries fewer words for it', () => {
+    // 7.26: a question is pulled out to be answered, not read past. The size is
+    // what sets it apart — see above for why the colour is not.
+    expect(headlineFor(PULL_QUOTE, 'question').fontSizeWPct).toBeGreaterThan(
+      headlineFor(PULL_QUOTE, 'line').fontSizeWPct,
+    );
+    expect(wordBudget(PULL_QUOTE_RAMP, 'question')).toBeLessThan(
+      wordBudget(PULL_QUOTE_RAMP, 'line'),
+    );
   });
 });
 

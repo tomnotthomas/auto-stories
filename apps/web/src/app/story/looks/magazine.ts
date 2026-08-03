@@ -1,4 +1,12 @@
-import type { Density, DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
+import type {
+  DensityRamp,
+  DrawnComposition,
+  FrameContent,
+  Look,
+  Part,
+  PhotoAnalysis,
+  Rung,
+} from '../look';
 import { resolveDensity, splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
@@ -29,28 +37,30 @@ const EDGE_OFFSET_HPCT = 8;
 /** Magazine hangs its masthead off the bottom; the top is its fallback. */
 const PREFERRED_BANDS: readonly Band[] = ['bottom', 'top'];
 
-/** How `.head` is set at one density. */
-interface Rung {
-  readonly fontSizeWPct: number;
-  readonly lineHeight: number;
-}
-
 /**
  * What this Look sets at each density (7.26). A spread already has two type
  * sizes — the cover line and the standfirst under it — and the rungs are those:
  * `beat` and `line` are cover lines, `thought` is the standfirst, set at the
  * size a magazine actually runs a paragraph over a photograph. Without the drop,
  * `9.4cqw` over thirty words fills the frame and the picture is gone.
+ *
+ * The budgets follow the same two registers. A cover line at 9.4% across an 86%
+ * column is about three words a line, and four lines is the most a cover line
+ * runs to — so `line` takes the whole twelve 7.26 allows and no more. The
+ * standfirst holds five words a line and reads to six or seven lines before it
+ * crowds the byline row under it, which is thirty words rather than thirty-five.
  */
-const LINE: Rung = { fontSizeWPct: 9.4, lineHeight: 1 };
-const HEADLINE: Record<Density, Rung> = {
+const LINE: Rung = { fontSizeWPct: 9.4, lineHeight: 1, maxWords: 12 };
+export const MAGAZINE_RAMP: DensityRamp = {
   // A frame that states `silent` and then writes words has words, and words are
   // always drawn; a truly wordless frame returns before this is read.
-  silent: LINE,
-  beat: { fontSizeWPct: 12.4, lineHeight: 0.94 },
+  silent: { ...LINE, maxWords: 0 },
+  beat: { fontSizeWPct: 12.4, lineHeight: 0.94, maxWords: 3 },
   line: LINE,
-  thought: { fontSizeWPct: 5.8, lineHeight: 1.24 },
-  question: LINE,
+  thought: { fontSizeWPct: 5.8, lineHeight: 1.24, maxWords: 30 },
+  // A cover line that asks is still a cover line, but a question read off a
+  // photograph has to land in one breath — so it stops short of a statement.
+  question: { ...LINE, maxWords: 10 },
 };
 
 function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
@@ -112,7 +122,7 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
 
   // `.head` — the headline, with `<u>` on the emphasised phrase drawn as an
   // accent bar sitting behind the baseline.
-  const rung = HEADLINE[resolveDensity(content)];
+  const rung = MAGAZINE_RAMP[resolveDensity(content)];
   parts.push({
     kind: 'text',
     runs: splitEmphasis(content.headline, content.emphasis),
@@ -179,6 +189,7 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
 }
 
 export const MAGAZINE: Look = {
+  ramp: MAGAZINE_RAMP,
   id: 'magazine-masthead',
   prefer: PREFERRED_BANDS,
   compose,

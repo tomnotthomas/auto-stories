@@ -1,11 +1,12 @@
 import type {
-  Density,
+  DensityRamp,
   DrawnComposition,
   FrameContent,
   Look,
   Panel,
   Part,
   PhotoAnalysis,
+  Rung,
 } from '../look';
 import { resolveDensity, splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
@@ -53,27 +54,28 @@ const CARD: Panel = {
 /** Bottom-left, the way a label hangs below a hung work; top is the fallback. */
 const PREFERRED_BANDS: readonly Band[] = ['bottom', 'top'];
 
-/** How the title is set at one density. */
-interface Rung {
-  readonly fontSizeWPct: number;
-  readonly lineHeight: number;
-}
-
 /**
  * What this Look sets at each density (7.26). A wall label is read from a foot
  * away, so nothing here is ever large — the whole ramp stays under the size at
  * which the card would start competing with the work. A `thought` is the
  * paragraph of interpretation a gallery prints below the title: smaller than
  * the title, leaded like a block of body copy.
+ *
+ * The budgets come off the card, not off the frame: the column is 53 widths and
+ * the panel eats 4 of them either side, leaving about four and a half words to
+ * the line at the title size. Two or three lines is a title; the interpretation
+ * paragraph is allowed four at the `thought` rung, which is where the card stops
+ * being a label and starts being a caption bar.
  */
-const LINE: Rung = { fontSizeWPct: 3.4, lineHeight: 1.28 };
-const HEADLINE: Record<Density, Rung> = {
+const LINE: Rung = { fontSizeWPct: 3.4, lineHeight: 1.28, maxWords: 11 };
+export const GALLERY_LABEL_RAMP: DensityRamp = {
   // A frame that states `silent` and then writes words has words, and words are
-  // always drawn; a truly wordless frame returns before this is read.
-  silent: LINE,
-  beat: { fontSizeWPct: 3.9, lineHeight: 1.2 },
+  // always drawn; a truly wordless frame returns before this is read. The rung
+  // still carries no budget, because the rung is the absence of words.
+  silent: { ...LINE, maxWords: 0 },
+  beat: { fontSizeWPct: 3.9, lineHeight: 1.2, maxWords: 3 },
   line: LINE,
-  thought: { fontSizeWPct: 2.5, lineHeight: 1.45 },
+  thought: { fontSizeWPct: 2.5, lineHeight: 1.45, maxWords: 22 },
   question: LINE,
 };
 
@@ -123,7 +125,7 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
 
   // The title. Still tiny — a label is read up close, not across the room — but
   // set in the book weight against the two capitals lines around it.
-  const rung = HEADLINE[resolveDensity(content)];
+  const rung = GALLERY_LABEL_RAMP[resolveDensity(content)];
   parts.push({
     kind: 'text',
     runs: splitEmphasis(content.headline, content.emphasis),
@@ -161,6 +163,7 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
 }
 
 export const GALLERY_LABEL: Look = {
+  ramp: GALLERY_LABEL_RAMP,
   id: 'gallery-label',
   prefer: PREFERRED_BANDS,
   compose,

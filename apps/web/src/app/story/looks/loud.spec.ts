@@ -1,6 +1,11 @@
 import { DEFAULT_ACCENT } from '../accent-color';
 import {
+  DENSITIES,
+  DENSITY_WORDS,
   textParts,
+  wordBudget,
+  type Density,
+  type DensityRamp,
   type FrameContent,
   type HasParts,
   type Look,
@@ -8,10 +13,10 @@ import {
   type TextPart,
 } from '../look';
 
-import { MARKER } from './marker';
-import { SPLIT_BLOCK } from './split-block';
-import { STENCIL_CAPS } from './stencil-caps';
-import { TICKER } from './ticker';
+import { MARKER, MARKER_RAMP } from './marker';
+import { SPLIT_BLOCK, SPLIT_BLOCK_RAMP } from './split-block';
+import { STENCIL_CAPS, STENCIL_CAPS_RAMP } from './stencil-caps';
+import { TICKER, TICKER_RAMP } from './ticker';
 
 /**
  * The loud, graphic end of the catalogue: Split Block, Ticker, Stencil Caps and
@@ -56,6 +61,22 @@ const EDGE_CASES: readonly FrameContent[] = [
 ];
 
 const LOOKS: readonly Look[] = [SPLIT_BLOCK, TICKER, STENCIL_CAPS, MARKER];
+
+/**
+ * Each Look's published ramp (7.26): what it sets, and how much it can carry, at
+ * every rung. A Look declaring a budget it does not compose to would be worse
+ * than no budget at all — the model would be told a number the design ignores —
+ * so the ramp is asserted against what `compose` actually returns.
+ */
+const RAMPS: Record<string, DensityRamp> = {
+  'split-block': SPLIT_BLOCK_RAMP,
+  ticker: TICKER_RAMP,
+  'stencil-caps': STENCIL_CAPS_RAMP,
+  marker: MARKER_RAMP,
+};
+
+/** The three rungs that carry words, in the order they take more of them. */
+const GROWING: readonly Density[] = ['beat', 'line', 'thought'];
 
 /**
  * The frames that separate a Look which draws the place from one which does not
@@ -165,6 +186,115 @@ describe.each(LOOKS.map((look) => [look.id, look] as const))('%s', (id, look) =>
     const thought = displayWPct(look.compose({ ...CONTENT, density: 'thought' }, CALM));
 
     expect(thought).toBeLessThan(beat * 0.8);
+  });
+
+  // Every Look in this file, not just the two that grew a ramp first: a Look
+  // whose type does not move with the rung has made the rung decorative, and the
+  // model's `density` then buys the frame nothing.
+  it('steps its type down rung by rung, as the words take more room', () => {
+    const sizes = GROWING.map(
+      (density) => headlinePart(look.compose({ ...CONTENT, density }, CALM).parts)?.fontSizeWPct,
+    );
+
+    expect(sizes[0]).toBeGreaterThan(sizes[1]!);
+    expect(sizes[1]).toBeGreaterThan(sizes[2]!);
+  });
+
+  // The other half of stepping down. Type that shrinks on locked-up display
+  // leading reads as a shrunken headline, not as something written to be read —
+  // so the leading has to open on the way down as well.
+  it('opens its leading as the rung grows', () => {
+    const leading = GROWING.map(
+      (density) => headlinePart(look.compose({ ...CONTENT, density }, CALM).parts)?.lineHeight,
+    );
+
+    expect(leading[1]).toBeGreaterThan(leading[0]!);
+    expect(leading[2]).toBeGreaterThan(leading[1]!);
+  });
+
+  it('sizes to the stated density rather than to the headline’s length', () => {
+    // A deliberately short `thought` is still set as a thought, and a long
+    // headline the creator called a `beat` is still set as a beat (7.26).
+    const stated = look.compose({ headline: LONG_HEADLINE, density: 'beat' }, CALM);
+    const inferred = look.compose({ headline: LONG_HEADLINE }, CALM);
+
+    expect(headlinePart(stated.parts)?.fontSizeWPct).toBeGreaterThan(
+      headlinePart(inferred.parts)!.fontSizeWPct,
+    );
+  });
+
+  // 7.26's missing half: the rung says how much the creator wants to say, and
+  // this says how much THIS design can hold before it stops being itself.
+  it('publishes a word budget for every rung', () => {
+    const ramp = RAMPS[id];
+
+    for (const density of DENSITIES) {
+      const budget = wordBudget(ramp, density);
+
+      expect(budget).toBeGreaterThanOrEqual(0);
+      // A Look may hold less than the rung allows; it may never claim more,
+      // because the words are written to the rung and not to the design.
+      expect(budget).toBeLessThanOrEqual(DENSITY_WORDS[density].max);
+    }
+    expect(wordBudget(ramp, 'silent')).toBe(0);
+  });
+
+  it('carries more words as its type comes down', () => {
+    const ramp = RAMPS[id];
+    const budgets = GROWING.map((density) => wordBudget(ramp, density));
+
+    expect(budgets[1]).toBeGreaterThan(budgets[0]);
+    expect(budgets[2]).toBeGreaterThan(budgets[1]);
+  });
+
+  it('claims a thought budget it can honestly set', () => {
+    // The whole point of the number: 15–35 words is what the creator may write,
+    // and no Look in this group can set the top of that and still look like
+    // itself. A budget equal to the ceiling would be a Look that never says no.
+    const budget = wordBudget(RAMPS[id], 'thought');
+
+    expect(budget).toBeGreaterThan(0);
+    expect(budget).toBeLessThan(DENSITY_WORDS.thought.max);
+  });
+
+  it('composes each rung at the size its own ramp publishes', () => {
+    // Keeps the published budget honest: the ramp the model is briefed from has
+    // to be the ramp the design draws with.
+    for (const density of DENSITIES) {
+      const headline = headlinePart(look.compose({ ...CONTENT, density }, CALM).parts);
+
+      expect(headline?.fontSizeWPct).toBe(RAMPS[id][density].fontSizeWPct);
+      expect(headline?.lineHeight).toBe(RAMPS[id][density].lineHeight);
+    }
+  });
+});
+
+describe('word budgets across the loud group', () => {
+  // Each Look is judged from its own measure, so the numbers must differ: a
+  // ticker bar, an album slab and a screen print do not hold the same passage,
+  // and one number copied across four would mean nobody measured.
+  it('gives each Look a thought budget read off its own measure', () => {
+    const budgets = LOOKS.map((look) => wordBudget(RAMPS[look.id], 'thought'));
+
+    expect(new Set(budgets).size).toBe(LOOKS.length);
+  });
+
+  it('lets the screen print carry the least of the graphic Looks', () => {
+    // Outlined, centred, tracked capitals are the most expensive setting here.
+    const stencil = wordBudget(STENCIL_CAPS_RAMP, 'thought');
+
+    expect(stencil).toBeLessThan(wordBudget(TICKER_RAMP, 'thought'));
+    expect(stencil).toBeLessThan(wordBudget(SPLIT_BLOCK_RAMP, 'thought'));
+    expect(stencil).toBeLessThan(wordBudget(MARKER_RAMP, 'thought'));
+  });
+
+  it('keeps the ticker to the shallow bar its budget is set by', () => {
+    // A lower third is one line of type, two at the most; a rung that could run
+    // to three has stopped being a ticker.
+    expect(wordBudget(TICKER_RAMP, 'thought')).toBeLessThan(
+      wordBudget(SPLIT_BLOCK_RAMP, 'thought'),
+    );
+    expect(wordBudget(TICKER_RAMP, 'line')).toBeLessThan(DENSITY_WORDS.line.max);
   });
 });
 

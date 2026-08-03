@@ -1,4 +1,12 @@
-import type { Density, DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
+import type {
+  DensityRamp,
+  DrawnComposition,
+  FrameContent,
+  Look,
+  Part,
+  PhotoAnalysis,
+  Rung,
+} from '../look';
 import { resolveDensity, splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
@@ -26,28 +34,30 @@ const BAND_PAD_HPCT = 8;
 /** A band belongs on an edge; the bottom first, the top when the bottom is busy. */
 const PREFERRED_BANDS: readonly Band[] = ['bottom', 'top'];
 
-/** How the words in the band are set at one density. */
-interface Rung {
-  readonly fontSizeWPct: number;
-  readonly lineHeight: number;
-}
-
 /**
  * What this Look sets at each density (7.26). The band takes its depth from the
  * words inside it, so the ramp is really a ramp of how much of the photo the
  * colour covers: a `beat` fills a shallow band with three heavy words, while a
  * `thought` at that size would flood half the frame in accent — so it steps down
  * to a size that keeps the band a band.
+ *
+ * The word budget is the same argument, counted. The band already spends 16% of
+ * the frame's height on its own padding, and at the `thought` rung each line of
+ * type adds another 3.5%: eighteen words is four lines, which puts a quarter of
+ * the photo under solid accent. 7.26's 35 would put half of it there, so this
+ * Look declares less than the band allows rather than growing to swallow the
+ * picture it is laid over.
  */
-const LINE: Rung = { fontSizeWPct: 8.2, lineHeight: 1.04 };
-const HEADLINE: Record<Density, Rung> = {
+const LINE: Rung = { fontSizeWPct: 8.2, lineHeight: 1.04, maxWords: 8 };
+export const DUOTONE_BAND_RAMP: DensityRamp = {
   // A frame that states `silent` and then writes words has words, and words are
-  // always drawn; a truly wordless frame returns before this is read.
-  silent: LINE,
-  beat: { fontSizeWPct: 10.8, lineHeight: 0.98 },
+  // always drawn; a truly wordless frame returns before this is read. The budget
+  // is still nought: the rung asks for no words at all.
+  silent: { ...LINE, maxWords: 0 },
+  beat: { fontSizeWPct: 10.8, lineHeight: 0.98, maxWords: 3 },
   line: LINE,
-  thought: { fontSizeWPct: 5, lineHeight: 1.26 },
-  question: LINE,
+  thought: { fontSizeWPct: 5, lineHeight: 1.26, maxWords: 18 },
+  question: { ...LINE, maxWords: 7 },
 };
 
 function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
@@ -100,7 +110,7 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
   // behind the words is already that accent — an accent bar on an accent slab is
   // invisible. The band IS this Look's emphasis, so emphasis stays unmarked here
   // rather than being drawn in a colour that cannot be seen (7.23: one graphic).
-  const rung = HEADLINE[resolveDensity(content)];
+  const rung = DUOTONE_BAND_RAMP[resolveDensity(content)];
   parts.push({
     kind: 'text',
     runs: splitEmphasis(content.headline, content.emphasis),
@@ -143,6 +153,7 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
 }
 
 export const DUOTONE_BAND: Look = {
+  ramp: DUOTONE_BAND_RAMP,
   id: 'duotone-band',
   prefer: PREFERRED_BANDS,
   compose,

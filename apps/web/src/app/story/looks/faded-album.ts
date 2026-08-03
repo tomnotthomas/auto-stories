@@ -1,4 +1,12 @@
-import type { Density, DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
+import type {
+  DensityRamp,
+  DrawnComposition,
+  FrameContent,
+  Look,
+  Part,
+  PhotoAnalysis,
+  Rung,
+} from '../look';
 import { resolveDensity, splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
@@ -26,27 +34,28 @@ const FADED = 'saturate(0.72) contrast(0.9) brightness(1.06) sepia(0.12)';
 /** An album caption sits under the picture; the top is its fallback. */
 const PREFERRED_BANDS: readonly Band[] = ['bottom', 'top'];
 
-/** How the caption is set at one density. */
-interface Rung {
-  readonly fontSizeWPct: number;
-  readonly lineHeight: number;
-}
-
 /**
  * What this Look sets at each density (7.26). An album page carries two kinds of
  * writing: the few words under a picture, and the longer note somebody added
  * later. A `beat` and a `line` are the first; a `thought` is the second, set
  * small and widely leaded above the ruled line so it reads as handwriting that
  * ran on rather than as a caption that got too big.
+ *
+ * This is the most words any Look in the group can hold, and the reason is the
+ * opposite of the reason a poster holds the fewest: nothing here is set large or
+ * in capitals. A centred serif at 3.7% of the frame width runs to six words a
+ * line even across this Look's short measure, so 7.26's whole thirty-five is six
+ * lines of small type over a hairline — which is what a note added later to an
+ * album page looks like. The rung is not the limit; the note is.
  */
-const LINE: Rung = { fontSizeWPct: 5.8, lineHeight: 1.3 };
-const HEADLINE: Record<Density, Rung> = {
+const LINE: Rung = { fontSizeWPct: 5.8, lineHeight: 1.3, maxWords: 12 };
+export const FADED_ALBUM_RAMP: DensityRamp = {
   // A frame that states `silent` and then writes words has words, and words are
   // always drawn; a truly wordless frame returns before this is read.
-  silent: LINE,
-  beat: { fontSizeWPct: 7.6, lineHeight: 1.18 },
+  silent: { ...LINE, maxWords: 0 },
+  beat: { fontSizeWPct: 7.6, lineHeight: 1.18, maxWords: 3 },
   line: LINE,
-  thought: { fontSizeWPct: 3.7, lineHeight: 1.5 },
+  thought: { fontSizeWPct: 3.7, lineHeight: 1.5, maxWords: 35 },
   question: LINE,
 };
 
@@ -93,7 +102,7 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
     });
   }
 
-  const rung = HEADLINE[resolveDensity(content)];
+  const rung = FADED_ALBUM_RAMP[resolveDensity(content)];
   parts.push({
     kind: 'text',
     runs: splitEmphasis(content.headline, content.emphasis),
@@ -156,6 +165,7 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
 }
 
 export const FADED_ALBUM: Look = {
+  ramp: FADED_ALBUM_RAMP,
   id: 'faded-album',
   prefer: PREFERRED_BANDS,
   compose,

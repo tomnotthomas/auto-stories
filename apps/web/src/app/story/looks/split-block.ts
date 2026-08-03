@@ -1,4 +1,12 @@
-import type { Density, DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
+import type {
+  DensityRamp,
+  DrawnComposition,
+  FrameContent,
+  Look,
+  Part,
+  PhotoAnalysis,
+  Rung,
+} from '../look';
 import { resolveDensity, splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
@@ -36,12 +44,6 @@ const EDGE_OFFSET_HPCT = PAD_HPCT;
 /** Split Block wants the bottom third; the top is the same idea, inverted. */
 const PREFERRED_BANDS: readonly Band[] = ['bottom', 'top'];
 
-/** How the title is set at one density. */
-interface Rung {
-  readonly fontSizeWPct: number;
-  readonly lineHeight: number;
-}
-
 /**
  * What this Look sets at each density (7.26). The slab grows with the words, so
  * nothing overflows — but a sleeve title set at 8.8% and run to thirty-five
@@ -49,15 +51,28 @@ interface Rung {
  * the block only ever grows to hold the words the rung is written to. A sleeve
  * title locks its lines up at 1.02; a `thought` is read, not seen, so it gets
  * the leading running text needs.
+ *
+ * The budgets are read off the slab, not off the catalogue's word counts. This
+ * is the most forgiving of the loud group, because the type has its own
+ * territory: nothing is competing with the photograph, so the only limit is how
+ * much of the frame the block is allowed to take. At the `line` size Bricolage
+ * runs about twenty characters across the 86% column — three words — and a
+ * sleeve title is three lines, no more. `thought` doubles the measure and the
+ * slab is allowed five lines: past that it has eaten half the picture, and a
+ * cover with no cover photo is not this Look.
  */
-const LINE: Rung = { fontSizeWPct: 8.8, lineHeight: 1.02 };
-const HEADLINE: Record<Density, Rung> = {
+const LINE: Rung = { fontSizeWPct: 8.8, lineHeight: 1.02, maxWords: 10 };
+export const SPLIT_BLOCK_RAMP: DensityRamp = {
   // A frame that states `silent` and then writes words has words, and words are
-  // always drawn; a truly wordless frame returns before this is read.
-  silent: LINE,
-  beat: { fontSizeWPct: 11.6, lineHeight: 0.96 },
+  // always drawn; a truly wordless frame returns before this is read. The size
+  // is `line`'s because that is what those stray words get set at; the budget is
+  // zero because a silent frame is not written to.
+  silent: { ...LINE, maxWords: 0 },
+  beat: { fontSizeWPct: 11.6, lineHeight: 0.96, maxWords: 3 },
   line: LINE,
-  thought: { fontSizeWPct: 5.8, lineHeight: 1.2 },
+  thought: { fontSizeWPct: 5.8, lineHeight: 1.2, maxWords: 22 },
+  // A question is a statement's length and is set as one, so it gets the same
+  // measure and the same handful of words.
   question: LINE,
 };
 
@@ -82,7 +97,7 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
     };
   }
 
-  const density = resolveDensity(content);
+  const rung = SPLIT_BLOCK_RAMP[resolveDensity(content)];
   const parts: Part[] = [];
 
   // The sleeve's catalogue line: small, tracked, sitting above the title inside
@@ -113,8 +128,8 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
     runs: splitEmphasis(content.headline, content.emphasis),
     fontFamily: BRICOLAGE,
     fontWeight: 700,
-    fontSizeWPct: HEADLINE[density].fontSizeWPct,
-    lineHeight: HEADLINE[density].lineHeight,
+    fontSizeWPct: rung.fontSizeWPct,
+    lineHeight: rung.lineHeight,
     letterSpacingEm: -0.025,
     textTransform: 'none',
     textAlign: 'left',
@@ -173,6 +188,7 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
 }
 
 export const SPLIT_BLOCK: Look = {
+  ramp: SPLIT_BLOCK_RAMP,
   id: 'split-block',
   prefer: PREFERRED_BANDS,
   compose,

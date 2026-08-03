@@ -1,4 +1,13 @@
-import type { Density, DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
+import type {
+  Density,
+  DensityRamp,
+  DrawnComposition,
+  FrameContent,
+  Look,
+  Part,
+  PhotoAnalysis,
+  Rung,
+} from '../look';
 import { resolveDensity, splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
@@ -32,27 +41,28 @@ const EDGE_OFFSET_HPCT = 10;
 /** An index opens a page, so this Look hangs off the top. */
 const PREFERRED_BANDS: readonly Band[] = ['top', 'bottom'];
 
-/** How the entry is set at one density. */
-interface Rung {
-  readonly fontSizeWPct: number;
-  readonly lineHeight: number;
-}
-
 /**
  * What this Look sets at each density (7.26). The marker keeps its size at every
  * rung — it is the design, and an index that shrank its own numeral would stop
  * being one — so the ramp is entirely in the entry beside it, from a title-sized
  * `beat` down to a `thought` set as the blurb a contents page runs under a
  * title.
+ *
+ * This is one of the two Looks that can carry the whole of 7.26's `thought`
+ * budget. The blurb is set at 4% of the frame width across an 84% column, which
+ * is roughly seven words a line: thirty-five words is five lines under the
+ * marker, which is exactly the shape a contents page already has. The marker is
+ * the design here, so a long entry beside it does not stop the frame reading as
+ * an index — where a poster set in capitals stops being a poster.
  */
-const LINE: Rung = { fontSizeWPct: 6.2, lineHeight: 1.14 };
-const HEADLINE: Record<Density, Rung> = {
+const LINE: Rung = { fontSizeWPct: 6.2, lineHeight: 1.14, maxWords: 12 };
+export const CONTENTS_PAGE_RAMP: DensityRamp = {
   // A frame that states `silent` and then writes words has words, and words are
   // always drawn; a truly wordless frame returns before this is read.
-  silent: LINE,
-  beat: { fontSizeWPct: 8.2, lineHeight: 1.04 },
+  silent: { ...LINE, maxWords: 0 },
+  beat: { fontSizeWPct: 8.2, lineHeight: 1.04, maxWords: 3 },
   line: LINE,
-  thought: { fontSizeWPct: 4, lineHeight: 1.34 },
+  thought: { fontSizeWPct: 4, lineHeight: 1.34, maxWords: 35 },
   question: LINE,
 };
 
@@ -107,7 +117,7 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
 
   // The entry itself, set small against the marker — a contents line is read
   // after the number, not before it.
-  const rung = HEADLINE[density];
+  const rung = CONTENTS_PAGE_RAMP[density];
   parts.push({
     kind: 'text',
     runs: splitEmphasis(content.headline, content.emphasis),
@@ -188,6 +198,7 @@ function marker(content: FrameContent, density: Density): string {
 }
 
 export const CONTENTS_PAGE: Look = {
+  ramp: CONTENTS_PAGE_RAMP,
   id: 'contents-page',
   prefer: PREFERRED_BANDS,
   compose,

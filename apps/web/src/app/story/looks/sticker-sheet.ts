@@ -1,4 +1,11 @@
-import type { Density, DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
+import type {
+  DensityRamp,
+  DrawnComposition,
+  FrameContent,
+  Look,
+  Part,
+  PhotoAnalysis,
+} from '../look';
 import { resolveDensity, splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
@@ -42,24 +49,36 @@ const CHIP_PAD_EM = 1.24;
 const MIN_CHIP_WPCT = 3.2;
 
 /**
- * What this Look can set at each density (7.26) — a *ceiling* rather than a
- * size, because a chip is the one part the renderer never wraps: it has to fit
- * the column or it runs off the frame. So the fit solver below still has the
- * last word, and density decides how big a chip is allowed to get when it fits.
+ * What this Look can set at each density (7.26). `fontSizeWPct` is a *ceiling*
+ * rather than a size, because a chip is the one part the renderer never wraps:
+ * it has to fit the column or it runs off the frame. So the fit solver below
+ * still has the last word, and density decides how big a chip is allowed to get
+ * when it fits.
  *
  * That split is what stops a `beat` and a `thought` landing in the same slot on
  * short words: two words at 6.4% is a sticker, the same two words in a frame the
- * creator marked as a thought are part of a passage and are set smaller.
+ * creator marked as a thought are part of a passage and are set smaller. The
+ * leading opens as the type comes down, so three small chips keep air between
+ * them instead of stacking into one bar.
+ *
+ * The budgets are counted in chips, not lines, because nothing here wraps. Three
+ * lozenges is the ceiling ({@link MAX_CHIPS}), and a chip stops reading as a
+ * lozenge and starts reading as a bar somewhere around 30 characters — past
+ * that the solver is also driving the type under the smallest rung to make it
+ * fit. Three chips of about thirty characters is fifteen words, which is why a
+ * `thought` here sits at the bottom of 7.26's 15-35 band rather than the top.
  *
  * `silent` never reaches here — the guard in `compose` returns first — and takes
  * the smallest setting so a frame that contradicts itself errs small.
  */
-const MAX_CHIP_WPCT: Record<Density, number> = {
-  silent: 4,
-  beat: 6.4,
-  line: 5.2,
-  thought: 4,
-  question: 5.2,
+export const STICKER_SHEET_RAMP: DensityRamp = {
+  silent: { fontSizeWPct: 4, lineHeight: 1.15, maxWords: 0 },
+  beat: { fontSizeWPct: 6.4, lineHeight: 1.1, maxWords: 3 },
+  line: { fontSizeWPct: 5.2, lineHeight: 1.15, maxWords: 12 },
+  thought: { fontSizeWPct: 4, lineHeight: 1.28, maxWords: 15 },
+  // A question is one chip the reader is meant to answer; splitting it over
+  // three lozenges breaks the sentence into fragments before it is asked.
+  question: { fontSizeWPct: 5.2, lineHeight: 1.15, maxWords: 8 },
 };
 
 /** The knock each chip gets, cycled down the stack. */
@@ -92,45 +111,86 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
   // with nothing in it.
   if (!content.headline.trim()) return { ...base, parts: [] };
 
+  const rung = STICKER_SHEET_RAMP[resolveDensity(content)];
   const lines = chipLines(content);
   const widest = lines.reduce((most, line) => Math.max(most, line.length), 0);
-  const fontSizeWPct = chipSizeWPct(widest, resolveDensity(content));
+  const fontSizeWPct = chipSizeWPct(widest, rung.fontSizeWPct);
 
   const parts: Part[] = [];
 
   // A small chip above the stack — same grammar, quieter, so the hierarchy
   // still reads when everything is a lozenge.
   const kicker = content.kicker?.trim();
-  if (kicker) parts.push(chip(kicker, 3.0, 0, KICKER_TILT_DEG, 'uppercase', 0.08));
+  if (kicker) {
+    parts.push(
+      chip({
+        text: kicker,
+        fontSizeWPct: 3.0,
+        gapHPct: 0,
+        rotationDeg: KICKER_TILT_DEG,
+        textTransform: 'uppercase',
+        letterSpacingEm: 0.08,
+      }),
+    );
+  }
 
   lines.forEach((line, index) => {
     parts.push(
-      chip(
-        line,
+      chip({
+        text: line,
         fontSizeWPct,
-        index === 0 && !kicker ? 0 : 1.5,
-        CHIP_TILTS[index % CHIP_TILTS.length],
-      ),
+        lineHeight: rung.lineHeight,
+        gapHPct: index === 0 && !kicker ? 0 : 1.5,
+        rotationDeg: CHIP_TILTS[index % CHIP_TILTS.length],
+      }),
     );
   });
 
   // The place is a sticker too — and the only place this frame names it.
   const location = content.location?.trim();
-  if (location) parts.push(chip(location, 2.9, 2.2, LOCATION_TILT_DEG, 'uppercase', 0.08));
+  if (location) {
+    parts.push(
+      chip({
+        text: location,
+        fontSizeWPct: 2.9,
+        gapHPct: 2.2,
+        rotationDeg: LOCATION_TILT_DEG,
+        textTransform: 'uppercase',
+        letterSpacingEm: 0.08,
+      }),
+    );
+  }
 
   // The chip named the place, so the sticker layer must not name it again (7.25).
   return { ...base, parts, consumedLocation: Boolean(location) };
 }
 
+/** What one lozenge needs to be drawn. */
+interface Chip {
+  readonly text: string;
+  readonly fontSizeWPct: number;
+  /** The rung's leading for a headline chip; the label default for the rest. */
+  readonly lineHeight?: number;
+  readonly gapHPct: number;
+  readonly rotationDeg: number;
+  readonly textTransform?: 'none' | 'uppercase';
+  readonly letterSpacingEm?: number;
+}
+
+/** The kicker and place chips are labels, not the passage: their leading is
+ * fixed, so only the headline chips move with the density. */
+const LABEL_LINE_HEIGHT = 1.15;
+
 /** One lozenge. */
-function chip(
-  text: string,
-  fontSizeWPct: number,
-  gapHPct: number,
-  rotationDeg: number,
-  textTransform: 'none' | 'uppercase' = 'none',
+function chip({
+  text,
+  fontSizeWPct,
+  lineHeight = LABEL_LINE_HEIGHT,
+  gapHPct,
+  rotationDeg,
+  textTransform = 'none',
   letterSpacingEm = -0.01,
-): Part {
+}: Chip): Part {
   return {
     kind: 'tag',
     text,
@@ -138,7 +198,7 @@ function chip(
     fontFamily: BRICOLAGE,
     fontWeight: 700,
     fontSizeWPct,
-    lineHeight: 1.15,
+    lineHeight,
     letterSpacingEm,
     textTransform,
     textAlign: 'left',
@@ -191,16 +251,16 @@ function chipLines(content: FrameContent): string[] {
 
 /**
  * The largest size at which a chip of `chars` characters still fits the column,
- * never above the ceiling this density allows.
+ * never above the `ceiling` this density allows.
  */
-function chipSizeWPct(chars: number, density: Density): number {
-  const ceiling = MAX_CHIP_WPCT[density];
+function chipSizeWPct(chars: number, ceiling: number): number {
   if (chars <= 0) return ceiling;
   const fits = COLUMN_WPCT / (CHAR_EM * chars + CHIP_PAD_EM);
   return Math.round(Math.min(ceiling, Math.max(MIN_CHIP_WPCT, fits)) * 100) / 100;
 }
 
 export const STICKER_SHEET: Look = {
+  ramp: STICKER_SHEET_RAMP,
   id: 'sticker-sheet',
   prefer: PREFERRED_BANDS,
   compose,

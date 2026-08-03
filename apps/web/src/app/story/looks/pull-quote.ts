@@ -1,4 +1,12 @@
-import type { Density, DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
+import type {
+  DensityRamp,
+  DrawnComposition,
+  FrameContent,
+  Look,
+  Part,
+  PhotoAnalysis,
+  Rung,
+} from '../look';
 import { resolveDensity, splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
@@ -28,12 +36,6 @@ const EDGE_OFFSET_HPCT = 9;
 /** The middle band has no edge of its own, so it is measured from the top. */
 const MIDDLE_OFFSET_HPCT = 28;
 
-/** How the quote is set at one density. */
-interface Rung {
-  readonly fontSizeWPct: number;
-  readonly lineHeight: number;
-}
-
 /**
  * What this Look sets at each density (7.26). A pull quote is short measure by
  * definition, so the column stays narrow at every rung and the type carries the
@@ -43,18 +45,31 @@ interface Rung {
  * A `question` is set above a statement of the same length — it is pulled out to
  * be answered, not to be read past — and the quote marks grow with it, so the
  * frame reads as a question put to the viewer rather than a line lifted off a
- * page. Colour is deliberately NOT used for it: the two accent glyphs are this
- * Look's one device, and a third accent part would break it.
+ * page. It is set larger, so it carries fewer words than a statement does.
+ *
+ * **Colour is deliberately not used for the question.** This Look lays no scrim
+ * and states `ink: 'auto'`, so the accent is the hue sampled off the photograph
+ * the words are sitting on — it is chosen for character, not for contrast, and
+ * only `ink` is the legible tone the device computed (7.10). The two glyphs can
+ * carry it because a glyph that goes quiet against the picture costs a mark; the
+ * words cannot, because words that go quiet cost the frame. Setting the question
+ * apart is done in size, which is legible on every photograph.
+ *
+ * The 76% column is the narrowest measure in the editorial group. At the `line`
+ * size that is under three words a line, and a quote reads to four lines before
+ * it stops being lifted out — eleven words. `thought` holds four words a line
+ * and six lines, so twenty-two: well short of 7.26's thirty-five, because a
+ * pull quote that runs to a full paragraph is just a paragraph.
  */
-const LINE: Rung = { fontSizeWPct: 9.4, lineHeight: 1.08 };
-const QUOTE: Record<Density, Rung> = {
+const LINE: Rung = { fontSizeWPct: 9.4, lineHeight: 1.08, maxWords: 11 };
+export const PULL_QUOTE_RAMP: DensityRamp = {
   // A frame that states `silent` and then writes words has words, and words are
   // always drawn; a truly wordless frame returns before this is read.
-  silent: LINE,
-  beat: { fontSizeWPct: 12.4, lineHeight: 1 },
+  silent: { ...LINE, maxWords: 0 },
+  beat: { fontSizeWPct: 12.4, lineHeight: 1, maxWords: 3 },
   line: LINE,
-  thought: { fontSizeWPct: 6.2, lineHeight: 1.28 },
-  question: { fontSizeWPct: 10.6, lineHeight: 1.08 },
+  thought: { fontSizeWPct: 6.2, lineHeight: 1.28, maxWords: 22 },
+  question: { fontSizeWPct: 10.6, lineHeight: 1.08, maxWords: 8 },
 };
 
 /**
@@ -85,7 +100,7 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
     };
   }
 
-  const rung = QUOTE[resolveDensity(content)];
+  const rung = PULL_QUOTE_RAMP[resolveDensity(content)];
   const glyphWPct = Math.round(rung.fontSizeWPct * GLYPH_RATIO * 10) / 10;
   const parts: Part[] = [];
 
@@ -182,6 +197,7 @@ function quoteGlyph(glyph: string, gapHPct: number, fontSizeWPct: number): Part 
 }
 
 export const PULL_QUOTE: Look = {
+  ramp: PULL_QUOTE_RAMP,
   id: 'pull-quote',
   prefer: PREFERRED_BANDS,
   compose,

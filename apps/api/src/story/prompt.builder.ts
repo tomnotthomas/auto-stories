@@ -23,6 +23,15 @@ import type { Tone } from '@auto-stories/api-types';
  * rungs are spelled out here with their word budgets: `silent` has to read as a
  * legitimate choice or every frame gets captioned, and `thought` has to be
  * visibly more text than `line` or the two collapse into one.
+ *
+ * The rung is only half the budget, though. The model picks the `look` and
+ * writes the words in the same call, and a design set in oversized capitals
+ * cannot hold the 35 words the `thought` rung allows — it runs to seven or more
+ * lines and stops being that design. The client's Looks each publish what they
+ * can carry, but a budget the model never sees changes nothing, so it is stated
+ * here too. By FAMILY, not per Look: thirty-two Looks times five rungs is a
+ * table no prompt should carry and no model would hold, and the loud/quiet split
+ * is the only distinction that actually moves the number.
  */
 export function buildPrompt(
   story: string,
@@ -75,6 +84,7 @@ export function buildPrompt(
     '  WARM, a nostalgic keepsake: `film-postcard` a 35mm print with a border and a stamp; `polaroid` an instant print, written in the white margin; `super-8` a sepia home movie; `faded-album` an old album page; `postcard-back` the handwritten back of a postcard; `letterbox` cinematic bars.',
     '  PERSONAL, made by hand: `scrapbook` a tilted journal page with a drawn underline; `marker` words on a highlighter swipe; `sticker-sheet` words in rounded sticker chips; `index-card` a handwritten recipe card.',
     '  Match the design to the feeling, not to the subject: a birthday is not automatically loud and a landscape is not automatically quiet. When the moment is tender, personal or nostalgic, prefer the WARM or PERSONAL groups; save LOUD for stories that are genuinely raucous. When in doubt, choose a QUIET look — the photograph is the point.',
+    '  The design you choose decides how much text it can hold, so match the words to it. The LOUD looks — `bold-poster`, `split-block`, `ticker`, `stencil-caps`, `zine`, `duotone-band` — are set in oversized capitals across the whole frame, so they carry far fewer words than the rungs above allow: on one of these a `thought` is about 15 words, the short end of its range and never 35, and most of its frames want a `beat` or a `line`. The QUIET, EDITORIAL and WARM looks are set at reading size and carry a full `thought` comfortably. Choosing a loud look and then writing a long thought is the specific mistake to avoid: the design cannot set that many words and still look like the design you picked.',
     "- Give each frame a `headline`: the one piece of text that goes on that photo, as long as its density says and no longer — the design sets it, and it is empty on a `silent` frame. Optionally add a `kicker`, a short line sitting above the headline (a place, a day, a beat) — usually leave it out. Optionally add an `emphasis`: one word or a short phrase that MUST appear verbatim inside that frame's `headline`, which the design will mark; leave it out when no single word carries the line.",
     '- Do not choose any position, size, or coordinates for anything on the frame — not for these lines and not for an add-on. The design system owns placement, type size and every mark — you only choose the look, write the words, and name any add-ons worth making.',
     atmosphereLine,

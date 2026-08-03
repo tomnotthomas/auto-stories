@@ -1,13 +1,28 @@
 import { DEFAULT_ACCENT } from '../accent-color';
-import type { Composition, Density, FrameContent, Look, PhotoAnalysis, TextPart } from '../look';
-import { DENSITIES, textParts, type HasParts } from '../look';
+import type {
+  Composition,
+  Density,
+  DensityRamp,
+  FrameContent,
+  Look,
+  PhotoAnalysis,
+  TextPart,
+} from '../look';
+import {
+  claimedBoxes,
+  DENSITIES,
+  DENSITY_WORDS,
+  textParts,
+  wordBudget,
+  type HasParts,
+} from '../look';
 import type { BandScores } from '../quiet-zone';
-import { CORNER_NOTE } from './corner-note';
-import { EDGE_CAPS } from './edge-caps';
-import { FOOTER_RULE } from './footer-rule';
-import { GALLERY_LABEL } from './gallery-label';
-import { MINIMAL } from './minimal';
-import { QUIET_EDITORIAL } from './quiet-editorial';
+import { CORNER_NOTE, CORNER_NOTE_RAMP } from './corner-note';
+import { EDGE_CAPS, EDGE_CAPS_RAMP } from './edge-caps';
+import { FOOTER_RULE, FOOTER_RULE_RAMP } from './footer-rule';
+import { GALLERY_LABEL, GALLERY_LABEL_RAMP } from './gallery-label';
+import { MINIMAL, MINIMAL_RAMP } from './minimal';
+import { QUIET_EDITORIAL, QUIET_EDITORIAL_RAMP } from './quiet-editorial';
 
 /**
  * The restrained group (catalogue section A): the photo dominates and the type
@@ -35,12 +50,17 @@ const CONTENT: FrameContent = {
   location: 'Lofoten, Norway',
 };
 
-const RESTRAINED: readonly Look[] = [
-  QUIET_EDITORIAL,
-  MINIMAL,
-  GALLERY_LABEL,
-  CORNER_NOTE,
-  FOOTER_RULE,
+/**
+ * Every Look this file owns, each with the density ramp it publishes. The two
+ * travel together so a Look cannot be added to the suite without its ramp being
+ * held to the same contract.
+ */
+const RESTRAINED: readonly (readonly [Look, DensityRamp])[] = [
+  [QUIET_EDITORIAL, QUIET_EDITORIAL_RAMP],
+  [MINIMAL, MINIMAL_RAMP],
+  [GALLERY_LABEL, GALLERY_LABEL_RAMP],
+  [CORNER_NOTE, CORNER_NOTE_RAMP],
+  [FOOTER_RULE, FOOTER_RULE_RAMP],
 ];
 
 /**
@@ -55,7 +75,7 @@ const LOCATION_CASES: [string, FrameContent][] = [
   ['a silent frame', { ...CONTENT, headline: '' }],
 ];
 
-describe.each(RESTRAINED.map((look) => [look.id, look] as const))('%s', (id, look) => {
+describe.each(RESTRAINED.map(([look]) => [look.id, look] as const))('%s', (id, look) => {
   it('is registered under its own id', () => {
     expect(look.id).toBe(id);
   });
@@ -178,70 +198,133 @@ describe.each(RESTRAINED.map((look) => [look.id, look] as const))('%s', (id, loo
 
 /**
  * Every Look in this file, plus Edge Caps — a quiet Look whose other behaviour
- * is covered in `cinematic.spec.ts` and whose ramp belongs with these.
+ * is covered in `cinematic.spec.ts` and whose ramp belongs with these. Derived
+ * from {@link RESTRAINED} rather than re-listed, so the two cannot drift.
  */
-const RAMPED: readonly Look[] = [
-  QUIET_EDITORIAL,
-  MINIMAL,
-  GALLERY_LABEL,
-  CORNER_NOTE,
-  FOOTER_RULE,
-  EDGE_CAPS,
+const RAMPED: readonly (readonly [Look, DensityRamp])[] = [
+  ...RESTRAINED,
+  [EDGE_CAPS, EDGE_CAPS_RAMP],
 ];
 
 /** The same words at every rung, so only the stated density differs (7.26). */
 const PROBE = 'Where the mountain meets its mirror';
 
-describe.each(RAMPED.map((look) => [look.id, look] as const))('%s density', (_id, look) => {
-  it('sets a thought in a visibly different slot from a beat', () => {
-    // 7.26's named failure: `thought` collapsing into `line` (or into `beat`).
-    // Same words both times — the size difference is the density, nothing else.
-    expect(headlineFor(look, 'thought').fontSizeWPct).toBeLessThan(
-      headlineFor(look, 'beat').fontSizeWPct * 0.75,
-    );
-  });
+/** The rungs that carry words — every one but `silent`, whose budget is zero. */
+const BUDGETED: readonly Density[] = DENSITIES.filter((density) => density !== 'silent');
 
-  it('steps the headline down from beat to line to thought', () => {
-    const beat = headlineFor(look, 'beat').fontSizeWPct;
-    const line = headlineFor(look, 'line').fontSizeWPct;
-    const thought = headlineFor(look, 'thought').fontSizeWPct;
+describe.each(RAMPED.map(([look, ramp]) => [look.id, look, ramp] as const))(
+  '%s density',
+  (_id, look, ramp) => {
+    it('sets a thought in a visibly different slot from a beat', () => {
+      // 7.26's named failure: `thought` collapsing into `line` (or into `beat`).
+      // Same words both times — the size difference is the density, nothing else.
+      expect(headlineFor(look, 'thought').fontSizeWPct).toBeLessThan(
+        headlineFor(look, 'beat').fontSizeWPct * 0.75,
+      );
+    });
 
-    expect(beat).toBeGreaterThan(line);
-    expect(line).toBeGreaterThan(thought);
-  });
+    it('steps the headline down from beat to line to thought', () => {
+      const beat = headlineFor(look, 'beat').fontSizeWPct;
+      const line = headlineFor(look, 'line').fontSizeWPct;
+      const thought = headlineFor(look, 'thought').fontSizeWPct;
 
-  it('still sets the words at every rung the model can state', () => {
-    // Including `silent`: a frame that says silent and then writes words has
-    // words, and words are always drawn.
-    for (const density of DENSITIES) {
-      expect(everyWord(look.compose({ ...CONTENT, density }, PHOTO))).toContain(CONTENT.headline);
-    }
-  });
-});
+      expect(beat).toBeGreaterThan(line);
+      expect(line).toBeGreaterThan(thought);
+    });
 
-/**
- * The Looks that take part of the step in the leading as well as the size, so a
- * `thought` reads as running text rather than as a shrunken headline. Not a
- * contract on every Look: a design may hold its leading and put the whole step
- * into the size instead.
- */
-const LEADED: readonly Look[] = [GALLERY_LABEL, CORNER_NOTE, FOOTER_RULE, EDGE_CAPS];
+    it('opens the leading as the words lengthen', () => {
+      // The counterpart of the size step, and a contract on every Look rather
+      // than on the few that happened to do it: a `thought` set at a headline's
+      // leading reads as a shrunken headline, whatever size it is set at.
+      const beat = headlineFor(look, 'beat').lineHeight;
+      const line = headlineFor(look, 'line').lineHeight;
+      const thought = headlineFor(look, 'thought').lineHeight;
 
-describe.each(LEADED.map((look) => [look.id, look] as const))('%s leading', (_id, look) => {
-  it('opens the leading for a thought', () => {
-    expect(headlineFor(look, 'thought').lineHeight).toBeGreaterThan(
-      headlineFor(look, 'line').lineHeight,
-    );
-  });
-});
+      expect(line).toBeGreaterThan(beat);
+      expect(thought).toBeGreaterThan(line);
+    });
+
+    it('still sets the words at every rung the model can state', () => {
+      // Including `silent`: a frame that says silent and then writes words has
+      // words, and words are always drawn.
+      for (const density of DENSITIES) {
+        expect(everyWord(look.compose({ ...CONTENT, density }, PHOTO))).toContain(CONTENT.headline);
+      }
+    });
+
+    it.each(BUDGETED)('carries a full %s inside the design', (density) => {
+      // The other half of 7.26: the ramp says how big the type is, `maxWords`
+      // says how much of it this design can hold. A budget is honest only if the
+      // Look sets the words at its own rung — never dropping below its smallest
+      // setting to make them fit — and the block still leaves the photograph the
+      // frame it is the point of.
+      const words = wordBudget(ramp, density);
+      const headline = headlineOf(words);
+      const composition = look.compose({ headline, density }, PHOTO);
+      const [box] = claimedBoxes(composition);
+
+      expect(headlineFor(look, density, headline).fontSizeWPct).toBeGreaterThanOrEqual(
+        smallestRung(ramp),
+      );
+      expect(box.yPct).toBeGreaterThanOrEqual(0);
+      expect(box.yPct + box.hPct).toBeLessThanOrEqual(100);
+      expect(box.hPct).toBeLessThanOrEqual(MOST_OF_THE_FRAME_HPCT);
+    });
+
+    it('carries fewer words the larger it is set', () => {
+      expect(budgetsBySize(ramp)).toEqual([...budgetsBySize(ramp)].sort(ascending));
+    });
+
+    it('budgets nothing for silence, and never more than the rung is written to', () => {
+      expect(wordBudget(ramp, 'silent')).toBe(0);
+      for (const density of DENSITIES) {
+        expect(wordBudget(ramp, density)).toBeLessThanOrEqual(DENSITY_WORDS[density].max);
+      }
+    });
+  },
+);
 
 /** The headline part this Look composes at one density. */
-function headlineFor(look: Look, density: Density): TextPart {
-  const composition = look.compose({ headline: PROBE, density }, PHOTO);
-  const part = textParts(composition).find((candidate) => runText(candidate) === PROBE);
+function headlineFor(look: Look, density: Density, headline: string = PROBE): TextPart {
+  const composition = look.compose({ headline, density }, PHOTO);
+  const part = textParts(composition).find((candidate) => runText(candidate) === headline);
   if (!part) throw new Error(`${look.id} sets no headline at density “${density}”`);
   return part;
 }
+
+/**
+ * These are the quiet half of the catalogue: the photograph dominates and the
+ * type is a caption on it. So even a design filled to its own word budget has to
+ * leave the frame most of itself.
+ */
+const MOST_OF_THE_FRAME_HPCT = 75;
+
+/** Ordinary words of ordinary length, so a budget is probed with real setting. */
+const FILLER = ['where', 'the', 'mountain', 'meets', 'its', 'mirror', 'again', 'light', 'below'];
+
+/** A headline of exactly `count` words. */
+function headlineOf(count: number): string {
+  return Array.from({ length: count }, (_, i) => FILLER[i % FILLER.length]).join(' ');
+}
+
+/** The smallest type this Look ever sets — its floor across the whole ramp. */
+function smallestRung(ramp: DensityRamp): number {
+  return Math.min(...DENSITIES.map((density) => ramp[density].fontSizeWPct));
+}
+
+/**
+ * Every budget that carries words, largest setting first. `silent` is left out:
+ * it is not a size on the ramp but the absence of words, and it borrows the
+ * `line` setting only so a frame that says silent and then writes something
+ * still draws it.
+ */
+function budgetsBySize(ramp: DensityRamp): number[] {
+  return BUDGETED.map((density) => ramp[density])
+    .sort((a, b) => b.fontSizeWPct - a.fontSizeWPct)
+    .map((rung) => rung.maxWords);
+}
+
+const ascending = (a: number, b: number): number => a - b;
 
 describe('quiet-editorial', () => {
   it('sets the headline in Fraunces at a modest size', () => {

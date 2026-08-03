@@ -1,4 +1,12 @@
-import type { Density, DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
+import type {
+  DensityRamp,
+  DrawnComposition,
+  FrameContent,
+  Look,
+  Part,
+  PhotoAnalysis,
+  Rung,
+} from '../look';
 import { resolveDensity, splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
@@ -25,27 +33,31 @@ const EDGE_OFFSET_HPCT = 11;
 /** The card sits low; the top is the fallback when the bottom is busy. */
 const PREFERRED_BANDS: readonly Band[] = ['bottom', 'top'];
 
-/** How the line is set at one density. */
-interface Rung {
-  readonly fontSizeWPct: number;
-  readonly lineHeight: number;
-}
-
 /**
  * What this Look sets at each density (7.26). The card is small at every rung —
  * it is a caption chip, and a chip that grew into a poster would be a different
  * Look — so the ramp is narrow at the top and drops properly at the bottom: a
  * `thought` is a note written on the card, several lines at reading size.
+ *
+ * The budget is bounded by the card, not the frame, but the card is set in the
+ * plainest type in the catalogue and the smallest: at the `thought` rung the
+ * 62%-wide measure takes about 43 characters to the line, so 7.26's full 35
+ * words come to five lines and a card roughly a sixth of the frame deep. This
+ * is the one Look that can carry the whole band, which is the other half of
+ * what `maxWords` is for — it tells the model where a long caption belongs.
  */
-const LINE: Rung = { fontSizeWPct: 4.2, lineHeight: 1.3 };
-const HEADLINE: Record<Density, Rung> = {
+const LINE: Rung = { fontSizeWPct: 4.2, lineHeight: 1.3, maxWords: 12 };
+export const CAPTION_CARD_RAMP: DensityRamp = {
   // A frame that states `silent` and then writes words has words, and words are
-  // always drawn; a truly wordless frame returns before this is read.
-  silent: LINE,
-  beat: { fontSizeWPct: 6.4, lineHeight: 1.15 },
+  // always drawn; a truly wordless frame returns before this is read. The budget
+  // is still nought: the rung asks for no words at all.
+  silent: { ...LINE, maxWords: 0 },
+  // Small even when it shouts, so a beat gets a word more than the loud Looks
+  // do before it wraps.
+  beat: { fontSizeWPct: 6.4, lineHeight: 1.15, maxWords: 3 },
   line: LINE,
-  thought: { fontSizeWPct: 2.9, lineHeight: 1.45 },
-  question: LINE,
+  thought: { fontSizeWPct: 2.9, lineHeight: 1.45, maxWords: 35 },
+  question: { ...LINE, maxWords: 10 },
 };
 
 function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
@@ -91,7 +103,7 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
 
   // The line itself.
   const density = resolveDensity(content);
-  const rung = HEADLINE[density];
+  const rung = CAPTION_CARD_RAMP[density];
   parts.push({
     kind: 'text',
     runs: splitEmphasis(content.headline, content.emphasis),
@@ -143,6 +155,7 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
 }
 
 export const CAPTION_CARD: Look = {
+  ramp: CAPTION_CARD_RAMP,
   id: 'caption-card',
   prefer: PREFERRED_BANDS,
   compose,

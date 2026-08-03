@@ -1,4 +1,12 @@
-import type { Density, DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
+import type {
+  DensityRamp,
+  DrawnComposition,
+  FrameContent,
+  Look,
+  Part,
+  PhotoAnalysis,
+  Rung,
+} from '../look';
 import { resolveDensity, splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
@@ -36,28 +44,30 @@ const TAPE_TILT_DEG = 2.6;
 /** A journal page is written from the bottom of the photo up. */
 const PREFERRED_BANDS: readonly Band[] = ['bottom', 'top'];
 
-/** How the entry is written at one density. */
-interface Rung {
-  readonly fontSizeWPct: number;
-  readonly lineHeight: number;
-}
-
 /**
  * What this Look sets at each density (7.26). A journal entry is written at the
  * size the thought needs: three words go across the page, a paragraph is written
  * small enough to fit under the photo it belongs to, and leaded further apart
  * because that is how a hand writes several lines. The drawn underline scales
  * with the type, so the gesture stays proportional at every rung.
+ *
+ * The budget is set by the page rather than by the hand's size alone. Shantell
+ * at 700 is the widest face in the set — about 27 characters to the 82%-wide
+ * measure at the `thought` rung — and the whole stack is tilted, so a tall block
+ * swings its corners towards the edges of the frame. Twenty-four words is five
+ * or six written lines, which is a page laid on the photo; 7.26's 35 is a page
+ * that has to be turned.
  */
-const LINE: Rung = { fontSizeWPct: 8.2, lineHeight: 1.14 };
-const HEADLINE: Record<Density, Rung> = {
+const LINE: Rung = { fontSizeWPct: 8.2, lineHeight: 1.14, maxWords: 9 };
+export const SCRAPBOOK_RAMP: DensityRamp = {
   // A frame that states `silent` and then writes words has words, and words are
-  // always drawn; a truly wordless frame returns before this is read.
-  silent: LINE,
-  beat: { fontSizeWPct: 10.8, lineHeight: 1.06 },
+  // always drawn; a truly wordless frame returns before this is read. The budget
+  // is still nought: the rung asks for no words at all.
+  silent: { ...LINE, maxWords: 0 },
+  beat: { fontSizeWPct: 10.8, lineHeight: 1.06, maxWords: 3 },
   line: LINE,
-  thought: { fontSizeWPct: 5.4, lineHeight: 1.32 },
-  question: LINE,
+  thought: { fontSizeWPct: 5.4, lineHeight: 1.32, maxWords: 24 },
+  question: { ...LINE, maxWords: 7 },
 };
 
 function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
@@ -106,13 +116,14 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
   // The entry itself. Shantell needs more leading than a text face — its
   // ascenders and descenders overlap at Magazine's 1.0 — and a size below
   // Magazine's, because a hand at display size stops reading as handwriting.
+  const rung = SCRAPBOOK_RAMP[density];
   parts.push({
     kind: 'text',
     runs: splitEmphasis(content.headline, content.emphasis),
     fontFamily: SHANTELL,
     fontWeight: 700,
-    fontSizeWPct: HEADLINE[density].fontSizeWPct,
-    lineHeight: HEADLINE[density].lineHeight,
+    fontSizeWPct: rung.fontSizeWPct,
+    lineHeight: rung.lineHeight,
     letterSpacingEm: -0.005,
     textTransform: 'none',
     textAlign: 'left',
@@ -163,6 +174,7 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
 }
 
 export const SCRAPBOOK: Look = {
+  ramp: SCRAPBOOK_RAMP,
   id: 'scrapbook',
   prefer: PREFERRED_BANDS,
   compose,

@@ -1,4 +1,12 @@
-import type { Density, DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
+import type {
+  DensityRamp,
+  DrawnComposition,
+  FrameContent,
+  Look,
+  Part,
+  PhotoAnalysis,
+  Rung,
+} from '../look';
 import { resolveDensity, splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
@@ -28,28 +36,29 @@ const EDGE_OFFSET_HPCT = 9;
 /** Copy sits at the foot of the page; the top is the fallback. */
 const PREFERRED_BANDS: readonly Band[] = ['bottom', 'top'];
 
-/** How the copy is set at one density. */
-interface Rung {
-  readonly fontSizeWPct: number;
-  readonly lineHeight: number;
-}
-
 /**
  * What this Look sets at each density (7.26). Wire copy has one shape and two
  * sizes: the flash and the story. A `beat` is the flash — a few words at the
  * size an agency puts on the wire first — and a `thought` is the story that
  * follows it, set at the size copy is actually read at, with the leading opened
  * so several lines under a dateline still read as one paragraph.
+ *
+ * Copy is what this Look is for, so it carries 7.26's whole `thought` band:
+ * the 84%-wide measure takes about 40 characters to the line at the `thought`
+ * rung, and 35 words is five lines of serif under a one-line dateline — which
+ * is what a wire story looks like.
  */
-const LINE: Rung = { fontSizeWPct: 7, lineHeight: 1.18 };
-const HEADLINE: Record<Density, Rung> = {
+const LINE: Rung = { fontSizeWPct: 7, lineHeight: 1.18, maxWords: 12 };
+export const DATELINE_RAMP: DensityRamp = {
   // A frame that states `silent` and then writes words has words, and words are
-  // always drawn; a truly wordless frame returns before this is read.
-  silent: LINE,
-  beat: { fontSizeWPct: 9.2, lineHeight: 1.06 },
+  // always drawn; a truly wordless frame returns before this is read. The budget
+  // is still nought: the rung asks for no words at all.
+  silent: { ...LINE, maxWords: 0 },
+  beat: { fontSizeWPct: 9.2, lineHeight: 1.06, maxWords: 3 },
   line: LINE,
-  thought: { fontSizeWPct: 4.4, lineHeight: 1.38 },
-  question: LINE,
+  thought: { fontSizeWPct: 4.4, lineHeight: 1.38, maxWords: 35 },
+  // A wire question is a headline with a hook, not a paragraph with one.
+  question: { ...LINE, maxWords: 9 },
 };
 
 function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition {
@@ -97,7 +106,7 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
 
   // The story, running on directly under the dateline — the gap is deliberately
   // tight, so the two read as one paragraph broken over a line.
-  const rung = HEADLINE[resolveDensity(content)];
+  const rung = DATELINE_RAMP[resolveDensity(content)];
   parts.push({
     kind: 'text',
     runs: splitEmphasis(content.headline, content.emphasis),
@@ -133,6 +142,7 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
 }
 
 export const DATELINE: Look = {
+  ramp: DATELINE_RAMP,
   id: 'dateline',
   prefer: PREFERRED_BANDS,
   compose,

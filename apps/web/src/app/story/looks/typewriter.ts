@@ -1,4 +1,12 @@
-import type { Density, DrawnComposition, FrameContent, Look, Part, PhotoAnalysis } from '../look';
+import type {
+  DensityRamp,
+  DrawnComposition,
+  FrameContent,
+  Look,
+  Part,
+  PhotoAnalysis,
+  Rung,
+} from '../look';
 import { resolveDensity, splitEmphasis } from '../look';
 import { quietestBand, type Band } from '../quiet-zone';
 
@@ -35,12 +43,6 @@ const EDGE_OFFSET_HPCT = 10;
 /** Set low; the top is the fallback when the bottom of the photo is busy. */
 const PREFERRED_BANDS: readonly Band[] = ['bottom', 'top'];
 
-/** How the line is typed at one density. */
-interface Rung {
-  readonly fontSizeWPct: number;
-  readonly lineHeight: number;
-}
-
 /**
  * What this Look sets at each density (7.26). A fixed advance is the widest way
  * to set anything, so this ramp has to be steeper than a proportional face's
@@ -48,15 +50,23 @@ interface Rung {
  * drop reads as intended here rather than as a shrunken headline, because a typed
  * page is a document — small type in a document is normal — and the leading opens
  * with it the way a typist double-spaces a longer note.
+ *
+ * The budgets are the fixed advance's doing too. 82 widths of mono at the `line`
+ * size is five words to the line, against six or seven for a proportional face
+ * of the same size, and a note ruled off at the foot of the frame holds two of
+ * them. The `thought` rung is the one place this Look is generous: a typed page
+ * is expected to be a paragraph, so four lines of it looks like the document it
+ * is imitating rather than like type that would not fit.
  */
-const LINE: Rung = { fontSizeWPct: 4.6, lineHeight: 1.5 };
-const HEADLINE: Record<Density, Rung> = {
+const LINE: Rung = { fontSizeWPct: 4.6, lineHeight: 1.5, maxWords: 10 };
+export const TYPEWRITER_RAMP: DensityRamp = {
   // A frame that states `silent` and then writes words has words, and words are
-  // always drawn; a truly wordless frame returns before this is read.
-  silent: LINE,
-  beat: { fontSizeWPct: 6.2, lineHeight: 1.36 },
+  // always drawn; a truly wordless frame returns before this is read. The rung
+  // still carries no budget, because the rung is the absence of words.
+  silent: { ...LINE, maxWords: 0 },
+  beat: { fontSizeWPct: 6.2, lineHeight: 1.36, maxWords: 3 },
   line: LINE,
-  thought: { fontSizeWPct: 3.2, lineHeight: 1.64 },
+  thought: { fontSizeWPct: 3.2, lineHeight: 1.64, maxWords: 28 },
   question: LINE,
 };
 
@@ -122,8 +132,8 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
     runs: splitEmphasis(content.headline, content.emphasis),
     fontFamily: MONO,
     fontWeight: 400,
-    fontSizeWPct: HEADLINE[density].fontSizeWPct,
-    lineHeight: HEADLINE[density].lineHeight,
+    fontSizeWPct: TYPEWRITER_RAMP[density].fontSizeWPct,
+    lineHeight: TYPEWRITER_RAMP[density].lineHeight,
     letterSpacingEm: -0.02,
     textTransform: 'none',
     textAlign: 'left',
@@ -169,6 +179,7 @@ function compose(content: FrameContent, photo: PhotoAnalysis): DrawnComposition 
 }
 
 export const TYPEWRITER: Look = {
+  ramp: TYPEWRITER_RAMP,
   id: 'typewriter',
   prefer: PREFERRED_BANDS,
   compose,

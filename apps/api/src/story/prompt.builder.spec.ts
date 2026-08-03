@@ -178,6 +178,69 @@ describe('buildPrompt', () => {
     }
   });
 
+  // Decision 7.26, the half the rungs on their own cannot state. The model picks
+  // the `look` and writes the words in the SAME call, so a design that cannot
+  // hold 35 words has to be told so here — the client's own budget is published
+  // after the words are already written, which is too late to change them.
+  describe('what the chosen design can hold', () => {
+    /** The one bullet that states the loud family's smaller budget. */
+    const budgetLine = (): string =>
+      buildPrompt(story)
+        .split('\n')
+        .find(
+          (line) => line.includes('LOUD') && line.includes('fewer words'),
+        ) ?? '';
+
+    it('states the budget by family, for every loud look', () => {
+      // Stated by family on purpose: 32 Looks × 5 rungs is a table no prompt
+      // should carry, and the loud/quiet split is what moves the number.
+      const bullet = budgetLine();
+      expect(bullet).not.toBe('');
+      for (const look of [
+        'bold-poster',
+        'split-block',
+        'ticker',
+        'stencil-caps',
+        'zine',
+        'duotone-band',
+      ]) {
+        expect(bullet).toContain(`\`${look}\``);
+      }
+    });
+
+    it('gives the loud family a thought budget well under the rung ceiling', () => {
+      const bullet = budgetLine();
+      const stated = /about (\d+) words/.exec(bullet);
+
+      expect(stated).not.toBeNull();
+      // The rung itself allows 15–35; a loud look takes the short end.
+      expect(Number(stated?.[1])).toBeLessThan(35);
+      expect(bullet.toLowerCase()).toMatch(/never 35|not 35/);
+    });
+
+    it('leaves the quieter families carrying a full thought', () => {
+      const bullet = budgetLine();
+
+      expect(bullet).toContain('QUIET, EDITORIAL and WARM');
+      expect(bullet.toLowerCase()).toMatch(/carry a full `thought`/);
+    });
+
+    it('makes the chosen design decide how much text it can hold', () => {
+      const prompt = buildPrompt(story).toLowerCase();
+
+      expect(prompt).toMatch(/design you choose decides how much text/);
+      expect(prompt).toMatch(/match the words to it/);
+    });
+
+    it('names loud-look-plus-long-thought as the mistake to avoid', () => {
+      // The specific failure: the model reaches for a poster and then writes a
+      // paragraph into it, and each half looks defensible on its own.
+      expect(buildPrompt(story).toLowerCase()).toMatch(
+        /choosing a loud look and then writing a long thought/,
+      );
+    });
+  });
+
   it('asks for exactly one Look, held across every frame', () => {
     const prompt = buildPrompt(story).toLowerCase();
     expect(prompt).toMatch(/exactly one|one look/);
