@@ -122,3 +122,85 @@ regenerate; it is only the render condition and a drag handler that are missing.
 - **The estimate is badly wrong for one Look** and its stickers overlap the type. Mitigation: the estimator lives in `look.ts` and is tested against every registered Look — a test asserting the claimed box contains the parts' own geometry catches a Look that lies about itself.
 - **Everything gets dropped on a busy photo.** A frame with no stickers is fine and by design, but silently dropping all of them looks like a bug. The limit wants tuning against real photos, and dropping should be visible in the hand-off card rather than nowhere.
 - **Grid scoring costs another decode.** It should share the one `createImageBitmap` `computeReadable` already does, not add a second.
+
+---
+
+# Follow-ups from the live review
+
+## A. Folding must not move the composition
+
+**Reported:** folding the action bar slides a bottom-anchored headline down by
+~144px. The frame should not recompose because chrome came and went.
+
+**Cause:** the preview reserves space for the bar (`safeBottomPx`) and anchors
+the composition above it, so the reservation changing moves the type.
+
+**The tempting fix is wrong.** Holding the reservation constant stops the
+movement but bakes in a worse lie: the composition would sit ~208px off the
+bottom in the preview while the export puts it at 8% — about 68px at preview
+scale. The type would never be shown where it actually lands.
+
+**The real cause is that the preview is not the export's shape.** The frame is
+full-bleed on a ~390×844 screen (about 1:2.16); the export is 9:16. `safeBottomPx`
+is a patch over that mismatch, not a feature.
+
+### Options
+
+| | What it does | Cost |
+| --- | --- | --- |
+| **1. Constant reservation** | Reserve the unfolded height always; only the buttons come and go | One line. Nothing moves. But the preview keeps showing the type ~140px higher than the export does — it hides the bug rather than fixing it |
+| **2. True 9:16 preview frame** | Render the frame at the export's real aspect ratio, sized to fit above the bar, and keep that box **fixed** whether the bar is shown or not. Folding reveals background around the frame; the frame never resizes | Removes `safeBottomPx` entirely, makes preview == export exact, and nothing can move. Costs full-bleed: there are bands above/below on a tall phone |
+| **3. Scale the frame on fold** | Grow the frame into the freed space | Rejected — this moves the composition *more*, which is the complaint |
+
+**Recommendation: 2.** It is the only one where the type is drawn where it will
+actually be exported, and "nothing moves" then follows for free rather than being
+enforced. The lost full-bleed is real, but a phone is taller than 9:16 anyway, so
+the frame is already being cropped — option 2 makes that visible instead of
+hiding it behind a crop the user cannot see.
+
+Take 1 only if full-bleed is judged more important than preview fidelity; it is a
+one-line change and is trivially reversible.
+
+## B. Resolve the exact venue for places you can buy something
+
+**Wanted:** for a restaurant, café, bar, shop, shopping centre, casino — anywhere
+with a transaction — the app should name the *actual* venue rather than the model
+guessing a plausible place name.
+
+**Two stages, deliberately separate:**
+1. The **vision pass** only decides "there is a buyable venue here, and it looks
+   like a `restaurant` / `cafe` / `bar` / `shop`". It does not guess the name.
+2. A **separate lookup** resolves the real venue from the photo's EXIF GPS plus
+   that category — nearby POIs by coordinate, nearest first.
+
+A landmark or a famous building needs no lookup: the model already knows it. The
+lookup is for the long tail of ordinary commercial places, which is exactly where
+a guess is worthless and a real name is worth copying into Instagram.
+
+**Out of scope: events.** A concert needs a date as well as a place, which is a
+different kind of lookup against a different kind of source.
+
+### It hangs on EXIF GPS
+No coordinate, no lookup. EXIF is routinely absent — iOS can strip location on
+share, screenshots and re-encodes lose it, some browsers strip on file pick. So
+the ladder is: **EXIF present → resolve the real venue; absent → the model's
+guess, as today.** Degrading, not failing.
+
+### Location sharing is opt-in
+Reading a photo's coordinates and sending them to a third party is a different
+privacy posture from anything the app does now — today nothing about *where* the
+user was leaves our stack. So it is a choice the user makes, not a default:
+
+- A short, plain notice at the point it pays off, offering the trade in the
+  user's terms: share the photos' location and get the **real names** of the
+  places, ready to copy into Instagram; decline and everything else works exactly
+  as it does now.
+- One decision per story, remembered, reversible.
+- Say plainly what leaves the device: the coordinates, not the photo.
+- Declining must cost nothing except the venue names — no nagging, no degraded
+  story.
+
+### API constraint
+Free, or a very high free threshold. That is the deciding factor, ahead of data
+quality. Under research; every free-tier figure must be confirmed from the
+provider's own page, since these numbers go stale and get repeated wrongly.
