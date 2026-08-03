@@ -1,41 +1,80 @@
-<!-- Art-directed typography: each element placed at its anchor, resolved from the
-     shared layout spec so the preview matches the canvas export. -->
-@for (element of elements(); track $index; let i = $index) {
-  <div
-    data-layout-element
-    class="absolute leading-tight"
-    [class]="scrimClassFor(i) ? 'rounded-xl px-3 py-2 ' + scrimClassFor(i) : ''"
-    [style.left.%]="element.xPct"
-    [style.top.%]="element.yPct"
-    [style.transform]="translate(element)"
-    [style.maxWidth.%]="element.maxWidthPct"
-    [style.textAlign]="element.textAlign"
-    [style.fontFamily]="element.fontFamily"
-    [style.fontWeight]="element.fontWeight"
-    [style.textTransform]="element.textTransform"
-    [style.letterSpacing.em]="element.letterSpacingEm"
-    [style.lineHeight]="element.lineHeight"
-    [style.fontSize.px]="fontPx(element)"
-    [style.color]="colorFor(element, i)"
-  >
-    @for (line of element.lines; track $index) {
-      <span data-layout-line class="block">{{ line }}</span>
-    }
-    @if (element.underline) {
-      <!-- A hand-drawn underline in the accent colour (7.23). -->
-      <svg
-        data-layout-underline
-        class="block w-full"
-        style="height: 0.42em; margin-top: 0.06em"
-        viewBox="0 0 200 12"
-        preserveAspectRatio="none"
-        fill="none"
-        [attr.stroke]="underlineColor(element, i)"
-        stroke-width="3"
-        stroke-linecap="round"
-      >
-        <path d="M4 8 C58 3 148 11 196 5" />
-      </svg>
-    }
-  </div>
+<!-- The Looks renderer, DOM half (decision 7.24). Geometry is expressed in
+     container-query units against the frame, matching both the approved mockups
+     and the canvas export's arithmetic. -->
+@if (scrimStyle) {
+  <div data-layout-scrim class="absolute inset-0" [style.background]="scrimStyle"></div>
 }
+
+<div
+  data-layout-column
+  class="absolute"
+  [style.left.%]="composition().leftPct"
+  [style.right.%]="composition().rightPct"
+  [style.top.%]="composition().anchor === 'top' ? composition().offsetHPct : null"
+  [style.bottom.%]="composition().anchor === 'bottom' ? composition().offsetHPct : null"
+>
+  @for (part of parts(); track $index) {
+    @if (isText(part)) {
+      <div
+        data-layout-text
+        class="flex items-center"
+        [style.marginTop]="part.gapHPct + 'cqh'"
+        [style.fontFamily]="part.fontFamily"
+        [style.fontWeight]="part.fontWeight"
+        [style.fontSize]="part.fontSizeWPct + 'cqw'"
+        [style.lineHeight]="part.lineHeight"
+        [style.letterSpacing.em]="part.letterSpacingEm"
+        [style.textTransform]="part.textTransform"
+        [style.textAlign]="part.textAlign"
+        [style.color]="colorFor(part)"
+      >
+        @if (part.tab) {
+          <i
+            data-layout-tab
+            class="inline-block shrink-0"
+            [style.width]="part.tab.widthWPct + 'cqw'"
+            [style.height]="part.tab.heightHPct + 'cqh'"
+            [style.marginRight]="part.tab.gapWPct + 'cqw'"
+            [style.background]="accentColor"
+          ></i>
+        }
+        <span data-layout-lines class="block text-balance">
+          @for (run of part.runs; track $index) {
+            @if (run.emphasised && markStyle(part)) {
+              <span data-layout-mark [style.boxShadow]="markStyle(part)">{{ run.text }}</span>
+            } @else {
+              {{ run.text }}
+            }
+          }
+        </span>
+      </div>
+    } @else if (isRule(part)) {
+      <div
+        data-layout-rule
+        [style.marginTop]="part.gapHPct + 'cqh'"
+        [style.height]="part.thicknessHPct + 'cqh'"
+        [style.width.%]="part.widthPct"
+        [style.opacity]="part.opacity"
+        [style.background]="colorFor(part)"
+      ></div>
+    } @else if (isRow(part)) {
+      <div
+        data-layout-row
+        class="flex items-center justify-between"
+        [style.marginTop]="part.gapHPct + 'cqh'"
+        [style.fontFamily]="part.fontFamily"
+        [style.fontWeight]="part.fontWeight"
+        [style.fontSize]="part.fontSizeWPct + 'cqw'"
+        [style.lineHeight]="part.lineHeight"
+        [style.letterSpacing.em]="part.letterSpacingEm"
+        [style.textTransform]="part.textTransform"
+        [style.color]="colorFor(part)"
+      >
+        <span>{{ part.left }}</span>
+        @if (part.right) {
+          <span>{{ part.right }}</span>
+        }
+      </div>
+    }
+  }
+</div>

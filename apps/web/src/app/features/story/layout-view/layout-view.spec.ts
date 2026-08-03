@@ -1,77 +1,107 @@
 import { TestBed } from '@angular/core/testing';
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
-import type { Layout, LayoutElement } from '@auto-stories/api-types';
 
+import { composeFrame, type FrameContent, type PhotoAnalysis } from '../../../story/look';
 import { LayoutView } from './layout-view';
 import { LayoutViewHarness } from './layout-view.harness';
 
-function element(over: Partial<LayoutElement> = {}): LayoutElement {
-  return {
-    role: 'title',
-    text: 'Golden hour',
-    font: 'playfair',
-    weight: 'bold',
-    case: 'normal',
-    align: 'left',
-    size: 4,
-    tracking: 'normal',
-    leading: 'normal',
-    x: 8,
-    y: 12,
-    anchor: 'top-left',
-    ...over,
-  };
-}
+const CALM: PhotoAnalysis = {
+  accent: 'rgb(232, 102, 58)',
+  bands: { top: 0.1, middle: 0.1, bottom: 0.1 },
+};
 
-async function render(layout: Layout): Promise<LayoutViewHarness> {
+async function render(content: FrameContent, accent?: string): Promise<LayoutViewHarness> {
   await TestBed.configureTestingModule({ imports: [LayoutView] }).compileComponents();
   const fixture = TestBed.createComponent(LayoutView);
-  fixture.componentRef.setInput('layout', layout);
+  fixture.componentRef.setInput('composition', composeFrame('magazine-masthead', content, CALM));
+  if (accent) fixture.componentRef.setInput('accent', accent);
   fixture.detectChanges();
   return TestbedHarnessEnvironment.harnessForFixture(fixture, LayoutViewHarness);
 }
 
 describe('LayoutView', () => {
-  it('renders one element per spec element, with its text', async () => {
+  it('renders the headline', async () => {
+    const harness = await render({ headline: 'Where the mountain meets its mirror' });
+
+    expect((await harness.textContents()).join(' ')).toContain(
+      'Where the mountain meets its mirror',
+    );
+  });
+
+  it('renders the kicker alongside the headline', async () => {
     const harness = await render({
-      elements: [element({ text: 'Golden hour' }), element({ text: 'the coast', role: 'deck' })],
+      kicker: 'The Ascent',
+      headline: 'Where the mountain meets its mirror',
     });
-    expect(await harness.elementCount()).toBe(2);
-    expect(await harness.lineTexts()).toEqual(['Golden hour', 'the coast']);
+
+    expect(await harness.textCount()).toBe(2);
+    expect((await harness.textContents()).join(' ')).toContain('The Ascent');
   });
 
-  it('renders a stacked element as one line per word', async () => {
+  it('renders no kicker block when the frame has none', async () => {
+    const harness = await render({ headline: 'Where the mountain meets its mirror' });
+
+    expect(await harness.textCount()).toBe(1);
+  });
+
+  it('renders the accent tab that leads the kicker', async () => {
+    const harness = await render({ kicker: 'The Ascent', headline: 'A line' });
+
+    expect(await harness.tabCount()).toBe(1);
+  });
+
+  it('renders no accent tab when there is no kicker', async () => {
+    const harness = await render({ headline: 'A line' });
+
+    expect(await harness.tabCount()).toBe(0);
+  });
+
+  it('marks the emphasised phrase', async () => {
     const harness = await render({
-      elements: [element({ text: 'we drove till', stack: true })],
+      headline: 'Where the mountain meets its mirror',
+      emphasis: 'mountain',
     });
-    expect(await harness.elementCount()).toBe(1);
-    expect(await harness.lineTexts()).toEqual(['we', 'drove', 'till']);
+
+    expect(await harness.markTexts()).toEqual(['mountain']);
   });
 
-  it('renders a hand underline for an element flagged underline', async () => {
-    const harness = await render({ elements: [element({ underline: true })] });
-    expect(await harness.underlineCount()).toBe(1);
-  });
-
-  it('renders no underline for an element that is not flagged', async () => {
-    const harness = await render({ elements: [element({ underline: false })] });
-    expect(await harness.underlineCount()).toBe(0);
-  });
-
-  it('renders every element when per-element readability is supplied', async () => {
-    await TestBed.configureTestingModule({ imports: [LayoutView] }).compileComponents();
-    const fixture = TestBed.createComponent(LayoutView);
-    fixture.componentRef.setInput('layout', {
-      elements: [element({ text: 'Golden hour' }), element({ text: 'the coast', role: 'deck' })],
+  it('marks nothing when the emphasis is not in the headline', async () => {
+    const harness = await render({
+      headline: 'Where the mountain meets its mirror',
+      emphasis: 'elsewhere',
     });
-    // Different readability per element (dark title in the sky, light deck below).
-    fixture.componentRef.setInput('readable', [
-      { light: false, scrim: true },
-      { light: true, scrim: false },
-    ]);
-    fixture.detectChanges();
-    const harness = await TestbedHarnessEnvironment.harnessForFixture(fixture, LayoutViewHarness);
 
-    expect(await harness.lineTexts()).toEqual(['Golden hour', 'the coast']);
+    expect(await harness.markTexts()).toEqual([]);
+  });
+
+  it('renders the masthead rule', async () => {
+    const harness = await render({ headline: 'A line' });
+
+    expect(await harness.ruleCount()).toBeGreaterThan(0);
+  });
+
+  it('renders the byline row when the frame names a place', async () => {
+    const harness = await render({ headline: 'A line', location: 'Zermatt' });
+
+    expect(await harness.rowCount()).toBe(1);
+    expect((await harness.rowContents()).join(' ')).toContain('Zermatt');
+  });
+
+  it('renders no byline row without a place', async () => {
+    const harness = await render({ headline: 'A line' });
+
+    expect(await harness.rowCount()).toBe(0);
+  });
+
+  it('renders the legibility scrim', async () => {
+    const harness = await render({ headline: 'A line' });
+
+    expect(await harness.hasScrim()).toBe(true);
+  });
+
+  it('still renders the headline when no accent was sampled', async () => {
+    const harness = await render({ headline: 'A line', emphasis: 'line' });
+
+    expect(await harness.markTexts()).toEqual(['line']);
   });
 });

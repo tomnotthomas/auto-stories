@@ -18,7 +18,7 @@ const STYLE: Style = {
 };
 
 function frame(photoId: string, order: number, suggestions: Suggestion[]): Frame {
-  return { photoId, order, caption: `caption ${order}`, style: STYLE, suggestions };
+  return { photoId, order, caption: `caption ${order}`, headline: `caption ${order}`, style: STYLE, suggestions };
 }
 
 function imageFile(name: string): File {

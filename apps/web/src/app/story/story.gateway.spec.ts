@@ -19,8 +19,9 @@ const request: GenerateRequest = {
 };
 
 const STORY: GenerateResponse = {
-  frames: [{ photoId: 'p1', order: 1, caption: 'By the water', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } }],
+  frames: [{ photoId: 'p1', order: 1, caption: 'By the water', headline: 'By the water', style: { font: 'inter', weight: 'regular', case: 'normal', align: 'center', size: 'm', position: 'bottom-center', letterbox: 'blur' } }],
   partial: false,
+  look: 'magazine-masthead',
 };
 
 /** Minimal EventSource stand-in a test can drive. */

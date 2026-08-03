@@ -79,4 +79,13 @@ Today generation is two model passes: pass 1 = story (`story-generator.service.t
 - Conventions: Conventional Commits, small reviewable PRs, worktree/branch per batch off origin/main, Tailwind + Material only (no component CSS/inline styles), Angular v22 signals/standalone, strict TS no `any`.
 - Log decision 7.24 to `docs/decisions.md` (supersedes 7.21/7.23) when starting: Problem→Options→Decision→Why — deterministic Looks replace model-emitted geometry; model picks 1 of 6 Looks + writes words; fold into pass 1, delete pass 2.
 
-## Status: eng-reviewed, CLEARED. Next action: build P1 on a fresh branch `feat/looks-engine-p1` off origin/main.
+## Status
+P1 built on `feat/looks-engine-p1`. What landed, and what changed from the plan:
+- **Contract** — `look` on `GenerateResponse`; `kicker?`/`headline`/`emphasis?` on `Frame`; `Layout`/`LayoutElement` deleted. `headline` is **required** (not optional as sketched): the server falls back to `caption`, so the client never has to guess.
+- **Backend** — one model pass again; the four layout modules and `composeLayouts` are gone. `atmosphere` was repointed at the Look choice rather than deleted — it was a mood judgement with nothing left to feed.
+- **Web** — `look.ts` (composition model + `composeFrame`), `looks/magazine.ts`, `quiet-zone.ts` (band busyness), rewritten `layout-canvas.ts` + `layout-view/`. `layout-spec.ts` deleted.
+- **Geometry is authored in the mockups' container-query units** (`…WPct` = `cqw`, `…HPct` = `cqh`). The DOM sets `container-type: size` and uses `cqw`/`cqh` directly, so the preview does the same arithmetic as the canvas instead of a second implementation of it.
+- **Per-element legibility became per-frame.** A Look composes one anchored stack, so one reading of the band it sits in replaces the old per-element sampling.
+- **Unimplemented Looks fall back to Magazine**, so P1 renders every story through the engine; P2 fills the registry in.
+
+Next: P2 (the other 5 Looks), then P3–P5 as planned.
