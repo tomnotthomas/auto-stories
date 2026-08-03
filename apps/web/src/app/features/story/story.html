@@ -1,8 +1,4 @@
-<section
-  class="relative flex h-full flex-col overflow-hidden bg-black text-white"
-  (pointerdown)="onSwipeStart($event)"
-  (pointerup)="onSwipeEnd($event)"
->
+<section class="relative flex h-full flex-col overflow-hidden bg-black text-white">
   @if (current(); as frame) {
     <!-- The story "stage" — everything the viewer sees. It stays in place during
          the hand-off (nothing has left yet); the card sits over the action bar. -->
@@ -34,8 +30,8 @@
 
       <!-- Tap zones: left goes back, right advances (Stories convention). Active in
          refine too (tap the text itself to edit); off while a sheet is open.
-         They stop above whatever chrome is on screen, so folding the actions
-         hands that strip of photo back to paging as well. -->
+         They stop at the same fixed line the composition does, which keeps the
+         bottom edge clear for the swipe that brings the actions back. -->
       @if (!editingFrame() && !managing()) {
         <button
           type="button"
@@ -182,14 +178,17 @@
         </div>
       </div>
     } @else if (!handingOff()) {
-      <!-- The actions are foldable, so the photo can be looked at on its own. The
-           column is anchored to the bottom and the toggle is its last child, so
-           the toggle holds the same spot whether the actions are up or away —
-           there is nowhere to wonder about, and it is a labelled button rather
-           than a gesture. -->
-      <div class="absolute inset-x-4 bottom-6 z-20 flex flex-col items-center gap-2">
+      <!-- The three actions: an overlay on the photo, with nothing behind them
+           and nothing reserved for them — the composition clears this strip
+           whether they are drawn or not, so dismissing them never moves the
+           frame. Swipe them down to hand the whole frame back to the photo. -->
+      <div class="absolute inset-x-4 bottom-6 z-20 flex flex-col gap-2">
         @if (actionsShown()) {
-          <div class="sheet-enter flex w-full flex-col gap-2">
+          <div
+            data-actions
+            class="sheet-enter flex w-full flex-col gap-2"
+            (pointerdown)="onActionsSwipeStart($event)"
+          >
             <button
               matButton="filled"
               class="w-full"
@@ -203,14 +202,37 @@
               <mat-icon>tune</mat-icon>
               Refine story
             </button>
-            <button matButton class="w-full text-white" (click)="startOver()">Start over</button>
+            <button matButton data-start-over class="w-full text-white" (click)="startOver()">
+              Start over
+            </button>
           </div>
         }
-        <button matButton class="text-white" (click)="toggleActions()">
-          <mat-icon>{{ actionsShown() ? 'expand_more' : 'expand_less' }}</mat-icon>
-          {{ actionsShown() ? 'Hide buttons' : 'Show buttons' }}
-        </button>
+        <!-- The same two moves for anyone not making them with a finger: one
+             labelled control, off screen until it takes focus, in the tab order
+             right after the actions it hides. It costs no chrome on the photo. -->
+        <div class="sr-only focus-within:not-sr-only">
+          <button matButton class="w-full text-white" (click)="toggleActions()">
+            {{ actionsShown() ? 'Hide story actions' : 'Show story actions' }}
+          </button>
+        </div>
       </div>
+
+      <!-- Once the actions are gone the bottom edge is theirs alone: it takes
+           the swipe that brings them back, and the tap zones stop well above it
+           so paging cannot swallow the gesture. -->
+      @if (!actionsShown()) {
+        <div
+          data-swipe-restore
+          class="absolute inset-x-0 bottom-0 z-10 flex h-20 items-end justify-center pb-6"
+          (pointerdown)="onEdgeSwipeStart($event)"
+        >
+          @if (!restoreHintSeen()) {
+            <p data-restore-hint aria-hidden="true" class="mat-label-small drop-in text-white/70">
+              Swipe up to bring the buttons back
+            </p>
+          }
+        </div>
+      }
     }
 
     <!-- Hand-off card: shown before we leave, presenting the add-ons; its own

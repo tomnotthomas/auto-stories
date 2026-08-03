@@ -1,9 +1,16 @@
-import { ComponentHarness } from '@angular/cdk/testing';
+import { ComponentHarness, TestElement } from '@angular/cdk/testing';
 import { MatButtonHarness } from '@angular/material/button/testing';
 
 import { CaptionEditorHarness } from '../refine/caption-editor/caption-editor.harness';
 import { RefineFilmstripHarness } from '../refine/filmstrip/filmstrip.harness';
 import { LayoutViewHarness } from './layout-view/layout-view.harness';
+
+/** Where a simulated gesture starts, in viewport pixels. Any point does — the
+ * component only reads how far the pointer travelled. */
+const GESTURE_X = 160;
+const GESTURE_Y = 600;
+/** Far enough past the component's 48px threshold to be unambiguously a swipe. */
+const GESTURE_PX = 120;
 
 /** Page-object harness for the finished-story (payoff) viewer. */
 export class StoryHarness extends ComponentHarness {
@@ -21,8 +28,12 @@ export class StoryHarness extends ComponentHarness {
   private readonly editor = this.locatorForOptional(CaptionEditorHarness);
   private readonly filmstrip = this.locatorForOptional(RefineFilmstripHarness);
   private readonly layoutView = this.locatorForOptional(LayoutViewHarness);
+  private readonly actionCluster = this.locatorFor('[data-actions]');
+  private readonly startOverTarget = this.locatorFor('[data-start-over]');
+  private readonly restoreStrip = this.locatorFor('[data-swipe-restore]');
+  private readonly restoreHint = this.locatorForOptional('[data-restore-hint]');
   private readonly actionsToggle = this.locatorFor(
-    MatButtonHarness.with({ text: /Hide buttons|Show buttons/ }),
+    MatButtonHarness.with({ text: /Hide story actions|Show story actions/ }),
   );
   private readonly postButtons = this.locatorForAll(
     MatButtonHarness.with({ text: /Post to Instagram/ }),
@@ -141,19 +152,82 @@ export class StoryHarness extends ComponentHarness {
     return this.filmstrip();
   }
 
-  /** Fold the bottom action bar away, or bring it back. */
-  async toggleActionBar(): Promise<void> {
-    await (await this.actionsToggle()).click();
-  }
-
   /** Whether the three story actions are on screen. */
   async isActionBarVisible(): Promise<boolean> {
     return (await this.postButtons()).length > 0;
   }
 
-  /** The label of the fold toggle — on screen in both states, so the user can
-   * always read their way back to the actions. */
-  async actionBarToggleLabel(): Promise<string> {
+  /**
+   * Press somewhere, drag, release — one gesture. The press lands on `from`
+   * (which is what tells the component whether it began on the actions or on
+   * the bottom edge) and the release goes to the host, which is where the
+   * component listens, exactly as a real pointer's release bubbles to it.
+   */
+  private async swipe(from: TestElement, dx: number, dy: number): Promise<void> {
+    await from.dispatchEvent('pointerdown', { clientX: GESTURE_X, clientY: GESTURE_Y });
+    await (
+      await this.host()
+    ).dispatchEvent('pointerup', { clientX: GESTURE_X + dx, clientY: GESTURE_Y + dy });
+  }
+
+  /** Swipe the three story actions down and away. */
+  async swipeActionsAway(): Promise<void> {
+    await this.swipe(await this.actionCluster(), 0, GESTURE_PX);
+  }
+
+  /**
+   * A swipe made on top of "Start over" — a drag across the buttons, which the
+   * browser follows with a click on the element the drag began on. The story
+   * must move and must not start over.
+   * (The press is delivered to the cluster, which is where a real pointerdown
+   * on the button arrives once it has bubbled.)
+   */
+  async swipeAcrossStartOver(): Promise<void> {
+    const button = await this.startOverTarget();
+    await this.swipe(await this.actionCluster(), -GESTURE_PX, 0);
+    await button.dispatchEvent('click');
+  }
+
+  /** Swipe up from the bottom edge to bring the actions back. */
+  async swipeActionsBack(): Promise<void> {
+    await this.swipe(await this.restoreStrip(), 0, -GESTURE_PX);
+  }
+
+  /** A swipe down on the photo itself, nowhere near the actions. */
+  async swipeDownOnPhoto(): Promise<void> {
+    await this.swipe(await this.host(), 0, GESTURE_PX);
+  }
+
+  /** A swipe up on the photo itself, away from the bottom edge. */
+  async swipeUpOnPhoto(): Promise<void> {
+    await this.swipe(await this.host(), 0, -GESTURE_PX);
+  }
+
+  /** Swipe left to advance, then the click the browser fires on the tap zone
+   * the gesture ended over — so one swipe must still be one frame. */
+  async swipeToNextFrame(): Promise<void> {
+    await this.swipe(await this.host(), -GESTURE_PX, 0);
+    await (await this.nextZone()).dispatchEvent('click');
+  }
+
+  /** Swipe right to go back, with the same trailing click. */
+  async swipeToPreviousFrame(): Promise<void> {
+    await this.swipe(await this.host(), GESTURE_PX, 0);
+    await (await this.prevZone()).dispatchEvent('click');
+  }
+
+  /** Whether the one-time "swipe up to bring them back" hint is showing. */
+  async hasRestoreHint(): Promise<boolean> {
+    return (await this.restoreHint()) !== null;
+  }
+
+  /** The keyboard/screen-reader equivalent of the swipe: dismiss or restore. */
+  async clickActionsToggle(): Promise<void> {
+    await (await this.actionsToggle()).click();
+  }
+
+  /** The label that control carries — it says which way it will go. */
+  async actionsToggleLabel(): Promise<string> {
     return (await this.actionsToggle()).getText();
   }
 
