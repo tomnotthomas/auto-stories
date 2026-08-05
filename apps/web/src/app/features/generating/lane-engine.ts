@@ -465,17 +465,29 @@ export class LaneEngine {
     this.restack();
   }
 
-  /** Take the user's own print back out of the kept pile — the model agreed with
-   * them, so it is lifted and written on rather than dealt a second time. */
-  liftFromKept(print: Print): void {
-    const at = this.kept.indexOf(print);
-    if (at >= 0) this.kept.splice(at, 1);
+  /**
+   * Take a print back off a pile and into the lane. The model has chosen a photo
+   * that already left — either the user pulled it down (it agreed with them) or
+   * it drifted past — so that print is lifted and written on rather than the same
+   * photo being dealt a second time. It loses the pile's wash on the way out.
+   */
+  lift(print: Print): void {
+    const wasKept = print.pile === 'kept';
+    const from = wasKept ? this.kept : this.seen;
+    const at = from.indexOf(print);
+    if (at >= 0) from.splice(at, 1);
     print.mine = false;
     print.pile = 'lane';
     print.settled = false;
     print.slot = null;
+    print.wash = '';
+    print.opacity = 1;
+    print.z = 3;
+    // It comes back above the lane's own top, so it is held from the moment it
+    // is lifted — otherwise the next frame would tuck it straight back.
+    print.held = true;
     this.lane.push(print);
-    this.restack();
+    if (wasKept) this.restack();
   }
 
   /** Put the kept pile in the story's own order, so the bars it flattens into

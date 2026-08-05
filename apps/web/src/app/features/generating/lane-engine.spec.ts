@@ -262,11 +262,37 @@ describe('LaneEngine — the piles', () => {
     lane.toKept(print, true);
     expect(lane.myCount).toBe(1);
 
-    lane.liftFromKept(print);
+    lane.lift(print);
     expect(lane.kept).not.toContain(print);
     expect(print.mine).toBe(false);
     expect(lane.myCount).toBe(0);
     expect(lane.lane).toContain(print);
+  });
+
+  it('lifts a print the model chose after it had already drifted past, without its wash', () => {
+    const lane = engine();
+    const print = lane.lane[0];
+    lane.toSeen(print);
+    expect(print.wash).not.toBe('');
+
+    lane.lift(print);
+    expect(lane.seen).not.toContain(print);
+    expect(lane.seenCount).toBe(0);
+    expect(lane.lane).toContain(print);
+    expect(print.wash).toBe('');
+    expect(print.settled).toBe(false);
+  });
+
+  it('does not let a lifted print fall straight back onto the pile it came from', () => {
+    const lane = engine();
+    const print = lane.lane[0];
+    lane.toSeen(print);
+    lane.lift(print);
+
+    run(lane, 320, 16);
+
+    expect(print.pile).toBe('lane');
+    expect(lane.seen).not.toContain(print);
   });
 
   it('puts the kept pile in the story’s order, extras last', () => {

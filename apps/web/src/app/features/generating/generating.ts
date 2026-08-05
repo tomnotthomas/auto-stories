@@ -503,16 +503,17 @@ export class Generating implements OnDestroy {
     }
   }
 
-  /** Put the model's chosen photo on the table with its words set. A photo the
-   * user already pulled down is lifted back out of the kept pile and written on
-   * rather than dealt a second time — the model agreed with them. */
+  /** Put the model's chosen photo on the table with its words set. A photo that
+   * has already left the lane — the user pulled it down, or it drifted past — is
+   * lifted back out of its pile and written on rather than dealt a second time. */
   private bring(frame: Frame, total: number, agreed: boolean, look: string): PrintView | null {
     const photo = this.story.photos().find((candidate) => candidate.id === frame.photoId);
     if (!photo) return null;
     const existing = this.engine.prints.find((print) => print.photoId === frame.photoId);
     const print = existing ?? this.engine.dealNamed({ id: photo.id, src: photo.previewUrl });
-    if (existing?.pile === 'kept') {
-      this.engine.liftFromKept(existing);
+    if (existing && existing.pile !== 'lane') {
+      this.engine.lift(existing);
+      this.seenCount.set(this.engine.seenCount);
       this.keptCount.set(this.engine.kept.length - this.engine.myCount);
       this.myCount.set(this.engine.myCount);
     } else if (!existing) {
@@ -751,6 +752,10 @@ export class Generating implements OnDestroy {
     delay = 0,
   ): void {
     if (typeof element.animate !== 'function') return;
+    // A finished `fill: forwards` animation keeps owning the properties it
+    // animated, so it would outrank the styles written after it. Each new move
+    // takes the element back first.
+    for (const running of element.getAnimations?.() ?? []) running.cancel();
     element.animate(keyframes, {
       duration: Math.max(1, duration / this.boost),
       delay: delay / this.boost,
