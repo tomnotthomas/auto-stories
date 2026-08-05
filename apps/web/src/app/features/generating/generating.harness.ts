@@ -1,8 +1,4 @@
-import { ComponentHarness, TestElement } from '@angular/cdk/testing';
-
-/** Where a simulated finger goes down on a print. */
-const GRAB_X = 195;
-const GRAB_Y = 420;
+import { ComponentHarness } from '@angular/cdk/testing';
 
 /** Page-object harness for the Generating screen. Exposes what the screen is
  * doing — never how it is styled. */
@@ -14,7 +10,6 @@ export class GeneratingHarness extends ComponentHarness {
   private readonly printCards = this.locatorForAll('[data-print]');
   private readonly seenTally = this.locatorFor('[data-tally="seen"]');
   private readonly keptTally = this.locatorFor('[data-tally="kept"]');
-  private readonly invitation = this.locatorForOptional('[data-hint]');
   private readonly quietLine = this.locatorForOptional('[data-quiet]');
   private readonly headlines = this.locatorForAll('[data-headline]');
   private readonly kickers = this.locatorForAll('[data-kicker]');
@@ -47,11 +42,6 @@ export class GeneratingHarness extends ComponentHarness {
     return (await this.keptTally()).text();
   }
 
-  /** Whether the "drag a photo down to keep it" invitation is showing. */
-  async hasInvitation(): Promise<boolean> {
-    return (await this.invitation()) !== null;
-  }
-
   /** Whether the screen has gone quiet because it ran out of photos to show. */
   async hasQuietLine(): Promise<boolean> {
     return (await this.quietLine()) !== null;
@@ -72,49 +62,5 @@ export class GeneratingHarness extends ComponentHarness {
   /** How many of the story's progress bars the kept pile has become. */
   async getSegmentCount(): Promise<number> {
     return (await this.segmentBars()).length;
-  }
-
-  /** Put a finger on the print showing `photoId`. */
-  async pressPrint(photoId: string): Promise<void> {
-    this.pointer = { x: GRAB_X, y: GRAB_Y };
-    await (
-      await this.printOf(photoId)
-    ).dispatchEvent('pointerdown', { clientX: GRAB_X, clientY: GRAB_Y, pointerId: 1 });
-  }
-
-  /** Move the finger `dy` px from where it went down (negative is upward). */
-  async dragBy(dy: number): Promise<void> {
-    this.pointer = { x: GRAB_X, y: GRAB_Y + dy };
-    await (
-      await this.host()
-    ).dispatchEvent('pointermove', {
-      clientX: this.pointer.x,
-      clientY: this.pointer.y,
-      pointerId: 1,
-    });
-  }
-
-  /** Lift the finger where the last move left it. */
-  async release(): Promise<void> {
-    await (
-      await this.host()
-    ).dispatchEvent('pointerup', {
-      clientX: this.pointer.x,
-      clientY: this.pointer.y,
-      pointerId: 1,
-    });
-  }
-
-  /** Press, drag and release in one gesture. */
-  async dragPrint(photoId: string, dy: number): Promise<void> {
-    await this.pressPrint(photoId);
-    await this.dragBy(dy);
-    await this.release();
-  }
-
-  private pointer = { x: GRAB_X, y: GRAB_Y };
-
-  private async printOf(photoId: string): Promise<TestElement> {
-    return this.locatorFor(`[data-print="${photoId}"]`)();
   }
 }

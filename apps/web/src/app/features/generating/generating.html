@@ -13,7 +13,6 @@
     <div
       #printEl
       [attr.data-print]="view.print.photoId"
-      (pointerdown)="onPrintDown($event, view.print)"
       [style.width.px]="geo.cardW"
       [style.height.px]="geo.cardH"
       class="absolute top-0 left-0 touch-none overflow-hidden rounded-[22px] bg-black shadow-[0_22px_48px_rgba(0,0,0,0.55),0_0_0_1px_rgba(255,255,255,0.08)] will-change-[transform,opacity,filter]"
@@ -23,12 +22,6 @@
         alt=""
         class="pointer-events-none block h-full w-full object-cover"
       />
-
-      <!-- Your pick, before the model has said anything about it. -->
-      <div
-        class="absolute top-[26px] right-[26px] h-[30px] w-[30px] rounded-full bg-white [transition:opacity_260ms_cubic-bezier(0.23,1,0.32,1)]"
-        [style.opacity]="view.print.mine ? 1 : 0"
-      ></div>
 
       @if (view.type; as type) {
         <!-- The paper the words are written on: the story's own near-black,
@@ -57,8 +50,7 @@
           <!-- Small caps track in from wide — the letterpress tell. -->
           <div
             data-kicker
-            class="mb-[20px] text-[12px] uppercase [transition:opacity_620ms_cubic-bezier(0.23,1,0.32,1),letter-spacing_900ms_cubic-bezier(0.32,0.72,0,1)]"
-            [class]="type.agreed ? 'text-white' : 'text-white/70'"
+            class="mb-[20px] text-[12px] text-white/70 uppercase [transition:opacity_620ms_cubic-bezier(0.23,1,0.32,1),letter-spacing_900ms_cubic-bezier(0.32,0.72,0,1)]"
             [style.opacity]="view.reveal.kicker ? 1 : 0"
             [style.letterSpacing]="view.reveal.kicker ? '0.19em' : '0.4em'"
           >
@@ -98,15 +90,13 @@
        target is never a guess. -->
   <div
     aria-hidden="true"
-    class="pointer-events-none absolute inset-x-0 top-0 z-[2] bg-[linear-gradient(180deg,rgba(8,8,11,0.96)_52%,rgba(8,8,11,0.6)_78%,rgba(8,8,11,0))] [transition:box-shadow_200ms_cubic-bezier(0.23,1,0.32,1)]"
+    class="pointer-events-none absolute inset-x-0 top-0 z-[2] bg-[linear-gradient(180deg,rgba(8,8,11,0.96)_52%,rgba(8,8,11,0.6)_78%,rgba(8,8,11,0))]"
     [style.height.px]="geo.h * 0.187"
-    [class]="armed() === 'pass' ? 'shadow-[inset_0_3px_0_rgba(255,255,255,0.28)]' : ''"
   ></div>
   <div
     aria-hidden="true"
-    class="pointer-events-none absolute inset-x-0 bottom-0 z-[6] bg-[linear-gradient(0deg,rgba(8,8,11,0.95)_38%,rgba(8,8,11,0))] [transition:box-shadow_200ms_cubic-bezier(0.23,1,0.32,1)]"
+    class="pointer-events-none absolute inset-x-0 bottom-0 z-[6] bg-[linear-gradient(0deg,rgba(8,8,11,0.95)_38%,rgba(8,8,11,0))]"
     [style.height.px]="geo.h * 0.249"
-    [class]="armed() === 'keep' ? 'shadow-[inset_0_-3px_0_rgba(255,255,255,0.6)]' : ''"
   ></div>
 
   <p
@@ -127,15 +117,6 @@
     {{ keptLabel() }}
   </p>
 
-  @if (hint()) {
-    <p
-      data-hint
-      class="pointer-events-none absolute inset-x-0 z-[8] text-center text-[12.5px] tracking-[0.03em] text-white/50"
-      [style.bottom.px]="geo.h * 0.256"
-    >
-      drag a photo down to keep it
-    </p>
-  }
   @if (quiet()) {
     <p
       data-quiet

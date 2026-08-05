@@ -157,7 +157,6 @@ describe('StoryService', () => {
     service.addPhotos([imageFile('a.jpg')]);
     service.setStoryLine('something');
     service.setTone('funny');
-    service.pickPhoto('photo-1');
     service.completeStory([{ photoId: 'photo-1', order: 1, headline: 'x' }], false);
     service.failStory({ code: 'timeout', message: 'took too long' });
 
@@ -169,27 +168,6 @@ describe('StoryService', () => {
     expect(service.tone()).toBeNull();
     expect(service.frames()).toEqual([]);
     expect(service.error()).toBeNull();
-    expect(service.userPicks()).toEqual([]);
-  });
-
-  describe('the user’s own picks (pulled down while the model works)', () => {
-    it('records a pick, in the order they were pulled down', () => {
-      service.pickPhoto('photo-2');
-      service.pickPhoto('photo-1');
-      expect(service.userPicks()).toEqual(['photo-2', 'photo-1']);
-    });
-
-    it('records a photo only once', () => {
-      service.pickPhoto('photo-1');
-      service.pickPhoto('photo-1');
-      expect(service.userPicks()).toEqual(['photo-1']);
-    });
-
-    it('starts a fresh set of picks with each new story', () => {
-      service.pickPhoto('photo-1');
-      service.startGenerating();
-      expect(service.userPicks()).toEqual([]);
-    });
   });
 
   describe('refine', () => {

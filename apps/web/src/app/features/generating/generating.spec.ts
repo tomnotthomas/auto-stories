@@ -102,34 +102,6 @@ describe('Generating', () => {
     expect(dealt.every((id) => picked.includes(id))).toBe(true);
   });
 
-  it('keeps a print the user pulls down as their own pick', async () => {
-    const { story, harness } = await setup();
-
-    await harness.dragPrint('photo-1', 260);
-
-    expect(story.userPicks()).toEqual(['photo-1']);
-    expect(await harness.getKeptTally()).toContain('1 yours');
-  });
-
-  it('does not keep a print the user pushes up past the seen pile', async () => {
-    const { story, harness } = await setup();
-
-    await harness.dragPrint('photo-1', -700);
-
-    expect(story.userPicks()).toEqual([]);
-    expect(await harness.getSeenTally()).toContain('looked at');
-  });
-
-  it('invites the user in after a moment, and never once they have touched a print', async () => {
-    const { harness } = await setup();
-    expect(await harness.hasInvitation()).toBe(false);
-    await play(2500);
-    expect(await harness.hasInvitation()).toBe(true);
-
-    await harness.dragPrint('photo-1', 10);
-    expect(await harness.hasInvitation()).toBe(false);
-  });
-
   it('shows a choice while the model is still working, not only at the end', async () => {
     const { harness } = await setup();
 
@@ -185,16 +157,6 @@ describe('Generating', () => {
     expect(await harness.getSetKickers()).toContain('opens the story');
   });
 
-  it('says the user called it when the model picks a photo they pulled down', async () => {
-    const { harness } = await setup();
-    await harness.dragPrint('photo-1', 260);
-
-    land(STORY);
-    await play(WHOLE_REVEAL_MS);
-
-    expect(await harness.getSetKickers()).toContain('you called it');
-  });
-
   it('flattens the kept pile into the story’s progress bars before it hands over', async () => {
     const { harness } = await setup();
     land(STORY);
@@ -215,16 +177,6 @@ describe('Generating', () => {
     ]);
   });
 
-  it('adds a photo the user kept that the model did not use', async () => {
-    const { story, harness } = await setup();
-    await harness.dragPrint('photo-3', 260);
-
-    land(STORY);
-    await play(WHOLE_REVEAL_MS);
-
-    expect(story.frames().map((frame) => frame.photoId)).toContain('photo-3');
-  });
-
   it('shows a specific error when generation fails, with no reveal to sit through', async () => {
     const { story } = await setup();
     land({ ok: false, code: 'timeout', message: 'took too long' });
@@ -236,8 +188,9 @@ describe('Generating', () => {
 
   it('goes quiet rather than repeating photos once the pool is spent', async () => {
     const { harness } = await setup();
-    for (const id of await harness.getPrintPhotoIds()) await harness.dragPrint(id, -700);
-    await play(200);
+
+    // Long enough for every picked photo to have drifted past the top.
+    await play(30_000);
 
     expect(await harness.hasQuietLine()).toBe(true);
     expect(await harness.getStatusText()).toContain('Still looking');

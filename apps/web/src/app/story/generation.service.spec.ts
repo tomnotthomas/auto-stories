@@ -229,49 +229,6 @@ describe('GenerationService', () => {
       expect(story.phase()).toBe('story');
     });
 
-    it('appends only the photos it was asked about, leaving the rest unused', async () => {
-      const [a, b, c] = story.photos();
-      story.addPhotos([imageFile('d.jpg'), imageFile('e.jpg')]);
-      const [, , , d, e] = story.photos();
-      story.completeStory(
-        [
-          { photoId: a.id, order: 1, headline: 'first' },
-          { photoId: b.id, order: 2, headline: 'second' },
-          { photoId: c.id, order: 3, headline: 'third' },
-        ],
-        false,
-      );
-      outcome = {
-        ok: true,
-        response: {
-          frames: [{ photoId: d.id, order: 1, headline: 'the one they pulled down' }],
-          look: 'magazine-masthead',
-        },
-      };
-
-      await generation.captionNewPhotos([d.id]);
-
-      const frames = story.frames();
-      expect(frames).toHaveLength(4);
-      expect(frames[3].photoId).toBe(d.id);
-      expect(frames.some((f) => f.photoId === e.id)).toBe(false);
-    });
-
-    it('does nothing when the list it is given is empty', async () => {
-      const [a, b, c] = story.photos();
-      story.addPhotos([imageFile('d.jpg')]);
-      story.completeStory(
-        [
-          { photoId: a.id, order: 1, headline: 'first' },
-          { photoId: b.id, order: 2, headline: 'second' },
-          { photoId: c.id, order: 3, headline: 'third' },
-        ],
-        false,
-      );
-      await generation.captionNewPhotos([]);
-      expect(story.frames()).toHaveLength(3);
-    });
-
     it('does nothing when no photos were added', async () => {
       const [a, b, c] = story.photos();
       story.completeStory(

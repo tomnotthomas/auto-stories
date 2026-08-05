@@ -3,7 +3,7 @@
  * prints that drift up through the middle of the surface, land on a "seen" pile
  * at the top, and stack on a "kept" pile at the bottom. Pure state + geometry —
  * no DOM, no Angular — so every motion rule here is unit-testable and the
- * component is left with rendering, gestures and sequencing.
+ * component is left with rendering and sequencing.
  */
 
 /** A photo the lane can deal onto the table. */
@@ -25,8 +25,6 @@ export interface Print {
   y: number;
   /** Resting rotation, in degrees. */
   rot: number;
-  /** Extra rotation from the drag, in degrees. */
-  tilt: number;
   /** Per-print offset so the sideways sway doesn't move as one block. */
   phase: number;
   scale: number;
@@ -38,14 +36,8 @@ export interface Print {
   pile: Pile;
   /** The model is holding this print at the focal point. */
   held: boolean;
-  /** A finger has this print. */
-  grabbed: boolean;
   /** It has landed on a pile, so the loop no longer paints it. */
   settled: boolean;
-  /** The user pulled this print down themselves. */
-  mine: boolean;
-  /** It was flicked onto the seen pile rather than drifting off — a faster toss. */
-  flung: boolean;
   z: number;
   /** Where it came to rest on the kept pile (the ending morphs from here). */
   slot: { x: number; y: number; scale: number } | null;
@@ -63,12 +55,6 @@ export interface LaneGeometry {
   readonly focal: number;
   /** Distance from the focal point over which depth falls off. */
   readonly range: number;
-  /** Released below this → kept. */
-  readonly dropKeep: number;
-  /** Released above this → passed. */
-  readonly dropPass: number;
-  /** Below this the drag is damped instead of walled. */
-  readonly dragFloor: number;
   /** Scale that fills the surface — the first frame opening full-bleed. */
   readonly open: number;
 }
@@ -85,13 +71,9 @@ export const KEEP_IN_LANE = 4;
 const DRIFT_PX_PER_S = 215;
 /** The drift halves every this-many ms of waiting. */
 const DECAY_MS = 19_000;
-/** A toss this fast (px/ms) commits even if the line was never crossed. */
-export const DROP_FLICK = 0.11;
-
 /** Scales, relative to the print's own size — surface-independent. */
 const SCALE = {
   drift: 0.365,
-  grabbed: 0.425,
   held: 0.94,
   laid: 0.235,
   seen: 0.112,
@@ -107,9 +89,6 @@ export function geometryFor(w: number, h: number): LaneGeometry {
     laneTop: h * r(128),
     focal: h * r(348),
     range: h * r(480),
-    dropKeep: h - h * r(262),
-    dropPass: h * r(128) + h * r(96),
-    dragFloor: h - h * r(150),
     open: h / cardH,
   };
 }
@@ -137,7 +116,7 @@ export function transform(
 
 /** Where a print is right now, plus any sideways sway. */
 export function transformFor(print: Print, geo: LaneGeometry, sway = 0): string {
-  return transform(geo, print.x + sway, print.y, print.rot + print.tilt, print.scale);
+  return transform(geo, print.x + sway, print.y, print.rot, print.scale);
 }
 
 /** The print's CSS filter — depth blur plus any pile wash. */
@@ -155,20 +134,6 @@ interface LaneOptions {
   readonly random?: () => number;
 }
 
-/** What a release committed to, or `returned` when it goes back to the lane. */
-export type ReleaseResult = 'kept' | 'passed' | 'returned';
-
-interface DragState {
-  readonly print: Print;
-  readonly originX: number;
-  readonly originY: number;
-  readonly fromX: number;
-  readonly fromY: number;
-  lastY: number;
-  lastT: number;
-  vy: number;
-}
-
 export class LaneEngine {
   /** Every print dealt so far, in deal order — the render list. */
   readonly prints: Print[] = [];
@@ -183,12 +148,8 @@ export class LaneEngine {
   /** Where the rack focus is heading (1 = everything else recedes). */
   focusTarget = 0;
   focus = 0;
-  /** The pile lit up because releasing now would drop into it. */
-  armed: 'keep' | 'pass' | null = null;
-
   private pool: readonly LanePhoto[] = [];
   private next = 0;
-  private gesture: DragState | null = null;
   private readonly reduced: boolean;
   private readonly random: () => number;
 
@@ -203,11 +164,6 @@ export class LaneEngine {
   /** How many prints the user has looked past. */
   get seenCount(): number {
     return this.seen.length;
-  }
-
-  /** How many kept prints the user pulled down themselves. */
-  get myCount(): number {
-    return this.kept.filter((print) => print.mine).length;
   }
 
   /** No unseen photos left to deal — the lane is running out. */
@@ -258,7 +214,6 @@ export class LaneEngine {
       x: this.geo.w / 2 + (this.random() * 2 - 1) * this.geo.w * (40 / REF_W),
       y: this.geo.h + this.geo.cardH * SCALE.drift * 0.55,
       rot: (this.random() * 2 - 1) * 3.6,
-      tilt: 0,
       phase: this.random() * 6.28,
       scale: SCALE.drift,
       opacity: 1,
@@ -266,10 +221,7 @@ export class LaneEngine {
       wash: '',
       pile: 'lane',
       held: false,
-      grabbed: false,
       settled: false,
-      mine: false,
-      flung: false,
       z: 3,
       slot: null,
     };
@@ -292,7 +244,7 @@ export class LaneEngine {
     const tucked: Print[] = [];
     for (let i = this.lane.length - 1; i >= 0; i--) {
       const print = this.lane[i];
-      if (print.held || print.grabbed) continue;
+      if (print.held) continue;
       print.y -= v * dt;
       this.paint(print);
       if (print.y < this.geo.laneTop) {
@@ -307,18 +259,12 @@ export class LaneEngine {
   }
 
   private get inFlight(): number {
-    return this.lane.filter((print) => !print.held && !print.grabbed).length;
+    return this.lane.filter((print) => !print.held).length;
   }
 
   /** Recompute a lane print's depth from where it sits relative to the focal
    * point, and how far the rest has been pushed back by the rack focus. */
   paint(print: Print): void {
-    if (print.grabbed) {
-      print.scale = SCALE.grabbed;
-      print.blur = 0;
-      print.opacity = 1;
-      return;
-    }
     const t = clamp(Math.abs(print.y - this.geo.focal) / this.geo.range, 0, 1);
     print.scale = SCALE.drift * (1 - 0.24 * t) * (1 - 0.07 * this.focus);
     print.blur = this.reduced ? 0 : 5.5 * t * t + 12 * this.focus;
@@ -327,114 +273,16 @@ export class LaneEngine {
 
   /** Sideways sway, in px — a print on a table is never perfectly on rails. */
   swayFor(print: Print): number {
-    if (this.reduced || print.grabbed || print.held || print.settled) return 0;
+    if (this.reduced || print.held || print.settled) return 0;
     return (
       Math.sin(print.y * (0.0062 * (REF_H / this.geo.h)) + print.phase) * this.geo.w * (15 / REF_W)
     );
   }
 
-  /* ── the gesture ───────────────────────────────────────────────────────── */
-
-  /** Take hold of a drifting print. One at a time: a second finger is ignored. */
-  grab(print: Print, clientX: number, clientY: number, now: number): boolean {
-    if (this.gesture) return false;
-    if (print.held || print.settled || print.pile !== 'lane') return false;
-    print.grabbed = true;
-    print.tilt = 0;
-    print.z = 20;
-    this.gesture = {
-      print,
-      originX: clientX,
-      originY: clientY,
-      fromX: print.x,
-      fromY: print.y,
-      lastY: clientY,
-      lastT: now,
-      vy: 0,
-    };
-    // The world reacts to the finger: the lane crawls and softens behind it.
-    this.vTarget = 0.2;
-    this.focusTarget = 0.45;
-    this.paint(print);
-    return true;
-  }
-
-  get dragging(): boolean {
-    return this.gesture !== null;
-  }
-
-  /** The print a finger currently has, or null. */
-  get grabbedPrint(): Print | null {
-    return this.gesture?.print ?? null;
-  }
-
-  /** The scale a print lifts to while it is held by a finger. */
-  get grabbedScale(): number {
-    return SCALE.grabbed;
-  }
-
-  /** Move the held print, damping it past either pile rather than walling it. */
-  drag(clientX: number, clientY: number, now: number): void {
-    const drag = this.gesture;
-    if (!drag) return;
-    const dx = clientX - drag.originX;
-    const dy = clientY - drag.originY;
-    let y = drag.fromY + dy;
-    if (y < this.geo.laneTop) y = this.geo.laneTop - (this.geo.laneTop - y) * 0.4;
-    if (y > this.geo.dragFloor) y = this.geo.dragFloor + (y - this.geo.dragFloor) * 0.4;
-    drag.print.x = drag.fromX + dx;
-    drag.print.y = y;
-    drag.print.tilt = clamp(dx * 0.05, -11, 11);
-    if (now > drag.lastT) {
-      drag.vy = (clientY - drag.lastY) / (now - drag.lastT);
-      drag.lastY = clientY;
-      drag.lastT = now;
-    }
-    this.armed = this.wouldKeep(drag) ? 'keep' : this.wouldPass(drag) ? 'pass' : null;
-    this.paint(drag.print);
-  }
-
-  private wouldKeep(drag: DragState): boolean {
-    return drag.print.y > this.geo.dropKeep || drag.vy > DROP_FLICK;
-  }
-
-  private wouldPass(drag: DragState): boolean {
-    return drag.print.y < this.geo.dropPass || drag.vy < -DROP_FLICK;
-  }
-
-  /** Let go. Past a pile — or flicked at it — commits; anything else goes back. */
-  release(): ReleaseResult | null {
-    const drag = this.gesture;
-    if (!drag) return null;
-    this.gesture = null;
-    this.armed = null;
-    this.vTarget = 1;
-    this.focusTarget = 0;
-    this.releaseKick = clamp(drag.vy * 40, -11, 11);
-    const print = drag.print;
-    print.grabbed = false;
-    print.z = 3;
-    if (this.wouldKeep(drag)) {
-      this.toKept(print, true);
-      return 'kept';
-    }
-    if (this.wouldPass(drag)) {
-      this.toSeen(print, true);
-      return 'passed';
-    }
-    print.tilt = 0;
-    this.paint(print);
-    return 'returned';
-  }
-
-  /** The rotation the last returning print springs back from, so a release reads
-   * as a release and not a snap. */
-  releaseKick = 0;
-
   /* ── the piles ─────────────────────────────────────────────────────────── */
 
   /** Toss a print onto the dim pile at the top edge. */
-  toSeen(print: Print, flung = false): void {
+  toSeen(print: Print): void {
     this.leaveLane(print);
     this.seen.push(print);
     print.pile = 'seen';
@@ -442,22 +290,19 @@ export class LaneEngine {
     print.x = this.geo.w * (34 / REF_W) + ((n * 61) % (this.geo.w - this.geo.w * (68 / REF_W)));
     print.y = this.geo.h * r(46) + ((n * 29) % 26) * (this.geo.h / REF_H);
     print.rot = ((n * 41) % 22) - 11;
-    print.tilt = 0;
     print.scale = SCALE.seen;
     print.opacity = 0.66;
     print.blur = 0;
     print.wash = 'grayscale(1) brightness(.92)';
     print.z = 1;
     print.settled = true;
-    print.flung = flung;
   }
 
   /** Lay a print on the kept pile at the bottom and refan the stack. */
-  toKept(print: Print, mine: boolean): void {
+  toKept(print: Print): void {
     this.leaveLane(print);
     this.kept.push(print);
     print.pile = 'kept';
-    print.mine = mine;
     print.held = false;
     print.wash = '';
     print.blur = 0;
@@ -476,7 +321,6 @@ export class LaneEngine {
     const from = wasKept ? this.kept : this.seen;
     const at = from.indexOf(print);
     if (at >= 0) from.splice(at, 1);
-    print.mine = false;
     print.pile = 'lane';
     print.settled = false;
     print.slot = null;
@@ -506,8 +350,6 @@ export class LaneEngine {
   hold(print: Print): void {
     print.held = true;
     print.settled = false;
-    print.grabbed = false;
-    print.tilt = 0;
     print.rot = 0;
     print.x = this.geo.w / 2;
     print.y = this.geo.h * 0.4;
@@ -534,7 +376,6 @@ export class LaneEngine {
       print.x = x;
       print.y = y;
       print.rot = (i - (n - 1) / 2) * 2.4;
-      print.tilt = 0;
       print.scale = scale;
       print.opacity = 1;
       print.blur = 0;
@@ -548,7 +389,6 @@ export class LaneEngine {
   private leaveLane(print: Print): void {
     const at = this.lane.indexOf(print);
     if (at >= 0) this.lane.splice(at, 1);
-    print.grabbed = false;
     print.held = false;
   }
 }
