@@ -43,6 +43,53 @@ describe('JobService', () => {
     expect(service.get(id)).toEqual({ status: 'done', result: STORY });
   });
 
+  describe('frames reported while the work runs (7.30)', () => {
+    it('carries the frames written so far on the processing state', async () => {
+      const done = deferred<GenerateResponse>();
+      const id = service.enqueue(async (report) => {
+        report([STORY.frames[0]]);
+        return done.promise;
+      });
+      await tick();
+
+      expect(service.get(id)).toEqual({
+        status: 'processing',
+        frames: [STORY.frames[0]],
+      });
+      done.resolve(STORY);
+    });
+
+    it('pushes each report to a subscriber', async () => {
+      const done = deferred<GenerateResponse>();
+      const seen: number[] = [];
+      const id = service.enqueue(async (report) => {
+        report([STORY.frames[0]]);
+        report([STORY.frames[0], STORY.frames[0]]);
+        return done.promise;
+      });
+      service.stream(id)?.subscribe((state) => {
+        if (state.status === 'processing') seen.push(state.frames?.length ?? 0);
+      });
+      await tick();
+
+      expect(seen).toEqual([0, 1, 2]);
+      done.resolve(STORY);
+    });
+
+    it('ignores a report that arrives after the job has settled', async () => {
+      let late: ((frames: GenerateResponse['frames']) => void) | undefined;
+      const id = service.enqueue((report) => {
+        late = report;
+        return Promise.resolve(STORY);
+      });
+      await tick();
+
+      late?.([STORY.frames[0]]);
+
+      expect(service.get(id)).toEqual({ status: 'done', result: STORY });
+    });
+  });
+
   it('processes one job at a time (concurrency 1)', async () => {
     const first = deferred<GenerateResponse>();
     const second = deferred<GenerateResponse>();

@@ -1,11 +1,19 @@
 import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { BehaviorSubject, type Observable } from 'rxjs';
-import type { ErrorResponse, GenerateResponse } from '@auto-stories/api-types';
+import type {
+  ErrorResponse,
+  Frame,
+  GenerateResponse,
+} from '@auto-stories/api-types';
 import { ApiException, DEFAULT_MESSAGE } from '../common/api-exception';
 
-/** The work a job runs: the existing synchronous generation, deferred. */
-export type JobWork = () => Promise<GenerateResponse>;
+/** Told the frames written so far, so a waiting client can be shown each choice
+ * as the model makes it rather than all of them at the end (decision 7.30). */
+export type FrameReport = (frames: Frame[]) => void;
+
+/** The work a job runs: the existing generation, deferred, reporting as it goes. */
+export type JobWork = (report: FrameReport) => Promise<GenerateResponse>;
 
 /**
  * A job's lifecycle state. `done`/`failed` are terminal; the per-job stream
@@ -13,7 +21,7 @@ export type JobWork = () => Promise<GenerateResponse>;
  */
 export type JobState =
   | { status: 'queued' }
-  | { status: 'processing' }
+  | { status: 'processing'; frames?: Frame[] }
   | { status: 'done'; result: GenerateResponse }
   | { status: 'failed'; error: ErrorResponse['error'] };
 
@@ -69,10 +77,18 @@ export class JobService {
         const subject = this.jobs.get(next.id);
         if (!subject) continue; // evicted before it ran (shouldn't happen)
         subject.next({ status: 'processing' });
+        // Reporting after the job settled would resurrect a terminal state, so
+        // a late report from work that has already returned is dropped.
+        let settled = false;
+        const report: FrameReport = (frames) => {
+          if (!settled) subject.next({ status: 'processing', frames });
+        };
         try {
-          const result = await next.work();
+          const result = await next.work(report);
+          settled = true;
           this.settle(next.id, subject, { status: 'done', result });
         } catch (err) {
+          settled = true;
           this.settle(next.id, subject, {
             status: 'failed',
             error: toError(err),

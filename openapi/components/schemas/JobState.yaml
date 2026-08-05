@@ -11,6 +11,16 @@ properties:
     type: string
     enum: [queued, processing, done, failed]
     description: The job's phase. `done` and `failed` are terminal.
+  frames:
+    type: array
+    description: |
+      The frames the model has written **so far**, in order — sent while
+      `processing` so the client can show each choice as it is made rather than
+      all of them at the end (decision 7.30). Advisory and cumulative: each
+      event carries the whole list known at that moment, and `result` on the
+      terminal `done` event is the authoritative story.
+    items:
+      $ref: './Frame.yaml'
   result:
     description: The finished story. Present only when status is `done`.
     $ref: './GenerateResponse.yaml'

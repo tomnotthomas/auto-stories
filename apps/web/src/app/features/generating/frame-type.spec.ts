@@ -1,6 +1,6 @@
 import type { Frame } from '@auto-stories/api-types';
 
-import { kickerFor, splitHeadlineLines, revealDuration, typeFor } from './frame-type';
+import { kickerFor, paceFor, splitHeadlineLines, revealDuration, typeFor } from './frame-type';
 
 function frame(headline: string, extra: Partial<Frame> = {}): Frame {
   return { photoId: 'p1', order: 1, headline, ...extra };
@@ -44,6 +44,13 @@ describe('kickerFor', () => {
     expect(kickerFor(frame('x', { order: 3 }), 6, false)).toBe('next beat');
     expect(kickerFor(frame('x', { order: 1 }), 1, false)).toBe('opens the story');
   });
+
+  it('never claims a frame closes a story whose length it does not know yet', () => {
+    // While the model is still writing, the frame in hand may or may not be the
+    // last one — so only the opener is safe to name.
+    expect(kickerFor(frame('x', { order: 1 }), null, false)).toBe('opens the story');
+    expect(kickerFor(frame('x', { order: 4 }), null, false)).toBe('next beat');
+  });
 });
 
 describe('typeFor', () => {
@@ -75,6 +82,25 @@ describe('typeFor', () => {
   });
 });
 
+describe('paceFor', () => {
+  it('runs at full speed when there is time for everything', () => {
+    expect(paceFor(1, 6000, 5000)).toBe(1);
+  });
+
+  it('speeds up in proportion to how many choices are waiting', () => {
+    expect(paceFor(2, 6000, 3000)).toBeCloseTo(1);
+    expect(paceFor(3, 6000, 4000)).toBeCloseTo(2);
+  });
+
+  it('never speeds up past the point where the beats stop reading', () => {
+    expect(paceFor(20, 6000, 5000)).toBe(4);
+  });
+
+  it('is a no-op when nothing is waiting', () => {
+    expect(paceFor(0, 6000, 5000)).toBe(1);
+  });
+});
+
 describe('revealDuration', () => {
   it('spends about 2.4s on a typical headline, beats end to end', () => {
     const type = typeFor(frame('It started with a mirror and a plan'), 6, false);
@@ -93,6 +119,14 @@ describe('revealDuration', () => {
     const type = typeFor(frame('It started with a mirror and a plan'), 6, false);
     expect(revealDuration(type, true)).toBeGreaterThan(0);
     expect(revealDuration(type, true)).toBeLessThan(revealDuration(type, false));
+  });
+
+  it('takes proportionally less time at a quicker pace, beat for beat', () => {
+    const type = typeFor(frame('It started with a mirror and a plan'), 6, false);
+    const full = revealDuration(type, false);
+    const quick = revealDuration(type, false, 4);
+    expect(quick).toBeLessThan(full / 3);
+    expect(quick).toBeGreaterThan(0);
   });
 
   it('costs only the stillness on a silent frame', () => {

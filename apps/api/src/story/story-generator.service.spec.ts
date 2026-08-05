@@ -27,13 +27,34 @@ function jsonResponse(frames: unknown, look?: unknown): { text: string } {
   return { text: JSON.stringify({ frames, look }) };
 }
 
+/**
+ * The service streams (decision 7.30), so the model is driven through
+ * `generateContentStream`. These tests describe *what one call returns*, so the
+ * mock they pass is still a single response — this wraps it as a one-chunk
+ * stream, keeping `generateContent.mock.calls` the record of what was sent.
+ * {@link makeStreamingService} is for the tests that care about the chunks.
+ */
 async function makeService(
   generateContent: jest.Mock,
+): Promise<StoryGeneratorService> {
+  return makeStreamingService(
+    jest.fn(async (...args: unknown[]) => {
+      const response: unknown = await generateContent(...args);
+      return (function* () {
+        yield response;
+      })();
+    }),
+  );
+}
+
+/** The service with the raw stream mock, for tests about chunk-by-chunk arrival. */
+async function makeStreamingService(
+  generateContentStream: jest.Mock,
 ): Promise<StoryGeneratorService> {
   const moduleRef = await Test.createTestingModule({
     providers: [
       StoryGeneratorService,
-      { provide: GENAI, useValue: { models: { generateContent } } },
+      { provide: GENAI, useValue: { models: { generateContentStream } } },
       {
         provide: ConfigService,
         useValue: { get: (_k: string, d: unknown) => d },
@@ -314,6 +335,87 @@ describe('StoryGeneratorService', () => {
 
     await expect(service.generate(makeRequest(3))).rejects.toMatchObject({
       code: 'upstream_error',
+    });
+  });
+
+  describe('reporting each choice as the model makes it (7.30)', () => {
+    /** The model's answer, cut into chunks the way a stream delivers it. */
+    function streamOf(...chunks: string[]): jest.Mock {
+      return jest.fn(() =>
+        Promise.resolve(
+          (function* () {
+            for (const text of chunks) yield { text };
+          })(),
+        ),
+      );
+    }
+
+    const CHUNKS = [
+      '{"look":"scrapbook","frames":[',
+      '{"photoId":"p1","order":1,"headline":"One"}',
+      ',{"photoId":"p2","order":2,"headline":"Two"}',
+      ',{"photoId":"p3","order":3,"headline":"Three"}],"partial":false}',
+    ];
+
+    it('reports a frame as soon as the model finishes writing it', async () => {
+      const service = await makeStreamingService(streamOf(...CHUNKS));
+      const reported: string[][] = [];
+
+      await service.generate(makeRequest(3), (frames) =>
+        reported.push(frames.map((frame) => frame.photoId)),
+      );
+
+      expect(reported).toEqual([['p1'], ['p1', 'p2'], ['p1', 'p2', 'p3']]);
+    });
+
+    it('reports the whole story so far each time, in order', async () => {
+      const service = await makeStreamingService(streamOf(...CHUNKS));
+      const reported: unknown[] = [];
+
+      await service.generate(makeRequest(3), (frames) => reported.push(frames));
+
+      expect(reported.at(-1)).toEqual([
+        { photoId: 'p1', order: 1, headline: 'One', suggestions: [] },
+        { photoId: 'p2', order: 2, headline: 'Two', suggestions: [] },
+        { photoId: 'p3', order: 3, headline: 'Three', suggestions: [] },
+      ]);
+    });
+
+    it('says nothing about a photo it was never given', async () => {
+      const service = await makeStreamingService(
+        streamOf(
+          '{"frames":[{"photoId":"ghost","order":1,"headline":"nope"}',
+          ',{"photoId":"p1","order":2,"headline":"real"}],"look":"scrapbook"}',
+        ),
+      );
+      const reported: string[][] = [];
+
+      await service.generate(makeRequest(3), (frames) =>
+        reported.push(frames.map((frame) => frame.photoId)),
+      );
+
+      expect(reported.flat()).not.toContain('ghost');
+    });
+
+    it('still returns the finished story, which stays the authority', async () => {
+      const service = await makeStreamingService(streamOf(...CHUNKS));
+
+      const result = await service.generate(makeRequest(3), () => undefined);
+
+      expect(result.frames.map((frame) => frame.photoId)).toEqual([
+        'p1',
+        'p2',
+        'p3',
+      ]);
+      expect(result.look).toBe('scrapbook');
+    });
+
+    it('costs nothing when no one is listening', async () => {
+      const service = await makeStreamingService(streamOf(...CHUNKS));
+
+      const result = await service.generate(makeRequest(3));
+
+      expect(result.frames).toHaveLength(3);
     });
   });
 });

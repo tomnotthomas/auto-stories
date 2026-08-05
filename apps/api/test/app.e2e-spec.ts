@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import request from 'supertest';
-import type { GenerateResponse } from '@auto-stories/api-types';
+import type { Frame, GenerateResponse } from '@auto-stories/api-types';
 import { AppModule } from './../src/app.module';
 import { configureApp, type AppSetupOptions } from './../src/app.setup';
 import type { JobState } from './../src/job/job.service';
@@ -17,9 +17,13 @@ const photos = (count: number) =>
 describe('App (e2e)', () => {
   let app: NestExpressApplication;
   let generateContent: jest.Mock;
+  /** When set, the fake model stops here mid-answer until it is resolved, so a
+   * test can look at the job while the story is still being written. */
+  let holdMidAnswer: { promise: Promise<void>; release: () => void } | null;
 
   async function boot(options?: AppSetupOptions): Promise<void> {
-    generateContent = jest.fn().mockResolvedValue({
+    holdMidAnswer = null;
+    generateContent = jest.fn().mockReturnValue({
       text: JSON.stringify({
         // The model names one Look for the story and writes each frame's words
         // (decision 7.24); it no longer emits any geometry.
@@ -36,8 +40,30 @@ describe('App (e2e)', () => {
       imports: [AppModule],
     })
       // Never hit the real model in tests; swap the GenAI client for a fake.
+      // The service streams (decision 7.30), so the fake answers as a stream —
+      // `generateContent` stays the record of what was sent.
       .overrideProvider(GENAI)
-      .useValue({ models: { generateContent } })
+      .useValue({
+        models: {
+          generateContentStream: (...args: unknown[]) => {
+            const response = generateContent(...args) as { text: string };
+            const hold = holdMidAnswer;
+            return Promise.resolve(
+              (async function* () {
+                if (!hold) {
+                  yield response;
+                  return;
+                }
+                // Two frames, then a pause, then the rest of the answer.
+                const cut = response.text.indexOf('{"photoId":"p3"');
+                yield { text: response.text.slice(0, cut) };
+                await hold.promise;
+                yield { text: response.text.slice(cut) };
+              })(),
+            );
+          },
+        },
+      })
       .compile();
 
     app = moduleFixture.createNestApplication<NestExpressApplication>({
@@ -114,6 +140,46 @@ describe('App (e2e)', () => {
         .get(`/api/v1/jobs/${jobId}`)
         .expect(200);
       expect(['queued', 'processing', 'done']).toContain(res.body.status);
+    });
+
+    it('reports the frames written so far while the job is still processing', async () => {
+      let release!: () => void;
+      holdMidAnswer = {
+        promise: new Promise<void>((resolve) => {
+          release = resolve;
+        }),
+        release: () => release(),
+      };
+
+      const jobId = await enqueue({ story: 'beach day', photos: photos(3) });
+
+      // The model has written two of the three frames and stopped there.
+      let mid: Frame[] | undefined;
+      for (let attempt = 0; attempt < 100 && !mid; attempt++) {
+        const res = await request(app.getHttpServer())
+          .get(`/api/v1/jobs/${jobId}`)
+          .expect(200);
+        const state = res.body as JobState;
+        if (state.status === 'processing' && state.frames?.length) {
+          mid = state.frames;
+        } else {
+          await new Promise((resolve) => setTimeout(resolve, 10));
+        }
+      }
+
+      expect(mid?.map((frame) => frame.photoId)).toEqual(['p1', 'p2']);
+
+      holdMidAnswer.release();
+      const done = await settle(jobId);
+      expect(done.status).toBe('done');
+      // The finished story is still the whole of it, and still the authority.
+      const finished: Frame[] =
+        done.status === 'done' ? done.result.frames : [];
+      expect(finished.map((frame) => frame.photoId)).toEqual([
+        'p1',
+        'p2',
+        'p3',
+      ]);
     });
 
     it('finishes the job with an ordered story, each frame with its words', async () => {

@@ -1,4 +1,5 @@
 import { Injectable, inject } from '@angular/core';
+import type { Frame } from '@auto-stories/api-types';
 
 import { StoryService } from './story.service';
 import { StoryGateway, type GenerateOutcome } from './story.gateway';
@@ -31,10 +32,16 @@ export class GenerationService {
    * generating screen needs this: it shows the model's choices as they land, so
    * it holds the result until the reveal is over and then applies it itself.
    * Never throws — a transport failure comes back as a `network` outcome.
+   *
+   * `onFrames` is handed every frame written so far as the model writes them
+   * (decision 7.30), so the screen can show each choice as it is made.
    */
-  async requestStory(mustInclude?: readonly string[]): Promise<GenerateOutcome> {
+  async requestStory(
+    mustInclude?: readonly string[],
+    onFrames?: (frames: readonly Frame[]) => void,
+  ): Promise<GenerateOutcome> {
     try {
-      return await this.request(mustInclude);
+      return await this.request(mustInclude, onFrames);
     } catch {
       return { ok: false, code: 'network', message: 'Something went wrong. Please try again.' };
     }
@@ -118,7 +125,10 @@ export class GenerationService {
    * async transport is hidden here. A synchronous accept error (400/413/429) is
    * returned as-is without opening a stream.
    */
-  private async request(mustInclude?: readonly string[]): Promise<GenerateOutcome> {
+  private async request(
+    mustInclude?: readonly string[],
+    onFrames?: (frames: readonly Frame[]) => void,
+  ): Promise<GenerateOutcome> {
     const photos = await this.images.toProxies(this.story.photos());
     const accepted = await this.gateway.generate({
       story: this.story.storyLine().trim(),
@@ -127,6 +137,6 @@ export class GenerationService {
       mustInclude: mustInclude && mustInclude.length ? [...mustInclude] : undefined,
     });
     if (!accepted.ok) return accepted;
-    return this.gateway.streamStory(accepted.jobId);
+    return this.gateway.streamStory(accepted.jobId, onFrames);
   }
 }

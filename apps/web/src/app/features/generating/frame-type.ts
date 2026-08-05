@@ -69,9 +69,40 @@ export const REDUCED_BEATS: TypeBeats = {
   dwell: 320,
 };
 
-export function beatsFor(reduced: boolean): TypeBeats {
-  return reduced ? REDUCED_BEATS : TYPE_BEATS;
+/**
+ * The beats, optionally run faster. `pace` divides every one of them, so the
+ * choreography is identical and only the time it takes changes — which is what
+ * lets a queue of choices be shown one at a time without the screen outliving
+ * the story it is announcing (decision 7.30).
+ */
+export function beatsFor(reduced: boolean, pace = 1): TypeBeats {
+  const beats = reduced ? REDUCED_BEATS : TYPE_BEATS;
+  if (pace <= 1) return beats;
+  const quicker = (ms: number): number => Math.max(1, Math.round(ms / pace));
+  return {
+    stillness: quicker(beats.stillness),
+    scrim: quicker(beats.scrim),
+    rule: quicker(beats.rule),
+    kicker: quicker(beats.kicker),
+    kickerAgreed: quicker(beats.kickerAgreed),
+    word: quicker(beats.word),
+    lineGap: quicker(beats.lineGap),
+    dwell: quicker(beats.dwell),
+  };
 }
+
+/**
+ * How much faster a run of `remaining` choices has to go to fit the time the
+ * screen is willing to spend on them. 1 means the full beats; the cap keeps a
+ * quick reveal legible rather than a flicker.
+ */
+export function paceFor(remaining: number, budgetMs: number, oneCatchMs: number): number {
+  if (remaining <= 0) return 1;
+  return Math.min(MAX_PACE, Math.max(1, (remaining * oneCatchMs) / budgetMs));
+}
+
+/** Past this the beats stop reading as beats, so the run simply takes longer. */
+const MAX_PACE = 4;
 
 /** The reading a frame gets before its photo has been decoded — enough to ask
  * the Look which end of the frame its type hangs at. */
@@ -108,19 +139,27 @@ export function splitHeadlineLines(headline: string): string[][] {
  * otherwise where the frame sits in the story — something we know. It never
  * invents a reason: nothing in the response says *why* a photo was chosen, so
  * nothing here claims one.
+ *
+ * `total` is null while the model is still writing: the story's length is not
+ * known yet, so nothing may claim to close it.
  */
-export function kickerFor(frame: Frame, total: number, agreed: boolean): string {
+export function kickerFor(frame: Frame, total: number | null, agreed: boolean): string {
   if (agreed) return 'you called it';
   if (frame.kicker) return frame.kicker;
   if (frame.order <= 1) return 'opens the story';
-  if (frame.order >= total) return 'closes it';
+  if (total !== null && frame.order >= total) return 'closes it';
   return 'next beat';
 }
 
 /** Resolve a generated frame into the type that gets set on its print. The end
  * it hangs at is the story's own Look talking, so the reveal puts the words
  * where the finished frame will carry them. */
-export function typeFor(frame: Frame, total: number, agreed: boolean, look?: string): PrintType {
+export function typeFor(
+  frame: Frame,
+  total: number | null,
+  agreed: boolean,
+  look?: string,
+): PrintType {
   const composition = composeFrame(
     look,
     {
@@ -150,8 +189,8 @@ export function typeFor(frame: Frame, total: number, agreed: boolean, look?: str
 
 /** How long the whole reveal takes, from the stillness to the last word. A
  * silent frame is only the stillness — there is nothing to write. */
-export function revealDuration(type: PrintType, reduced: boolean): number {
-  const beats = beatsFor(reduced);
+export function revealDuration(type: PrintType, reduced: boolean, pace = 1): number {
+  const beats = beatsFor(reduced, pace);
   if (type.silent) return beats.stillness;
   const kicker = type.agreed ? beats.kickerAgreed : beats.kicker;
   const gaps = Math.max(0, type.lines.length - 1) * beats.lineGap;

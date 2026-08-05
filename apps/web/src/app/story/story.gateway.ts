@@ -3,6 +3,7 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import type {
   ErrorCode,
+  Frame,
   ErrorResponse,
   GenerateAccepted,
   GenerateRequest,
@@ -34,10 +35,10 @@ export type GenerateOutcome =
 
 /** Opens an SSE stream. Injected so tests can supply a fake EventSource. */
 export type EventSourceFactory = (url: string) => EventSource;
-export const EVENT_SOURCE_FACTORY = new InjectionToken<EventSourceFactory>(
-  'EVENT_SOURCE_FACTORY',
-  { providedIn: 'root', factory: () => (url: string) => new EventSource(url) },
-);
+export const EVENT_SOURCE_FACTORY = new InjectionToken<EventSourceFactory>('EVENT_SOURCE_FACTORY', {
+  providedIn: 'root',
+  factory: () => (url: string) => new EventSource(url),
+});
 
 const NETWORK_MESSAGE = 'Something went wrong. Please try again.';
 const LOST_MESSAGE = 'Lost connection to the story engine. Please try again.';
@@ -81,15 +82,24 @@ export class StoryGateway {
 
   /**
    * Open the job's SSE stream and resolve with the finished story or a typed
-   * error. `queued`/`processing` states are ignored; the stream is closed once a
-   * terminal state (or a fatal connection error, e.g. an expired 404) arrives. A
-   * transient reconnect (readyState CONNECTING) is left to EventSource to retry —
-   * the server replays the current state on reconnect (6.3).
+   * error. The stream is closed once a terminal state (or a fatal connection
+   * error, e.g. an expired 404) arrives. A transient reconnect (readyState
+   * CONNECTING) is left to EventSource to retry — the server replays the current
+   * state on reconnect (6.3).
+   *
+   * `onFrames` is called with the frames the model has written so far, each time
+   * the server reports more (decision 7.30), so the generating screen can show a
+   * choice as it is made instead of all of them at the end. It is advisory: the
+   * resolved outcome is still the authoritative story.
    */
-  streamStory(jobId: string): Promise<GenerateOutcome> {
+  streamStory(
+    jobId: string,
+    onFrames?: (frames: readonly Frame[]) => void,
+  ): Promise<GenerateOutcome> {
     return new Promise((resolve) => {
       const source = this.openEvents(`${JOBS_URL}/${jobId}/events`);
       let timer: ReturnType<typeof setTimeout>;
+      let reported = 0;
       const settle = (outcome: GenerateOutcome): void => {
         clearTimeout(timer);
         source.close();
@@ -107,6 +117,14 @@ export class StoryGateway {
         const state = JSON.parse(event.data) as JobState;
         if (state.status === 'done' && state.result) {
           settle({ ok: true, response: state.result });
+        } else if (state.status === 'processing') {
+          // Cumulative: each event carries the whole list known at that moment,
+          // so the caller is told only when it has actually grown.
+          const frames = state.frames ?? [];
+          if (frames.length > reported) {
+            reported = frames.length;
+            onFrames?.(frames);
+          }
         } else if (state.status === 'failed') {
           settle({
             ok: false,
@@ -114,7 +132,7 @@ export class StoryGateway {
             message: state.error?.message ?? NETWORK_MESSAGE,
           });
         }
-        // queued / processing → keep waiting for the terminal event.
+        // queued → keep waiting for the terminal event.
       };
       source.onerror = (): void => {
         // CLOSED means a fatal error (bad/expired id, non-2xx): the browser will
