@@ -1,7 +1,7 @@
 import { Component, computed, input } from '@angular/core';
 
 import { paletteFor } from '../../../story/caption-palette';
-import { PAPER, PAPER_INK, handStroke } from '../../../story/look';
+import { PAPER, PAPER_INK, blockMarkHeightEm, handStroke } from '../../../story/look';
 import type {
   Composition,
   Mark,
@@ -215,7 +215,14 @@ export class LayoutView {
     const accent = this.accentColor;
     switch (this.markName(part, run)) {
       case 'accent-block':
-        return accent;
+        // Painted as a sized background rather than a plain fill: an inline
+        // background covers the font's whole content area (~1.16em), which is
+        // taller than the line a marked headline is set on, so the block used
+        // to ride up over the line above. Sized off the line, it cannot.
+        return (
+          `linear-gradient(${accent}, ${accent}) no-repeat center / ` +
+          `100% ${blockMarkHeightEm(part.lineHeight)}em`
+        );
       case 'highlighter': {
         // A marker swipe: thick, translucent, struck through the middle of the
         // word rather than sitting under it.
@@ -233,7 +240,8 @@ export class LayoutView {
   protected markPadding(part: TextPart, run: Run): string | null {
     switch (this.markName(part, run)) {
       case 'accent-block':
-        return '0.06em 0.14em';
+        // Air on the sides only — the block's height is its background's.
+        return '0 0.14em';
       case 'highlighter':
         return '0 0.08em';
       case 'hand-underline':

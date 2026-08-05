@@ -683,6 +683,26 @@ describe('drawComposition', () => {
       expect(texts.find((t) => t.text.trim() === 'a')?.fill).toBe(COLORS.ink);
     });
 
+    it('keeps the block inside the line it marks, clear of the line above', () => {
+      const { ctx, rects } = fakeCtx();
+      const part = text({
+        runs: splitEmphasis('a big word here', 'big'),
+        mark: 'accent-block',
+        fontSizeWPct: 8,
+        lineHeight: 0.94,
+      });
+
+      drawComposition(ctx, composition({ parts: [part] }), WIDTH, HEIGHT, COLORS);
+
+      const block = rects.find((r) => r.fill === COLORS.accent);
+      const fontPx = (part.fontSizeWPct / 100) * WIDTH;
+      const linePx = fontPx * part.lineHeight;
+      expect(block).toBeDefined();
+      expect(block?.h).toBeLessThan(linePx);
+      // Centred in the line, so it never reaches into either neighbour.
+      expect(block?.h ?? 0).toBeGreaterThan(fontPx * 0.72);
+    });
+
     it('swipes a translucent highlighter under the words, not over them', () => {
       const { ctx, texts, rects } = fakeCtx();
 
