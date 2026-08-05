@@ -4,6 +4,7 @@ import {
   LaneEngine,
   driftSpeed,
   geometryFor,
+  transform,
   transformFor,
   type LanePhoto,
   type Print,
@@ -268,6 +269,18 @@ describe('LaneEngine — the piles', () => {
     expect(lane.lane).toContain(print);
   });
 
+  it('puts the kept pile in the story’s order, extras last', () => {
+    const lane = engine();
+    const [a, b, c] = lane.lane;
+    lane.toKept(a, true);
+    lane.toKept(b, false);
+    lane.toKept(c, false);
+
+    lane.arrangeKept([c.photoId, b.photoId]);
+
+    expect(lane.kept).toEqual([c, b, a]);
+  });
+
   it('holds a print at the focal point for the model’s turn', () => {
     const lane = engine();
     const print = lane.lane[0];
@@ -291,5 +304,13 @@ describe('transformFor', () => {
     expect(transformFor(print, GEO)).toBe(
       `translate3d(${195 - GEO.cardW / 2}px, ${400 - GEO.cardH / 2}px, 0) rotate(0deg) scale(0.5)`,
     );
+  });
+
+  it('carries the sway as a sideways offset', () => {
+    const lane = engine();
+    const print = lane.lane[0];
+    print.x = 195;
+    print.tilt = 0;
+    expect(transformFor(print, GEO, 12)).toBe(transform(GEO, 207, print.y, print.rot, print.scale));
   });
 });

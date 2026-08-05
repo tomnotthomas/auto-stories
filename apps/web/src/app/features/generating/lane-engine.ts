@@ -120,12 +120,24 @@ export function driftSpeed(geo: LaneGeometry, elapsedMs: number): number {
   return base / (1 + elapsedMs / DECAY_MS);
 }
 
-/** The print's CSS transform: positioned by its centre, then rotated + scaled. */
-export function transformFor(print: Print, geo: LaneGeometry): string {
-  const x = print.x - geo.cardW / 2;
-  const y = print.y - geo.cardH / 2;
-  const rot = print.rot + print.tilt;
-  return `translate3d(${round(x)}px, ${round(y)}px, 0) rotate(${round(rot)}deg) scale(${round(print.scale)})`;
+/** A CSS transform that puts a print's *centre* at (x, y), then rotates and
+ * scales it. The overshoots and the final open are built from this directly. */
+export function transform(
+  geo: LaneGeometry,
+  x: number,
+  y: number,
+  rot: number,
+  scale: number,
+): string {
+  return (
+    `translate3d(${round(x - geo.cardW / 2)}px, ${round(y - geo.cardH / 2)}px, 0) ` +
+    `rotate(${round(rot)}deg) scale(${round(scale)})`
+  );
+}
+
+/** Where a print is right now, plus any sideways sway. */
+export function transformFor(print: Print, geo: LaneGeometry, sway = 0): string {
+  return transform(geo, print.x + sway, print.y, print.rot + print.tilt, print.scale);
 }
 
 /** The print's CSS filter — depth blur plus any pile wash. */
@@ -316,7 +328,9 @@ export class LaneEngine {
   /** Sideways sway, in px — a print on a table is never perfectly on rails. */
   swayFor(print: Print): number {
     if (this.reduced || print.grabbed || print.held || print.settled) return 0;
-    return Math.sin(print.y * (0.0062 * (REF_H / this.geo.h)) + print.phase) * this.geo.w * (15 / REF_W);
+    return (
+      Math.sin(print.y * (0.0062 * (REF_H / this.geo.h)) + print.phase) * this.geo.w * (15 / REF_W)
+    );
   }
 
   /* ── the gesture ───────────────────────────────────────────────────────── */
@@ -347,6 +361,16 @@ export class LaneEngine {
 
   get dragging(): boolean {
     return this.gesture !== null;
+  }
+
+  /** The print a finger currently has, or null. */
+  get grabbedPrint(): Print | null {
+    return this.gesture?.print ?? null;
+  }
+
+  /** The scale a print lifts to while it is held by a finger. */
+  get grabbedScale(): number {
+    return SCALE.grabbed;
   }
 
   /** Move the held print, damping it past either pile rather than walling it. */
@@ -451,6 +475,18 @@ export class LaneEngine {
     print.settled = false;
     print.slot = null;
     this.lane.push(print);
+    this.restack();
+  }
+
+  /** Put the kept pile in the story's own order, so the bars it flattens into
+   * read left to right the way the story does. A print the story does not name
+   * (one the user kept and the model did not use) keeps its place at the end. */
+  arrangeKept(photoIds: readonly string[]): void {
+    const named = new Map(photoIds.map((id, i) => [id, i]));
+    const rank = new Map(
+      this.kept.map((print, i) => [print, named.get(print.photoId) ?? named.size + i]),
+    );
+    this.kept.sort((a, b) => (rank.get(a) ?? 0) - (rank.get(b) ?? 0));
     this.restack();
   }
 
