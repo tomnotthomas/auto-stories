@@ -7,6 +7,7 @@ import {
   resolveRung,
   DENSITIES,
   DENSITY_WORDS,
+  blockMarkHeightEm,
   splitEmphasis,
   textParts,
   wrapRuns,
@@ -24,6 +25,41 @@ const CONTENT: FrameContent = {
   headline: 'Where the mountain meets its mirror',
   emphasis: 'mountain',
 };
+
+describe('blockMarkHeightEm', () => {
+  // The Looks that use a block set their headline at this leading, which is
+  // tighter than the ~1.16em an inline background would otherwise cover.
+  const TIGHT_LEADING = [0.88, 0.92, 0.94];
+
+  it('keeps the block inside the line it sits on, at every leading a Look uses', () => {
+    for (const leading of TIGHT_LEADING) {
+      expect(blockMarkHeightEm(leading)).toBeLessThan(leading);
+    }
+  });
+
+  it('leaves air between the block and the line above it', () => {
+    // The gap is what stops two marked lines from touching.
+    for (const leading of TIGHT_LEADING) {
+      expect(leading - blockMarkHeightEm(leading)).toBeGreaterThanOrEqual(0.05);
+    }
+  });
+
+  it('still covers the caps of the word it marks', () => {
+    // Cap height is ~0.72em for the display faces the Looks set marks in.
+    for (const leading of TIGHT_LEADING) {
+      expect(blockMarkHeightEm(leading)).toBeGreaterThan(0.72);
+    }
+  });
+
+  it('stops growing once the leading is generous, so it stays a mark on a word', () => {
+    expect(blockMarkHeightEm(1.4)).toBe(blockMarkHeightEm(1.08));
+    expect(blockMarkHeightEm(2)).toBeLessThanOrEqual(1);
+  });
+
+  it('never collapses to nothing on leading tight enough to be a mistake', () => {
+    expect(blockMarkHeightEm(0.2)).toBeGreaterThan(0.5);
+  });
+});
 
 describe('splitEmphasis', () => {
   it('splits the headline around the emphasised phrase', () => {

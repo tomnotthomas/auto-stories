@@ -1,6 +1,7 @@
 import {
   PAPER,
   PAPER_INK,
+  blockMarkHeightEm,
   handStroke,
   wrapRuns,
   type Composition,
@@ -349,12 +350,14 @@ function drawMark(
       return;
     }
     case 'accent-block': {
-      // A filled block a shade larger than the word, so the reversed letters
-      // have air on every side.
+      // A filled block behind the word, sized to the line and centred in it —
+      // never to the font's own ascent and descent, which at the tight leading a
+      // marked headline is set on is taller than the line itself (see
+      // blockMarkHeightEm). Air on the sides comes from the padding.
       const padX = paint.fontPx * 0.14;
-      const padY = paint.fontPx * 0.06;
+      const blockH = blockMarkHeightEm(paint.lineHeight / paint.fontPx) * paint.fontPx;
       ctx.fillStyle = paint.accent;
-      ctx.fillRect(x - padX, top - padY, runWidth + padX * 2, paint.lineHeight * 0.94 + padY * 2);
+      ctx.fillRect(x - padX, top + (paint.lineHeight - blockH) / 2, runWidth + padX * 2, blockH);
       return;
     }
     case 'highlighter': {

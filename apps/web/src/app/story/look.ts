@@ -237,6 +237,30 @@ export type Mark =
   /** A thick translucent swipe through the word (Marker). */
   | 'highlighter';
 
+/** The air a block mark leaves between itself and the edge of its line, in em. */
+const BLOCK_MARK_GAP_EM = 0.06;
+/** Past this a block stops reading as a mark on a word and starts reading as a
+ * band across the frame, so extra leading is left as air, not as more block. */
+const BLOCK_MARK_MAX_EM = 1;
+/** Enough to cover the caps of any face a Look sets a marked headline in. */
+const BLOCK_MARK_MIN_EM = 0.6;
+
+/**
+ * How tall a block mark is drawn, in em — sized to the **line**, never to the
+ * font's own ascent and descent.
+ *
+ * This is the whole of it: a background painted behind an inline run covers the
+ * font's content area, which for a display grotesque is ~1.16em, while the
+ * headline Looks that use a block set their leading at 0.88–0.94em. The block
+ * was therefore taller than the line holding it and rode up over the line above.
+ * Sizing it off the line instead keeps it inside its own line whatever the face,
+ * and leaves a hairline of air so two marked lines never touch.
+ */
+export function blockMarkHeightEm(lineHeight: number): number {
+  const bounded = Math.min(lineHeight, BLOCK_MARK_MAX_EM) - BLOCK_MARK_GAP_EM;
+  return Math.max(BLOCK_MARK_MIN_EM, bounded);
+}
+
 /**
  * Whether a part paints in the legible ink colour, the story accent, or the
  * off-white "paper" a Look lays down for its own panels (Gallery Label,
