@@ -23,22 +23,33 @@ export class GenerationService {
    * it's a new story).
    */
   async generate(): Promise<void> {
+    this.applyOutcome(await this.requestStory());
+  }
+
+  /**
+   * Run the round trip and hand the result back without touching the flow. The
+   * generating screen needs this: it shows the model's choices as they land, so
+   * it holds the result until the reveal is over and then applies it itself.
+   * Never throws — a transport failure comes back as a `network` outcome.
+   */
+  async requestStory(mustInclude?: readonly string[]): Promise<GenerateOutcome> {
     try {
-      const outcome = await this.request();
-      if (outcome.ok) {
-        this.story.completeStory(
-          outcome.response.frames,
-          outcome.response.partial ?? false,
-          outcome.response.look,
-        );
-      } else {
-        this.story.failStory({ code: outcome.code, message: outcome.message });
-      }
+      return await this.request(mustInclude);
     } catch {
-      this.story.failStory({
-        code: 'network',
-        message: 'Something went wrong. Please try again.',
-      });
+      return { ok: false, code: 'network', message: 'Something went wrong. Please try again.' };
+    }
+  }
+
+  /** Land a held result: the payoff on success, a specific error otherwise (4.3). */
+  applyOutcome(outcome: GenerateOutcome): void {
+    if (outcome.ok) {
+      this.story.completeStory(
+        outcome.response.frames,
+        outcome.response.partial ?? false,
+        outcome.response.look,
+      );
+    } else {
+      this.story.failStory({ code: outcome.code, message: outcome.message });
     }
   }
 
@@ -69,13 +80,18 @@ export class GenerationService {
    * (2.5). A transient failure never bounces the user off the payoff: the photo
    * is still appended (empty headline) so it never silently vanishes, and the
    * user can type or regenerate it.
+   *
+   * `only` narrows it to a named set of photos — the generating screen passes
+   * the prints the user pulled down themselves, so the photos the model simply
+   * did not use are left out of the story.
    */
-  async captionNewPhotos(): Promise<void> {
+  async captionNewPhotos(only?: readonly string[]): Promise<void> {
     const inStory = new Set(this.story.frames().map((frame) => frame.photoId));
+    const wanted = only ? new Set(only) : null;
     const newIds = this.story
       .photos()
       .map((photo) => photo.id)
-      .filter((id) => !inStory.has(id));
+      .filter((id) => !inStory.has(id) && (!wanted || wanted.has(id)));
     if (newIds.length === 0) return;
 
     const headlines = new Map<string, string>();
