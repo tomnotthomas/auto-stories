@@ -186,6 +186,25 @@ describe('Generating', () => {
     expect(story.error()).toEqual({ code: 'timeout', message: 'took too long' });
   });
 
+  it('keeps working through the photos when the OS asks for less movement', async () => {
+    const media = window.matchMedia;
+    window.matchMedia = ((query: string) =>
+      ({
+        matches: query.includes('reduced-motion'),
+        media: query,
+      }) as MediaQueryList) as typeof window.matchMedia;
+    try {
+      const { harness } = await setup();
+
+      // Nothing drifts in this mode, so the tally is the proof it is working.
+      await play(6000);
+
+      expect(await harness.getSeenTally()).toContain('looked at');
+    } finally {
+      window.matchMedia = media;
+    }
+  });
+
   it('goes quiet rather than repeating photos once the pool is spent', async () => {
     const { harness } = await setup();
 

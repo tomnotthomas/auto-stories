@@ -16,6 +16,7 @@
       [style.width.px]="geo.cardW"
       [style.height.px]="geo.cardH"
       class="absolute top-0 left-0 touch-none overflow-hidden rounded-[22px] bg-black shadow-[0_22px_48px_rgba(0,0,0,0.55),0_0_0_1px_rgba(255,255,255,0.08)] will-change-[transform,opacity,filter]"
+      [class]="reduced ? '[transition:opacity_300ms_cubic-bezier(0.23,1,0.32,1)]' : ''"
     >
       <img
         [src]="view.print.src"

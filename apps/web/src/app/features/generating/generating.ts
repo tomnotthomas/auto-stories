@@ -94,6 +94,7 @@ const TO_PILE_MS = 520;
   host: {
     class: 'block h-full w-full',
     '(pointerdown)': 'onSurfaceDown()',
+    '(window:resize)': 'onResize()',
   },
 })
 export class Generating implements OnDestroy {
@@ -106,7 +107,7 @@ export class Generating implements OnDestroy {
   /** The OS asked for less movement: the drift, the depth blur and the travel
    * go; the reveal and the gesture stay. Everything-at-once is jarring, not
    * accessible — the fades are what is kept. */
-  private readonly reduced =
+  protected readonly reduced =
     this.view?.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 
   protected readonly geometry = signal<LaneGeometry>(geometryFor(390, 844));
@@ -183,9 +184,7 @@ export class Generating implements OnDestroy {
 
   /** Measure the surface, deal the first prints, and start the loop. */
   private start(): void {
-    const rect = this.hostRef.nativeElement.getBoundingClientRect();
-    const geo =
-      rect.width > 0 && rect.height > 0 ? geometryFor(rect.width, rect.height) : this.geometry();
+    const geo = this.measure();
     this.geometry.set(geo);
     this.engine = new LaneEngine(geo, { reduced: this.reduced });
     this.engine.setPool(
@@ -197,6 +196,32 @@ export class Generating implements OnDestroy {
     this.lastFrame = 0;
     this.raf = this.view?.requestAnimationFrame(this.tick) ?? 0;
     this.markReady();
+  }
+
+  /** The surface changed size — on Android that is the URL bar collapsing, which
+   * moves every landmark the lane is judged against. Re-measure and carry the
+   * table over rather than leaving it laid out for a screen that is gone. */
+  protected onResize(): void {
+    const geo = this.measure();
+    if (geo.w === this.geometry().w && geo.h === this.geometry().h) return;
+    this.geometry.set(geo);
+    this.engine.resize(geo);
+    // Prints that have landed are normally left to their own animation, but a
+    // resize moves the ground under them: their size follows the new surface
+    // while the transform their finished animation still holds would not. So
+    // every print is taken back from whatever is animating it and rewritten.
+    for (const print of this.engine.prints) {
+      const element = this.elements.get(print.key);
+      for (const running of element?.getAnimations?.() ?? []) running.cancel();
+      this.place(print);
+    }
+  }
+
+  private measure(): LaneGeometry {
+    const rect = this.hostRef.nativeElement.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0
+      ? geometryFor(rect.width, rect.height)
+      : this.geometry();
   }
 
   private readonly tick = (now: number): void => {
@@ -223,16 +248,20 @@ export class Generating implements OnDestroy {
   /** Write the lane's continuous state straight to the elements. A print that
    * has landed on a pile is left alone — its own animation owns it. */
   private render(): void {
-    const geo = this.geometry();
     for (const print of this.engine.prints) {
       if (print.settled) continue;
-      const element = this.elements.get(print.key);
-      if (!element) continue;
-      element.style.transform = transformFor(print, geo, this.engine.swayFor(print));
-      element.style.opacity = String(print.opacity);
-      element.style.filter = filterFor(print);
-      element.style.zIndex = String(print.z);
+      this.place(print);
     }
+  }
+
+  /** Write one print's current state to its element. */
+  private place(print: Print): void {
+    const element = this.elements.get(print.key);
+    if (!element) return;
+    element.style.transform = transformFor(print, this.geometry(), this.engine.swayFor(print));
+    element.style.opacity = String(print.opacity);
+    element.style.filter = filterFor(print);
+    element.style.zIndex = String(print.z);
   }
 
   /** Rebuild the render list from the lane, keeping the words already set. */
@@ -271,26 +300,38 @@ export class Generating implements OnDestroy {
   private toss(print: Print): void {
     const element = this.elements.get(print.key);
     const geo = this.geometry();
+    // Reduced motion: it goes out where it stands. Sliding it up to the pile
+    // would be the movement this mode exists to avoid, and the pile it would
+    // land on is not drawn in this mode anyway — the tally carries the count.
+    if (this.reduced) {
+      if (element) {
+        this.play(
+          element,
+          [{ opacity: element.style.opacity || '1' }, { opacity: 0 }],
+          300,
+          EASE_OUT,
+        );
+      }
+      return;
+    }
     const to = transformFor(print, geo);
     const filter = filterFor(print);
     if (element) {
       this.play(
         element,
-        this.reduced
-          ? [{ opacity: element.style.opacity || '1' }, { opacity: '0.66' }]
-          : [
-              {
-                transform: element.style.transform,
-                opacity: element.style.opacity || '1',
-                filter: element.style.filter || 'none',
-              },
-              {
-                transform: transform(geo, print.x, print.y, print.rot * 1.5, print.scale * 1.04),
-                offset: 0.62,
-              },
-              { transform: to, opacity: '0.66', filter },
-            ],
-        this.reduced ? 240 : 520,
+        [
+          {
+            transform: element.style.transform,
+            opacity: element.style.opacity || '1',
+            filter: element.style.filter || 'none',
+          },
+          {
+            transform: transform(geo, print.x, print.y, print.rot * 1.5, print.scale * 1.04),
+            offset: 0.62,
+          },
+          { transform: to, opacity: '0.66', filter },
+        ],
+        520,
         EASE_OUT,
       );
       element.style.transform = to;
