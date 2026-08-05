@@ -113,6 +113,33 @@ describe('StoryGateway', () => {
       expect(source.closed).toBe(true);
     });
 
+    it('hands each frame to the caller as the model writes it', async () => {
+      const seen: string[][] = [];
+      const pending = gateway.streamStory('job-123', (frames) =>
+        seen.push(frames.map((frame) => frame.photoId)),
+      );
+      const source = sources[0];
+
+      source.emit({ status: 'processing' });
+      source.emit({ status: 'processing', frames: [STORY.frames[0]] });
+      source.emit({ status: 'done', result: STORY });
+      await pending;
+
+      expect(seen).toEqual([['p1']]);
+    });
+
+    it('says nothing when a processing state carries no frames', async () => {
+      const seen: unknown[] = [];
+      const pending = gateway.streamStory('job-123', (frames) => seen.push(frames));
+
+      sources[0].emit({ status: 'queued' });
+      sources[0].emit({ status: 'processing' });
+      sources[0].emit({ status: 'done', result: STORY });
+      await pending;
+
+      expect(seen).toEqual([]);
+    });
+
     it('resolves with a typed error on a failed state', async () => {
       const pending = gateway.streamStory('job-123');
       sources[0].emit({

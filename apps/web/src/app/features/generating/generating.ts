@@ -151,6 +151,18 @@ export class Generating implements OnDestroy {
   private ending = false;
   private boost = 1;
   private capture: { element: HTMLElement; pointerId: number } | null = null;
+  /** Choices the model has written that have not been shown yet. */
+  private readonly pending: Frame[] = [];
+  /** Every photo already queued, so a repeated report deals nothing twice. */
+  private readonly announced = new Set<string>();
+  /** Every photo whose words have actually been set on its print. */
+  private readonly revealed = new Set<string>();
+  /** True while the queue is being worked through. */
+  private pumping = false;
+  /** The finished story has arrived, so no new full catch is started. */
+  private storyLanded = false;
+  /** How long the story is — unknown until it lands. */
+  private total: number | null = null;
   /** Set when a press landed on a print, so the surface handler behind it knows
    * the press was spent on the gesture and is not the "I've read it" tap. */
   private caught = false;
@@ -446,7 +458,9 @@ export class Generating implements OnDestroy {
   /* ── the model's turn ──────────────────────────────────────────────────── */
 
   private async run(): Promise<void> {
-    const outcome = await this.generation.requestStory();
+    const outcome = await this.generation.requestStory(undefined, (frames) =>
+      this.onFrames(frames),
+    );
     if (!this.alive) return;
     if (!outcome.ok) {
       this.generation.applyOutcome(outcome);
@@ -455,11 +469,58 @@ export class Generating implements OnDestroy {
     await this.ready;
     if (!this.alive) return;
     const frames = [...outcome.response.frames].sort((a, b) => a.order - b.order);
+    this.total = frames.length;
     await this.reveal(frames, outcome.response.look);
     if (!this.alive) return;
     await this.land(frames);
     if (!this.alive) return;
     this.finish(outcome, frames);
+  }
+
+  /**
+   * The model has finished writing another choice (decision 7.30). The report is
+   * cumulative, so anything already queued is skipped, and the queue is worked
+   * through one catch at a time — the wait is what the reveal is spread across.
+   */
+  private onFrames(frames: readonly Frame[]): void {
+    for (const frame of frames) {
+      if (this.announced.has(frame.photoId)) continue;
+      this.announced.add(frame.photoId);
+      this.pending.push(frame);
+    }
+    void this.pump();
+  }
+
+  /** Work the queue, one full catch at a time. Only ever one pump running. */
+  private async pump(): Promise<void> {
+    if (this.pumping) return;
+    this.pumping = true;
+    try {
+      await this.ready;
+      while (this.alive && !this.ending && !this.storyLanded) {
+        const frame = this.pending.shift();
+        if (!frame) break;
+        await this.catchFrame(frame, this.total, undefined);
+      }
+    } finally {
+      this.pumping = false;
+    }
+  }
+
+  /** Bring the model's choice onto the table and read it out in full. */
+  private async catchFrame(
+    frame: Frame,
+    total: number | null,
+    look: string | undefined,
+  ): Promise<void> {
+    this.quiet.set(false);
+    const agreed = this.story.userPicks().includes(frame.photoId);
+    const view = this.bring(frame, total, agreed, look);
+    if (!view) return;
+    if (!agreed && !this.reduced) await this.driftToFocal(view.print);
+    if (!this.alive) return;
+    await this.catchIt(view);
+    this.revealed.add(frame.photoId);
   }
 
   /** Land the story, then send the prints the user pulled down that the model
@@ -472,32 +533,36 @@ export class Generating implements OnDestroy {
   }
 
   /**
-   * The model's choices arrive. The first is caught and read in full; the rest
-   * follow onto the kept pile with their words already set — there is one round
-   * trip in this slice, so the story is not read out twice before the user is
-   * let into it.
+   * The story has landed. Whatever the model wrote is now known, so the reveal
+   * stops taking on new full catches: the one in flight finishes, and every
+   * choice that was never shown lands on the kept pile with its words already
+   * set. Reading the rest out in full here would tell the whole story before the
+   * user is let into it, and would add to a wait that is already over.
+   *
+   * The floor is one: if the model wrote everything so late that nothing was
+   * caught during the wait, the first choice is still read out properly.
    */
   private async reveal(frames: readonly Frame[], look: string): Promise<void> {
-    const [hero, ...rest] = frames;
-    if (!hero) return;
-    this.quiet.set(false);
+    this.storyLanded = true;
+    while (this.alive && this.pumping) await this.wait(60);
+    if (!this.alive) return;
 
-    const agreed = this.story.userPicks().includes(hero.photoId);
-    const view = this.bring(hero, frames.length, agreed, look);
-    if (view) {
-      if (!agreed && !this.reduced) await this.driftToFocal(view.print);
+    if (this.revealed.size === 0 && frames.length > 0) {
+      await this.catchFrame(frames[0], frames.length, look);
       if (!this.alive) return;
-      await this.catchIt(view);
     }
 
-    for (const frame of rest) {
+    for (const frame of frames) {
       if (!this.alive) return;
-      const next = this.bring(frame, frames.length, false, look);
+      if (this.revealed.has(frame.photoId)) continue;
+      const agreed = this.story.userPicks().includes(frame.photoId);
+      const next = this.bring(frame, frames.length, agreed, look);
       if (!next) continue;
       next.reveal = { scrim: true, rule: true, kicker: true, words: next.type?.wordCount ?? 0 };
       next.print.held = false;
       this.engine.toKept(next.print, false);
       this.settleKept();
+      this.revealed.add(frame.photoId);
       this.bump();
       await this.wait(DEAL_GAP_MS);
     }
@@ -506,7 +571,12 @@ export class Generating implements OnDestroy {
   /** Put the model's chosen photo on the table with its words set. A photo that
    * has already left the lane — the user pulled it down, or it drifted past — is
    * lifted back out of its pile and written on rather than dealt a second time. */
-  private bring(frame: Frame, total: number, agreed: boolean, look: string): PrintView | null {
+  private bring(
+    frame: Frame,
+    total: number | null,
+    agreed: boolean,
+    look: string | undefined,
+  ): PrintView | null {
     const photo = this.story.photos().find((candidate) => candidate.id === frame.photoId);
     if (!photo) return null;
     const existing = this.engine.prints.find((print) => print.photoId === frame.photoId);
@@ -586,7 +656,9 @@ export class Generating implements OnDestroy {
         await this.wait(beats.lineGap);
       }
     }
-    await this.wait(beats.dwell);
+    // Another choice is already waiting, so this one is left up for half as
+    // long — the beats stay whole, the reading time gives way.
+    await this.wait(this.pending.length > 0 ? beats.dwell / 2 : beats.dwell);
     if (!this.alive) return;
 
     print.held = false;

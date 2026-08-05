@@ -44,6 +44,13 @@ describe('kickerFor', () => {
     expect(kickerFor(frame('x', { order: 3 }), 6, false)).toBe('next beat');
     expect(kickerFor(frame('x', { order: 1 }), 1, false)).toBe('opens the story');
   });
+
+  it('never claims a frame closes a story whose length it does not know yet', () => {
+    // While the model is still writing, the frame in hand may or may not be the
+    // last one — so only the opener is safe to name.
+    expect(kickerFor(frame('x', { order: 1 }), null, false)).toBe('opens the story');
+    expect(kickerFor(frame('x', { order: 4 }), null, false)).toBe('next beat');
+  });
 });
 
 describe('typeFor', () => {

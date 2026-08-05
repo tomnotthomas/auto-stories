@@ -108,19 +108,27 @@ export function splitHeadlineLines(headline: string): string[][] {
  * otherwise where the frame sits in the story — something we know. It never
  * invents a reason: nothing in the response says *why* a photo was chosen, so
  * nothing here claims one.
+ *
+ * `total` is null while the model is still writing: the story's length is not
+ * known yet, so nothing may claim to close it.
  */
-export function kickerFor(frame: Frame, total: number, agreed: boolean): string {
+export function kickerFor(frame: Frame, total: number | null, agreed: boolean): string {
   if (agreed) return 'you called it';
   if (frame.kicker) return frame.kicker;
   if (frame.order <= 1) return 'opens the story';
-  if (frame.order >= total) return 'closes it';
+  if (total !== null && frame.order >= total) return 'closes it';
   return 'next beat';
 }
 
 /** Resolve a generated frame into the type that gets set on its print. The end
  * it hangs at is the story's own Look talking, so the reveal puts the words
  * where the finished frame will carry them. */
-export function typeFor(frame: Frame, total: number, agreed: boolean, look?: string): PrintType {
+export function typeFor(
+  frame: Frame,
+  total: number | null,
+  agreed: boolean,
+  look?: string,
+): PrintType {
   const composition = composeFrame(
     look,
     {

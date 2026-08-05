@@ -5,22 +5,23 @@ import { Generating } from './generating';
 import { GeneratingHarness } from './generating.harness';
 import { StoryService } from '../../story/story.service';
 import { StoryGateway, GenerateOutcome } from '../../story/story.gateway';
+import type { Frame } from '@auto-stories/api-types';
 import { ImageService } from '../../story/image.service';
 
 function imageFile(name: string): File {
   return new File(['bytes'], name, { type: 'image/jpeg' });
 }
 
-/** A finished story that names the user's first two photos. */
+/** The model's two choices, in the order it writes them. */
+const FRAMES: Frame[] = [
+  { photoId: 'photo-1', order: 1, headline: 'It started with a mirror and a plan' },
+  { photoId: 'photo-2', order: 2, headline: 'Home sticky and victorious' },
+];
+
+/** The finished story those choices add up to. */
 const STORY: GenerateOutcome = {
   ok: true,
-  response: {
-    frames: [
-      { photoId: 'photo-1', order: 1, headline: 'It started with a mirror and a plan' },
-      { photoId: 'photo-2', order: 2, headline: 'Home sticky and victorious' },
-    ],
-    look: 'magazine-masthead',
-  },
+  response: { frames: FRAMES, look: 'magazine-masthead' },
 };
 
 /** Longer than the whole reveal — the drift in, the catch, and the ending. */
@@ -29,6 +30,8 @@ const WHOLE_REVEAL_MS = 20_000;
 describe('Generating', () => {
   let fixture: ComponentFixture<Generating>;
   let land: (outcome: GenerateOutcome) => void;
+  /** Report frames the way the server does while the model is still writing. */
+  let report: ((frames: readonly Frame[]) => void) | undefined;
 
   /**
    * Mount the screen with the model still working, so a test can play with the
@@ -43,7 +46,10 @@ describe('Generating', () => {
     });
     const gateway: Pick<StoryGateway, 'generate' | 'streamStory'> = {
       generate: async () => ({ ok: true, jobId: 'job-1' }),
-      streamStory: () => pending,
+      streamStory: (_jobId, onFrames) => {
+        report = onFrames;
+        return pending;
+      },
     };
     const images: Pick<ImageService, 'toProxies'> = {
       toProxies: async () => [{ id: 'photo-1', b64: 'x' }],
@@ -122,6 +128,52 @@ describe('Generating', () => {
 
     await harness.dragPrint('photo-1', 10);
     expect(await harness.hasInvitation()).toBe(false);
+  });
+
+  it('shows a choice while the model is still working, not only at the end', async () => {
+    const { harness } = await setup();
+
+    report?.([FRAMES[0]]);
+    await play(WHOLE_REVEAL_MS);
+
+    // The story has not landed — this is the model still writing.
+    expect(await harness.getSetHeadlines()).toContain('It started with a mirror and a plan');
+    expect(await harness.getSegmentCount()).toBe(0);
+  });
+
+  it('never claims a frame closes a story whose length it does not know yet', async () => {
+    const { harness } = await setup();
+
+    report?.(FRAMES);
+    await play(WHOLE_REVEAL_MS);
+
+    expect(await harness.getSetKickers()).not.toContain('closes it');
+  });
+
+  it('catches each choice as it arrives, in the order the model wrote them', async () => {
+    const { harness } = await setup();
+
+    report?.([FRAMES[0]]);
+    await play(WHOLE_REVEAL_MS);
+    report?.(FRAMES);
+    await play(WHOLE_REVEAL_MS);
+
+    expect(await harness.getSetHeadlines()).toEqual([
+      'It started with a mirror and a plan',
+      'Home sticky and victorious',
+    ]);
+  });
+
+  it('does not deal the same photo twice when the report repeats it', async () => {
+    const { harness } = await setup();
+
+    report?.([FRAMES[0]]);
+    await play(WHOLE_REVEAL_MS);
+    report?.([FRAMES[0]]);
+    await play(2000);
+
+    const dealt = await harness.getPrintPhotoIds();
+    expect(dealt.filter((id) => id === 'photo-1')).toHaveLength(1);
   });
 
   it('sets the model’s own words on the print it caught', async () => {
