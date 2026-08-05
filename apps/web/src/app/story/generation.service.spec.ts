@@ -63,6 +63,58 @@ describe('GenerationService', () => {
     expect(story.error()).toEqual({ code: 'timeout', message: 'took too long' });
   });
 
+  describe('requestStory / applyOutcome (the generating screen holds the result)', () => {
+    it('returns the story without moving the flow off the generating screen', async () => {
+      story.startGenerating();
+      outcome = {
+        ok: true,
+        response: {
+          frames: [{ photoId: 'p1', order: 1, headline: 'By the water' }],
+          look: 'magazine-masthead',
+        },
+      };
+
+      const result = await generation.requestStory();
+
+      expect(result).toEqual(outcome);
+      expect(story.phase()).toBe('generating');
+    });
+
+    it('reports a transport failure as a network outcome instead of throwing', async () => {
+      story.startGenerating();
+      const gateway = TestBed.inject(StoryGateway) as unknown as {
+        generate: () => Promise<never>;
+      };
+      gateway.generate = async () => {
+        throw new Error('offline');
+      };
+
+      const result = await generation.requestStory();
+
+      expect(result.ok).toBe(false);
+      expect(story.phase()).toBe('generating');
+    });
+
+    it('lands the payoff when the held result is applied', () => {
+      generation.applyOutcome({
+        ok: true,
+        response: {
+          frames: [{ photoId: 'p1', order: 1, headline: 'By the water' }],
+          partial: true,
+          look: 'magazine-masthead',
+        },
+      });
+      expect(story.phase()).toBe('story');
+      expect(story.partial()).toBe(true);
+    });
+
+    it('shows the specific error when the held result is a failure', () => {
+      generation.applyOutcome({ ok: false, code: 'timeout', message: 'took too long' });
+      expect(story.phase()).toBe('error');
+      expect(story.error()).toEqual({ code: 'timeout', message: 'took too long' });
+    });
+  });
+
   it("regenerates only the target frame's words, keeping the rest of the refined story", async () => {
     story.completeStory(
       [
@@ -175,6 +227,49 @@ describe('GenerationService', () => {
       expect(added?.headline).toBe('');
       // Never bounced off the payoff.
       expect(story.phase()).toBe('story');
+    });
+
+    it('appends only the photos it was asked about, leaving the rest unused', async () => {
+      const [a, b, c] = story.photos();
+      story.addPhotos([imageFile('d.jpg'), imageFile('e.jpg')]);
+      const [, , , d, e] = story.photos();
+      story.completeStory(
+        [
+          { photoId: a.id, order: 1, headline: 'first' },
+          { photoId: b.id, order: 2, headline: 'second' },
+          { photoId: c.id, order: 3, headline: 'third' },
+        ],
+        false,
+      );
+      outcome = {
+        ok: true,
+        response: {
+          frames: [{ photoId: d.id, order: 1, headline: 'the one they pulled down' }],
+          look: 'magazine-masthead',
+        },
+      };
+
+      await generation.captionNewPhotos([d.id]);
+
+      const frames = story.frames();
+      expect(frames).toHaveLength(4);
+      expect(frames[3].photoId).toBe(d.id);
+      expect(frames.some((f) => f.photoId === e.id)).toBe(false);
+    });
+
+    it('does nothing when the list it is given is empty', async () => {
+      const [a, b, c] = story.photos();
+      story.addPhotos([imageFile('d.jpg')]);
+      story.completeStory(
+        [
+          { photoId: a.id, order: 1, headline: 'first' },
+          { photoId: b.id, order: 2, headline: 'second' },
+          { photoId: c.id, order: 3, headline: 'third' },
+        ],
+        false,
+      );
+      await generation.captionNewPhotos([]);
+      expect(story.frames()).toHaveLength(3);
     });
 
     it('does nothing when no photos were added', async () => {

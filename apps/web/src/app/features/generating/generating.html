@@ -1,31 +1,159 @@
-<section class="relative flex h-full flex-col overflow-hidden bg-black text-white">
-  <!-- The user's photos, stacked; the active one fades in over the previous. -->
-  @for (photo of photos(); track photo.id; let i = $index) {
-    <img
-      [src]="photo.previewUrl"
-      alt=""
-      class="absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ease-out"
-      [class.opacity-100]="i === activePhoto()"
-      [class.opacity-0]="i !== activePhoto()"
-    />
-  }
-  <div class="absolute inset-0 bg-gradient-to-b from-black/50 via-black/20 to-black/95"></div>
+@let geo = geometry();
 
-  <div class="relative z-10 mt-auto flex flex-col gap-5 p-6 pb-10">
-    <h1 class="mat-headline-small">Building your story…</h1>
-    <mat-progress-bar mode="indeterminate" aria-label="Building your story" />
-    <ul class="flex flex-col gap-4">
-      @for (step of steps; track step; let i = $index) {
-        <li
-          class="flex items-center gap-3 transition-opacity duration-200 ease-out"
-          [class.opacity-50]="i > activeStep()"
+<section
+  class="relative h-full w-full touch-none overflow-hidden bg-[#08080b] text-white select-none"
+>
+  <h1 class="sr-only">Building your story…</h1>
+  <p class="sr-only" role="status">{{ status() }}</p>
+
+  <!-- The user's own photos, as prints on a light table. Position, depth and
+       blur are written straight to these elements by the animation loop; the
+       bindings here carry only what changes in beats, not what changes per frame. -->
+  @for (view of prints(); track view.print.key) {
+    <div
+      #printEl
+      [attr.data-print]="view.print.photoId"
+      (pointerdown)="onPrintDown($event, view.print)"
+      [style.width.px]="geo.cardW"
+      [style.height.px]="geo.cardH"
+      class="absolute top-0 left-0 touch-none overflow-hidden rounded-[22px] bg-black shadow-[0_22px_48px_rgba(0,0,0,0.55),0_0_0_1px_rgba(255,255,255,0.08)] will-change-[transform,opacity,filter]"
+    >
+      <img
+        [src]="view.print.src"
+        alt=""
+        class="pointer-events-none block h-full w-full object-cover"
+      />
+
+      <!-- Your pick, before the model has said anything about it. -->
+      <div
+        class="absolute top-[26px] right-[26px] h-[30px] w-[30px] rounded-full bg-white [transition:opacity_260ms_cubic-bezier(0.23,1,0.32,1)]"
+        [style.opacity]="view.print.mine ? 1 : 0"
+      ></div>
+
+      @if (view.type; as type) {
+        <!-- The paper the words are written on: the story's own near-black,
+             not a panel. -->
+        <div
+          class="pointer-events-none absolute inset-x-0 h-[62%] [transition:opacity_460ms_cubic-bezier(0.23,1,0.32,1)]"
+          [class]="
+            type.position === 'top'
+              ? 'top-0 bg-[linear-gradient(0deg,rgba(6,6,9,0)_0%,rgba(6,6,9,0.5)_46%,rgba(6,6,9,0.88)_100%)]'
+              : 'bottom-0 bg-[linear-gradient(180deg,rgba(6,6,9,0)_0%,rgba(6,6,9,0.5)_46%,rgba(6,6,9,0.88)_100%)]'
+          "
+          [style.opacity]="view.reveal.scrim ? 1 : 0"
+        ></div>
+
+        <div
+          class="pointer-events-none absolute right-[40px] left-[40px]"
+          [class]="type.position === 'top' ? 'top-[68px]' : 'bottom-[62px]'"
         >
-          <mat-icon class="text-primary">{{
-            i < activeStep() ? 'check_circle' : 'radio_button_unchecked'
-          }}</mat-icon>
-          <span class="mat-label-large">{{ step }}</span>
-        </li>
+          <!-- The ruler goes down before the writing. -->
+          <div
+            class="mb-[18px] h-px w-[34px] origin-left bg-white/60 [transition:transform_520ms_cubic-bezier(0.32,0.72,0,1),opacity_260ms_cubic-bezier(0.23,1,0.32,1)]"
+            [style.transform]="ruleTransform(view)"
+            [style.opacity]="view.reveal.rule ? 1 : 0"
+          ></div>
+
+          <!-- Small caps track in from wide — the letterpress tell. -->
+          <div
+            data-kicker
+            class="mb-[20px] text-[12px] uppercase [transition:opacity_620ms_cubic-bezier(0.23,1,0.32,1),letter-spacing_900ms_cubic-bezier(0.32,0.72,0,1)]"
+            [class]="type.agreed ? 'text-white' : 'text-white/70'"
+            [style.opacity]="view.reveal.kicker ? 1 : 0"
+            [style.letterSpacing]="view.reveal.kicker ? '0.19em' : '0.4em'"
+          >
+            {{ type.kicker }}
+          </div>
+
+          <div data-headline class="story-caption text-[34px] leading-[1.06]">
+            @for (line of type.lines; track line.startIndex) {
+              <!-- The line tightens to its set tracking while the words land. -->
+              <span
+                class="block [transition:letter-spacing_1100ms_cubic-bezier(0.32,0.72,0,1)]"
+                [style.letterSpacing]="isLineSet(view, line) ? '-0.03em' : '0.06em'"
+              >
+                <!-- The word carries its own trailing space, so the gap between
+                     words never depends on how the template is wrapped. -->
+                @for (word of line.words; track $index) {
+                  <span
+                    data-word
+                    class="inline-block whitespace-pre [transition:opacity_520ms_cubic-bezier(0.23,1,0.32,1),filter_620ms_cubic-bezier(0.23,1,0.32,1),transform_700ms_cubic-bezier(0.32,0.72,0,1)]"
+                    [style.opacity]="isWordIn(view, line, $index) ? 1 : 0"
+                    [style.filter]="isWordIn(view, line, $index) ? 'blur(0px)' : 'blur(10px)'"
+                    [style.transform]="
+                      isWordIn(view, line, $index) ? 'none' : 'translateY(0.18em) scale(1.04)'
+                    "
+                    >{{ word + ' ' }}</span
+                  >
+                }
+              </span>
+            }
+          </div>
+        </div>
       }
-    </ul>
-  </div>
+    </div>
+  }
+
+  <!-- The two piles. The one you are about to drop into lights up, so the
+       target is never a guess. -->
+  <div
+    aria-hidden="true"
+    class="pointer-events-none absolute inset-x-0 top-0 z-[2] bg-[linear-gradient(180deg,rgba(8,8,11,0.96)_52%,rgba(8,8,11,0.6)_78%,rgba(8,8,11,0))] [transition:box-shadow_200ms_cubic-bezier(0.23,1,0.32,1)]"
+    [style.height.px]="geo.h * 0.187"
+    [class]="armed() === 'pass' ? 'shadow-[inset_0_3px_0_rgba(255,255,255,0.28)]' : ''"
+  ></div>
+  <div
+    aria-hidden="true"
+    class="pointer-events-none absolute inset-x-0 bottom-0 z-[6] bg-[linear-gradient(0deg,rgba(8,8,11,0.95)_38%,rgba(8,8,11,0))] [transition:box-shadow_200ms_cubic-bezier(0.23,1,0.32,1)]"
+    [style.height.px]="geo.h * 0.249"
+    [class]="armed() === 'keep' ? 'shadow-[inset_0_-3px_0_rgba(255,255,255,0.6)]' : ''"
+  ></div>
+
+  <p
+    data-tally="seen"
+    aria-hidden="true"
+    class="absolute inset-x-0 z-[8] text-center text-[11px] tracking-[0.16em] text-white/35 uppercase [transition:opacity_320ms_cubic-bezier(0.23,1,0.32,1)]"
+    [style.top.px]="geo.h * 0.149"
+    [style.opacity]="chrome() ? 1 : 0"
+  >
+    {{ seenLabel() }}
+  </p>
+  <p
+    data-tally="kept"
+    aria-hidden="true"
+    class="absolute inset-x-0 bottom-[14px] z-[8] text-center text-[11px] tracking-[0.16em] text-white/50 uppercase [transition:opacity_320ms_cubic-bezier(0.23,1,0.32,1)]"
+    [style.opacity]="chrome() ? 1 : 0"
+  >
+    {{ keptLabel() }}
+  </p>
+
+  @if (hint()) {
+    <p
+      data-hint
+      class="pointer-events-none absolute inset-x-0 z-[8] text-center text-[12.5px] tracking-[0.03em] text-white/50"
+      [style.bottom.px]="geo.h * 0.256"
+    >
+      drag a photo down to keep it
+    </p>
+  }
+  @if (quiet()) {
+    <p
+      data-quiet
+      class="pointer-events-none absolute inset-x-0 top-1/2 z-[8] text-center text-[12.5px] tracking-[0.05em] text-white/40"
+    >
+      still looking…
+    </p>
+  }
+
+  <!-- The ending: the kept pile flattens into the story's own segment bars. -->
+  @for (segment of segments(); track segment.index) {
+    <div
+      #segmentEl
+      data-segment
+      class="absolute top-[22px] z-40 h-[3px] rounded-[2px] opacity-0"
+      [class]="segment.index === 0 ? 'bg-white' : 'bg-white/35'"
+      [style.left.px]="segment.left"
+      [style.width.px]="segment.width"
+    ></div>
+  }
 </section>

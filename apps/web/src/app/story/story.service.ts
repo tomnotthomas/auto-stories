@@ -137,6 +137,7 @@ export class StoryService {
   private readonly _error = signal<StoryError | null>(null);
   private readonly _coachSeen = signal(false);
   private readonly _sparks = signal<ReadonlyMap<string, SparkState>>(new Map());
+  private readonly _userPicks = signal<readonly string[]>([]);
   private seq = 0;
 
   /** The screen the flow shell should render. */
@@ -159,6 +160,10 @@ export class StoryService {
   readonly coachSeen = this._coachSeen.asReadonly();
   /** Per-spark user edits (dragged spot / dismissed / done), keyed by {@link sparkKey}. */
   readonly sparks = this._sparks.asReadonly();
+  /** Photo ids the user pulled down themselves on the generating screen, in the
+   * order they pulled them. The model works from the same pile at the same time,
+   * so these are the user's half of the choosing (decision 7.29). */
+  readonly userPicks = this._userPicks.asReadonly();
 
   /** How many photos are picked. */
   readonly photoCount = computed(() => this._photos().length);
@@ -227,7 +232,14 @@ export class StoryService {
   /** Submit the create step and move to the generating screen. */
   startGenerating(): void {
     this._error.set(null);
+    this._userPicks.set([]);
     this._phase.set('generating');
+  }
+
+  /** The user pulled a print down while the model was working — record it as
+   * theirs. Recording the same photo twice is a no-op. */
+  pickPhoto(photoId: string): void {
+    this._userPicks.update((picks) => (picks.includes(photoId) ? picks : [...picks, photoId]));
   }
 
   /** Store the finished story and show the payoff. Each contract frame composes
@@ -394,6 +406,7 @@ export class StoryService {
     this._partial.set(false);
     this._error.set(null);
     this._sparks.set(new Map());
+    this._userPicks.set([]);
     this._phase.set('example');
   }
 }
