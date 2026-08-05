@@ -17,8 +17,6 @@ export interface TypeLine {
 export interface PrintType {
   readonly position: 'top' | 'bottom';
   readonly kicker: string;
-  /** The model chose a photo the user had already pulled down. */
-  readonly agreed: boolean;
   readonly lines: readonly TypeLine[];
   readonly wordCount: number;
   /** The frame carries no words (density `silent`) — nothing is written on it. */
@@ -36,8 +34,6 @@ export interface TypeBeats {
   readonly rule: number;
   /** The small-caps kicker tracking in. */
   readonly kicker: number;
-  /** Longer when the kicker is the agreement line — it is worth reading. */
-  readonly kickerAgreed: number;
   /** Between one word landing and the next. */
   readonly word: number;
   /** Between the last word of a line and the first of the next. */
@@ -51,7 +47,6 @@ export const TYPE_BEATS: TypeBeats = {
   scrim: 380,
   rule: 240,
   kicker: 420,
-  kickerAgreed: 560,
   word: 78,
   lineGap: 300,
   dwell: 1150,
@@ -63,7 +58,6 @@ export const REDUCED_BEATS: TypeBeats = {
   scrim: 160,
   rule: 120,
   kicker: 160,
-  kickerAgreed: 160,
   word: 60,
   lineGap: 120,
   dwell: 320,
@@ -84,7 +78,6 @@ export function beatsFor(reduced: boolean, pace = 1): TypeBeats {
     scrim: quicker(beats.scrim),
     rule: quicker(beats.rule),
     kicker: quicker(beats.kicker),
-    kickerAgreed: quicker(beats.kickerAgreed),
     word: quicker(beats.word),
     lineGap: quicker(beats.lineGap),
     dwell: quicker(beats.dwell),
@@ -143,8 +136,7 @@ export function splitHeadlineLines(headline: string): string[][] {
  * `total` is null while the model is still writing: the story's length is not
  * known yet, so nothing may claim to close it.
  */
-export function kickerFor(frame: Frame, total: number | null, agreed: boolean): string {
-  if (agreed) return 'you called it';
+export function kickerFor(frame: Frame, total: number | null): string {
   if (frame.kicker) return frame.kicker;
   if (frame.order <= 1) return 'opens the story';
   if (total !== null && frame.order >= total) return 'closes it';
@@ -154,12 +146,7 @@ export function kickerFor(frame: Frame, total: number | null, agreed: boolean): 
 /** Resolve a generated frame into the type that gets set on its print. The end
  * it hangs at is the story's own Look talking, so the reveal puts the words
  * where the finished frame will carry them. */
-export function typeFor(
-  frame: Frame,
-  total: number | null,
-  agreed: boolean,
-  look?: string,
-): PrintType {
+export function typeFor(frame: Frame, total: number | null, look?: string): PrintType {
   const composition = composeFrame(
     look,
     {
@@ -179,8 +166,7 @@ export function typeFor(
   });
   return {
     position: composition.anchor === 'bottom' ? 'bottom' : 'top',
-    kicker: kickerFor(frame, total, agreed),
-    agreed,
+    kicker: kickerFor(frame, total),
     lines,
     wordCount: index,
     silent: index === 0,
@@ -192,7 +178,8 @@ export function typeFor(
 export function revealDuration(type: PrintType, reduced: boolean, pace = 1): number {
   const beats = beatsFor(reduced, pace);
   if (type.silent) return beats.stillness;
-  const kicker = type.agreed ? beats.kickerAgreed : beats.kicker;
   const gaps = Math.max(0, type.lines.length - 1) * beats.lineGap;
-  return beats.stillness + beats.scrim + beats.rule + kicker + type.wordCount * beats.word + gaps;
+  return (
+    beats.stillness + beats.scrim + beats.rule + beats.kicker + type.wordCount * beats.word + gaps
+  );
 }

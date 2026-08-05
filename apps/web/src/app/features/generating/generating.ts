@@ -55,8 +55,6 @@ interface Segment {
 const EASE_OUT = 'cubic-bezier(0.23, 1, 0.32, 1)';
 const EASE_MOVE = 'cubic-bezier(0.32, 0.72, 0, 1)';
 
-/** The invitation shows only if the user hasn't already found the gesture. */
-const HINT_AFTER_MS = 2400;
 /** A tap during a hold means "I've read it" — the rest of that beat runs 4× . */
 const TAP_BOOST = 4;
 /**
@@ -75,7 +73,6 @@ const STOP_MS = 300;
 /** The print's travel to the focal point, and the beat it is left to settle. */
 const COME_FORWARD_MS = 760;
 const SETTLE_MS = 660;
-const SETTLE_AGREED_MS = 520;
 /** The kept print's drop onto the pile after its words have been read. */
 const TO_PILE_MS = 520;
 
@@ -83,15 +80,13 @@ const TO_PILE_MS = 520;
  * The model is building the story, and the screen shows the work rather than
  * hiding it (decision 7.29). The user's own photos become prints on a light
  * table: they drift up through the middle, pile up dim at the top as they are
- * looked past, and stack at the bottom as they are kept. The user can reach in
- * and pull a print down themselves — the same job the model is doing, at the
- * same time. When the story lands, the model's first choice is caught, held
- * still, and its words are set on it beat by beat; then the kept pile flattens
- * into the story's own progress bars and the first frame opens full-bleed.
+ * looked past, and stack at the bottom as they are chosen. Each choice the
+ * model makes is caught, held still, and its words set on it beat by beat as it
+ * arrives (7.30); then the kept pile flattens into the story's own progress
+ * bars and the first frame opens full-bleed.
  *
- * Slice 1: one round trip (no streaming), so only the first choice is read out
- * in full — the rest arrive on the pile with their words already set rather
- * than telling the whole story before the user is let into it.
+ * The screen is a thing to watch, not to operate: the only touch it takes is a
+ * tap to move a beat along (decision 7.32).
  */
 @Component({
   selector: 'app-generating',
@@ -99,9 +94,6 @@ const TO_PILE_MS = 520;
   host: {
     class: 'block h-full w-full',
     '(pointerdown)': 'onSurfaceDown()',
-    '(pointermove)': 'onPointerMove($event)',
-    '(pointerup)': 'onPointerUp()',
-    '(pointercancel)': 'onPointerUp()',
   },
 })
 export class Generating implements OnDestroy {
@@ -124,24 +116,18 @@ export class Generating implements OnDestroy {
    * bindings, so every beat of the reveal ends with {@link bump}. */
   protected readonly prints = signal<readonly PrintView[]>([]);
   protected readonly segments = signal<readonly Segment[]>([]);
-  protected readonly armed = signal<'keep' | 'pass' | null>(null);
   /** The tallies hide while the model's print is being read. */
   protected readonly chrome = signal(true);
-  protected readonly hint = signal(false);
   protected readonly quiet = signal(false);
   private readonly seenCount = signal(0);
   private readonly keptCount = signal(0);
-  private readonly myCount = signal(0);
 
   protected readonly seenLabel = computed(() =>
     this.seenCount() ? `${this.seenCount()} looked at` : '',
   );
-  protected readonly keptLabel = computed(() => {
-    const kept = this.keptCount();
-    const mine = this.myCount();
-    if (!kept && !mine) return '';
-    return mine ? `${kept} kept · ${mine} yours` : `${kept} kept`;
-  });
+  protected readonly keptLabel = computed(() =>
+    this.keptCount() ? `${this.keptCount()} kept` : '',
+  );
   protected readonly status = computed(() =>
     this.quiet() ? 'Still looking through your photos…' : 'Building your story…',
   );
@@ -153,13 +139,10 @@ export class Generating implements OnDestroy {
   private raf = 0;
   private lastFrame = 0;
   private t0 = 0;
-  private hintTimer: ReturnType<typeof setTimeout> | null = null;
   private alive = true;
-  private touched = false;
   private holding = false;
   private ending = false;
   private boost = 1;
-  private capture: { element: HTMLElement; pointerId: number } | null = null;
   /** Choices the model has written that have not been shown yet. */
   private readonly pending: Frame[] = [];
   /** Every photo already queued, so a repeated report deals nothing twice. */
@@ -172,9 +155,6 @@ export class Generating implements OnDestroy {
   private storyLanded = false;
   /** How long the story is — unknown until it lands. */
   private total: number | null = null;
-  /** Set when a press landed on a print, so the surface handler behind it knows
-   * the press was spent on the gesture and is not the "I've read it" tap. */
-  private caught = false;
   private ready: Promise<void>;
   private markReady: () => void = () => undefined;
 
@@ -197,7 +177,6 @@ export class Generating implements OnDestroy {
   ngOnDestroy(): void {
     this.alive = false;
     if (this.raf) this.view?.cancelAnimationFrame(this.raf);
-    if (this.hintTimer) clearTimeout(this.hintTimer);
   }
 
   /* ── the table ─────────────────────────────────────────────────────────── */
@@ -217,10 +196,6 @@ export class Generating implements OnDestroy {
     this.t0 = this.now();
     this.lastFrame = 0;
     this.raf = this.view?.requestAnimationFrame(this.tick) ?? 0;
-    // The invitation, once, and only if they haven't already found the gesture.
-    this.hintTimer = setTimeout(() => {
-      if (this.alive && !this.touched && !this.holding && !this.ending) this.hint.set(true);
-    }, HINT_AFTER_MS);
     this.markReady();
   }
 
@@ -284,72 +259,10 @@ export class Generating implements OnDestroy {
     return this.prints().find((view) => view.print === print);
   }
 
-  /* ── the gesture ───────────────────────────────────────────────────────── */
-
-  /** A finger lands on a print: it is lifted out of the lane and follows. */
-  protected onPrintDown(event: PointerEvent, print: Print): void {
-    if (!this.engine.grab(print, event.clientX, event.clientY, this.now())) return;
-    this.caught = true;
-    this.touched = true;
-    this.hint.set(false);
-    this.capturePointer(event);
-    this.bump();
-  }
-
-  /** A press that caught no print. During a hold that means "I've read it", so
-   * the rest of the beat runs faster. */
+  /** A press anywhere during a hold means "I've read it", so the rest of that
+   * beat runs faster. */
   protected onSurfaceDown(): void {
-    const caught = this.caught;
-    this.caught = false;
-    if (!caught && this.holding) this.boost = TAP_BOOST;
-  }
-
-  protected onPointerMove(event: PointerEvent): void {
-    if (!this.engine.dragging) return;
-    this.engine.drag(event.clientX, event.clientY, this.now());
-    this.armed.set(this.engine.armed);
-  }
-
-  protected onPointerUp(): void {
-    const print = this.engine.grabbedPrint;
-    const result = this.engine.release();
-    this.releasePointer();
-    this.armed.set(null);
-    if (!print || !result) return;
-    if (result === 'kept') {
-      this.story.pickPhoto(print.photoId);
-      this.view?.navigator.vibrate?.(8);
-      this.settleKept();
-    } else if (result === 'passed') {
-      this.toss(print);
-      this.seenCount.set(this.engine.seenCount);
-    } else {
-      this.springBack(print);
-    }
-    this.updateQuiet();
-    this.bump();
-  }
-
-  private capturePointer(event: PointerEvent): void {
-    const target = event.target instanceof Element ? event.target.closest('[data-print]') : null;
-    if (!(target instanceof HTMLElement) || typeof event.pointerId !== 'number') return;
-    try {
-      target.setPointerCapture(event.pointerId);
-      this.capture = { element: target, pointerId: event.pointerId };
-    } catch {
-      // A synthetic pointer has no capture to take; the host still sees the move.
-    }
-  }
-
-  private releasePointer(): void {
-    const capture = this.capture;
-    this.capture = null;
-    if (!capture) return;
-    try {
-      capture.element.releasePointerCapture(capture.pointerId);
-    } catch {
-      // Already released with the pointer itself.
-    }
+    if (this.holding) this.boost = TAP_BOOST;
   }
 
   /* ── the piles ─────────────────────────────────────────────────────────── */
@@ -377,7 +290,7 @@ export class Generating implements OnDestroy {
               },
               { transform: to, opacity: '0.66', filter },
             ],
-        this.reduced ? 240 : print.flung ? 400 : 520,
+        this.reduced ? 240 : 520,
         EASE_OUT,
       );
       element.style.transform = to;
@@ -392,8 +305,7 @@ export class Generating implements OnDestroy {
   private settleKept(): void {
     this.nudge(this.engine.kept.slice(0, -1), 3);
     this.restack();
-    this.keptCount.set(this.engine.kept.length - this.engine.myCount);
-    this.myCount.set(this.engine.myCount);
+    this.keptCount.set(this.engine.kept.length);
   }
 
   private restack(): void {
@@ -440,30 +352,6 @@ export class Generating implements OnDestroy {
     });
   }
 
-  /** Released in between: it goes back to the lane, and releasing is always fast. */
-  private springBack(print: Print): void {
-    const element = this.elements.get(print.key);
-    if (!element || this.reduced) return;
-    const geo = this.geometry();
-    this.play(
-      element,
-      [
-        {
-          transform: transform(
-            geo,
-            print.x,
-            print.y,
-            print.rot + this.engine.releaseKick,
-            this.engine.grabbedScale,
-          ),
-        },
-        { transform: transformFor(print, geo) },
-      ],
-      220,
-      EASE_OUT,
-    );
-  }
-
   /* ── the model's turn ──────────────────────────────────────────────────── */
 
   private async run(): Promise<void> {
@@ -483,7 +371,7 @@ export class Generating implements OnDestroy {
     if (!this.alive) return;
     await this.land(frames);
     if (!this.alive) return;
-    this.finish(outcome, frames);
+    this.finish(outcome);
   }
 
   /**
@@ -524,24 +412,19 @@ export class Generating implements OnDestroy {
     pace = 1,
   ): Promise<void> {
     this.quiet.set(false);
-    const agreed = this.story.userPicks().includes(frame.photoId);
-    const view = this.bring(frame, total, agreed, look);
+    const view = this.bring(frame, total, look);
     if (!view) return;
     // A quick catch pulls the print in rather than waiting for it to drift up:
     // there are others behind it.
-    if (!agreed && !this.reduced && pace === 1) await this.driftToFocal(view.print);
+    if (!this.reduced && pace === 1) await this.driftToFocal(view.print);
     if (!this.alive) return;
     await this.catchIt(view, pace);
     this.revealed.add(frame.photoId);
   }
 
-  /** Land the story, then send the prints the user pulled down that the model
-   * did not use back through the "add a photo" path, so their picks join it. */
-  private finish(outcome: GenerateOutcome, frames: readonly Frame[]): void {
+  /** Land the finished story on the payoff. */
+  private finish(outcome: GenerateOutcome): void {
     this.generation.applyOutcome(outcome);
-    const inStory = new Set(frames.map((frame) => frame.photoId));
-    const extras = this.story.userPicks().filter((id) => !inStory.has(id));
-    if (extras.length) void this.generation.captionNewPhotos(extras);
   }
 
   /**
@@ -579,12 +462,7 @@ export class Generating implements OnDestroy {
   /** Put the model's chosen photo on the table with its words set. A photo that
    * has already left the lane — the user pulled it down, or it drifted past — is
    * lifted back out of its pile and written on rather than dealt a second time. */
-  private bring(
-    frame: Frame,
-    total: number | null,
-    agreed: boolean,
-    look: string | undefined,
-  ): PrintView | null {
+  private bring(frame: Frame, total: number | null, look: string | undefined): PrintView | null {
     const photo = this.story.photos().find((candidate) => candidate.id === frame.photoId);
     if (!photo) return null;
     const existing = this.engine.prints.find((print) => print.photoId === frame.photoId);
@@ -592,14 +470,13 @@ export class Generating implements OnDestroy {
     if (existing && existing.pile !== 'lane') {
       this.engine.lift(existing);
       this.seenCount.set(this.engine.seenCount);
-      this.keptCount.set(this.engine.kept.length - this.engine.myCount);
-      this.myCount.set(this.engine.myCount);
+      this.keptCount.set(this.engine.kept.length);
     } else if (!existing) {
       print.y = this.geometry().h * 0.92;
     }
     this.sync();
     const view = this.viewOf(print);
-    if (view) view.type = typeFor(frame, total, agreed, look);
+    if (view) view.type = typeFor(frame, total, look);
     this.bump();
     return view ?? null;
   }
@@ -610,7 +487,7 @@ export class Generating implements OnDestroy {
     // Bounded: if the print has not arrived by now (a background tab froze the
     // loop, say), it is caught where it is rather than holding the story back.
     let guard = 120;
-    while (this.alive && guard-- > 0 && print.y > focal && !print.grabbed) {
+    while (this.alive && guard-- > 0 && print.y > focal) {
       await this.wait(40);
     }
   }
@@ -635,9 +512,8 @@ export class Generating implements OnDestroy {
 
     this.engine.focusTarget = 1;
     this.chrome.set(false);
-    this.hint.set(false);
     this.comeForward(print, pace);
-    await this.wait(this.reduced ? 200 : quicker(type?.agreed ? SETTLE_AGREED_MS : SETTLE_MS));
+    await this.wait(this.reduced ? 200 : quicker(SETTLE_MS));
     if (!this.alive) return;
 
     // Complete stillness before any type: overlapping the settle with the
@@ -654,7 +530,7 @@ export class Generating implements OnDestroy {
       await this.wait(beats.rule);
       view.reveal.kicker = true;
       this.bump();
-      await this.wait(type.agreed ? beats.kickerAgreed : beats.kicker);
+      await this.wait(beats.kicker);
       for (const line of type.lines) {
         for (let i = 0; i < line.words.length; i++) {
           if (!this.alive) return;
@@ -671,7 +547,7 @@ export class Generating implements OnDestroy {
     if (!this.alive) return;
 
     print.held = false;
-    this.engine.toKept(print, false);
+    this.engine.toKept(print);
     this.settleKept();
     this.bump();
     await this.wait(this.reduced ? 200 : quicker(TO_PILE_MS));
@@ -719,7 +595,6 @@ export class Generating implements OnDestroy {
   private async land(frames: readonly Frame[]): Promise<void> {
     this.ending = true;
     this.chrome.set(false);
-    this.hint.set(false);
     this.quiet.set(false);
     this.engine.arrangeKept(frames.map((frame) => frame.photoId));
     this.restack();

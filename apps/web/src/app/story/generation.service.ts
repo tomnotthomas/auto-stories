@@ -87,18 +87,13 @@ export class GenerationService {
    * (2.5). A transient failure never bounces the user off the payoff: the photo
    * is still appended (empty headline) so it never silently vanishes, and the
    * user can type or regenerate it.
-   *
-   * `only` narrows it to a named set of photos — the generating screen passes
-   * the prints the user pulled down themselves, so the photos the model simply
-   * did not use are left out of the story.
    */
-  async captionNewPhotos(only?: readonly string[]): Promise<void> {
+  async captionNewPhotos(): Promise<void> {
     const inStory = new Set(this.story.frames().map((frame) => frame.photoId));
-    const wanted = only ? new Set(only) : null;
     const newIds = this.story
       .photos()
       .map((photo) => photo.id)
-      .filter((id) => !inStory.has(id) && (!wanted || wanted.has(id)));
+      .filter((id) => !inStory.has(id));
     if (newIds.length === 0) return;
 
     const headlines = new Map<string, string>();
