@@ -1,5 +1,6 @@
 import {
   KEEP_IN_LANE,
+  REDUCED_HOLD_MS,
   LaneEngine,
   driftSpeed,
   geometryFor,
@@ -136,6 +137,78 @@ describe('LaneEngine — depth', () => {
     expect(print.y).toBe(before);
     expect(print.blur).toBe(0);
     expect(print.opacity).toBeGreaterThan(0);
+  });
+});
+
+describe('LaneEngine — reduced motion still moves through the photos', () => {
+  it('stacks every print on the focal point rather than up the lane', () => {
+    const lane = engine(photos(8), true);
+    expect(new Set(lane.lane.map((print) => print.y))).toEqual(new Set([GEO.focal]));
+  });
+
+  it('shows one print at a time', () => {
+    const lane = engine(photos(8), true);
+    const [front, ...behind] = lane.lane;
+    expect(front.opacity).toBe(1);
+    expect(behind.every((print) => print.opacity === 0)).toBe(true);
+  });
+
+  it('retires the front print on a beat, so the screen is never still', () => {
+    const lane = engine(photos(8), true);
+    const front = lane.lane[0];
+
+    run(lane, REDUCED_HOLD_MS + 100, 0);
+
+    expect(front.pile).toBe('seen');
+    expect(lane.seenCount).toBe(1);
+    expect(lane.lane[0].opacity).toBe(1);
+  });
+
+  it('keeps working through the pool beat after beat', () => {
+    const lane = engine(photos(8), true);
+    run(lane, REDUCED_HOLD_MS * 3 + 100, 0);
+    expect(lane.seenCount).toBe(3);
+    expect(lane.lane.length).toBe(KEEP_IN_LANE);
+  });
+
+  it('holds the last print rather than emptying the screen', () => {
+    const lane = engine(photos(2), true);
+    run(lane, REDUCED_HOLD_MS * 6, 0);
+    expect(lane.lane.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe('LaneEngine — the surface changes size', () => {
+  it('keeps every print where it was in the new surface, proportionally', () => {
+    const lane = engine();
+    const print = lane.lane[0];
+    const before = print.y / GEO.h;
+
+    lane.resize(geometryFor(390, 422));
+
+    expect(print.y / 422).toBeCloseTo(before, 5);
+  });
+
+  it('refans the kept pile onto the new surface', () => {
+    const lane = engine();
+    lane.toKept(lane.lane[0]);
+    const shorter = geometryFor(390, 422);
+
+    lane.resize(shorter);
+
+    expect(lane.kept[0].slot?.y).toBeLessThan(shorter.h);
+    expect(lane.kept[0].slot?.y).toBeGreaterThan(shorter.h * 0.5);
+  });
+
+  it('uses the new surface for the landmarks the lane is judged against', () => {
+    const lane = engine();
+    const print = lane.lane[0];
+    lane.resize(geometryFor(390, 422));
+
+    print.y = geometryFor(390, 422).laneTop - 1;
+    const { tucked } = lane.step(16, 0);
+
+    expect(tucked).toContain(print);
   });
 });
 

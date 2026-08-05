@@ -64,6 +64,18 @@ const REF_W = 390;
 const REF_H = 844;
 const r = (px: number): number => px / REF_H;
 
+/**
+ * Reduced motion: how long each print is held before the next crossfades in.
+ *
+ * The screen's whole content is movement, so dropping the drift and stopping
+ * there leaves four photos sitting still for the length of the wait — which
+ * reads as a broken screen, not an accessible one. The lane keeps working
+ * through the photos on this beat instead, in place: one print at a time,
+ * changed by opacity alone, which is the part of the motion that is
+ * vestibular-safe.
+ */
+export const REDUCED_HOLD_MS = 1600;
+
 /** How many prints stay in flight. Topped up inside the loop, never by the
  * sequencer — the sequencer blocks while the model's print is being read. */
 export const KEEP_IN_LANE = 4;
@@ -150,11 +162,13 @@ export class LaneEngine {
   focus = 0;
   private pool: readonly LanePhoto[] = [];
   private next = 0;
+  /** Reduced motion: time since the last print was retired. */
+  private held = 0;
   private readonly reduced: boolean;
   private readonly random: () => number;
 
   constructor(
-    private readonly geo: LaneGeometry,
+    private geo: LaneGeometry,
     options: LaneOptions = {},
   ) {
     this.reduced = options.reduced ?? false;
@@ -187,9 +201,33 @@ export class LaneEngine {
     for (let k = 0; k < KEEP_IN_LANE && !this.poolExhausted; k++) {
       const print = this.deal();
       if (!print) return;
-      print.y = this.geo.h * 0.98 - k * this.geo.h * r(206);
+      // Reduced motion shows one print at a time in place, so they stack on the
+      // focal point instead of being strung out up the lane.
+      print.y = this.reduced ? this.geo.focal : this.geo.h * 0.98 - k * this.geo.h * r(206);
       this.paint(print);
     }
+    if (this.reduced) this.repaintLane();
+  }
+
+  /**
+   * The surface changed size — an Android URL bar collapsing is enough to do it.
+   * Every print keeps its place proportionally and the piles are refanned, so
+   * the lane's landmarks and its contents stay in the same coordinate space.
+   */
+  resize(geo: LaneGeometry): void {
+    const sx = geo.w / this.geo.w;
+    const sy = geo.h / this.geo.h;
+    this.geo = geo;
+    // A print still in the lane keeps its place proportionally; a print on a
+    // pile is laid out again from the pile's own rule, so nothing drifts.
+    for (const print of this.lane) {
+      print.x *= sx;
+      print.y *= sy;
+      this.paint(print);
+    }
+    this.seen.forEach((print, i) => this.layOnSeenPile(print, i + 1));
+    if (this.kept.length) this.restack();
+    if (this.reduced) this.repaintLane();
   }
 
   /** Deal the next pooled photo into the lane. */
@@ -240,8 +278,22 @@ export class LaneEngine {
     this.vScale += (this.vTarget - this.vScale) * ease(this.vTarget < this.vScale ? 105 : 190);
     this.focus += (this.focusTarget - this.focus) * ease(this.focusTarget > this.focus ? 150 : 105);
 
-    const v = this.reduced ? 0 : driftSpeed(this.geo, elapsedMs) * this.vScale;
     const tucked: Print[] = [];
+    if (this.reduced) {
+      // No drift: the lane advances on a beat instead, one print at a time.
+      this.held += dt;
+      const front = this.lane.find((print) => !print.held);
+      if (this.held >= REDUCED_HOLD_MS && front && this.lane.length > 1) {
+        this.held = 0;
+        this.toSeen(front);
+        tucked.push(front);
+      }
+      if (this.inFlight < KEEP_IN_LANE && !this.poolExhausted) this.deal();
+      this.repaintLane();
+      return { tucked };
+    }
+
+    const v = driftSpeed(this.geo, elapsedMs) * this.vScale;
     for (let i = this.lane.length - 1; i >= 0; i--) {
       const print = this.lane[i];
       if (print.held) continue;
@@ -264,6 +316,17 @@ export class LaneEngine {
 
   /** Recompute a lane print's depth from where it sits relative to the focal
    * point, and how far the rest has been pushed back by the rack focus. */
+  /** Reduced motion: only the print at the front of the queue is shown, so the
+   * beat that retires it reads as one photo crossfading into the next. */
+  private repaintLane(): void {
+    const front = this.lane.find((print) => !print.held);
+    for (const print of this.lane) {
+      if (print.held) continue;
+      print.y = this.geo.focal;
+      print.opacity = print === front ? 1 : 0;
+    }
+  }
+
   paint(print: Print): void {
     const t = clamp(Math.abs(print.y - this.geo.focal) / this.geo.range, 0, 1);
     print.scale = SCALE.drift * (1 - 0.24 * t) * (1 - 0.07 * this.focus);
@@ -286,16 +349,21 @@ export class LaneEngine {
     this.leaveLane(print);
     this.seen.push(print);
     print.pile = 'seen';
-    const n = this.seen.length;
-    print.x = this.geo.w * (34 / REF_W) + ((n * 61) % (this.geo.w - this.geo.w * (68 / REF_W)));
-    print.y = this.geo.h * r(46) + ((n * 29) % 26) * (this.geo.h / REF_H);
-    print.rot = ((n * 41) % 22) - 11;
+    this.layOnSeenPile(print, this.seen.length);
     print.scale = SCALE.seen;
     print.opacity = 0.66;
     print.blur = 0;
     print.wash = 'grayscale(1) brightness(.92)';
     print.z = 1;
     print.settled = true;
+  }
+
+  /** Where the nth print sits on the seen pile. Scattered, but from a rule, so
+   * the pile can be laid out again from scratch when the surface changes size. */
+  private layOnSeenPile(print: Print, n: number): void {
+    print.x = this.geo.w * (34 / REF_W) + ((n * 61) % (this.geo.w - this.geo.w * (68 / REF_W)));
+    print.y = this.geo.h * r(46) + ((n * 29) % 26) * (this.geo.h / REF_H);
+    print.rot = ((n * 41) % 22) - 11;
   }
 
   /** Lay a print on the kept pile at the bottom and refan the stack. */
