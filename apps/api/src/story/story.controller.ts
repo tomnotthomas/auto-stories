@@ -44,12 +44,14 @@ export class StoryController {
       }
     }
 
-    const jobId = this.jobs.enqueue(async () => {
+    const jobId = this.jobs.enqueue(async (report) => {
       // Reserve the daily budget only when the job actually runs, so a queued
       // job that never runs never spends it; a rejected upload never reaches
       // here, so it never burns the budget either.
       this.fairUse.consumeDailyBudget();
-      return this.generator.generate(request);
+      // The reporter carries each frame the model finishes out to the waiting
+      // client over the job's SSE stream (decision 7.30).
+      return this.generator.generate(request, report);
     });
     return { jobId };
   }

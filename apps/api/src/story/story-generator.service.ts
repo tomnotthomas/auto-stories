@@ -7,6 +7,7 @@ import {
   type Part,
 } from '@google/genai';
 import type {
+  Frame,
   GenerateRequest,
   GenerateResponse,
   Photo,
@@ -14,6 +15,7 @@ import type {
 } from '@auto-stories/api-types';
 import { ApiException, ApiErrors } from '../common/api-exception';
 import { normalizeLook } from './caption-style';
+import { completeFrames } from './partial-frames';
 import { buildPrompt } from './prompt.builder';
 import { shapeFrames } from './story.mapper';
 import { STORY_RESPONSE_SCHEMA } from './story.schema';
@@ -25,6 +27,9 @@ import {
   PROXY_MIME_TYPE,
 } from './story.constants';
 
+/** Told every frame written so far, each time the model finishes another. */
+export type FrameReporter = (frames: Frame[]) => void;
+
 /**
  * Turns a validated request into an ordered, captioned story via Gemini.
  * ONE structured call with a responseSchema (architecture 3.3) — the model
@@ -33,6 +38,11 @@ import {
  * geometry pass. The non-deterministic output is defended by shapeFrames and
  * normalizeLook. On a safety block the flagged photo is dropped and the call
  * retried with the rest.
+ *
+ * The call is **streamed** (decision 7.30): still one call and one schema, but
+ * the response is read as it is written, so each frame can be reported the
+ * moment the model finishes it. What is reported is advisory — the returned
+ * story is the full parse of the finished response, exactly as before.
  */
 @Injectable()
 export class StoryGeneratorService {
@@ -51,7 +61,15 @@ export class StoryGeneratorService {
     );
   }
 
-  async generate(request: GenerateRequest): Promise<GenerateResponse> {
+  /**
+   * @param report Called with every frame written so far, each time the model
+   * finishes another one. Optional — without it the call is identical, just
+   * read from a stream.
+   */
+  async generate(
+    request: GenerateRequest,
+    report?: FrameReporter,
+  ): Promise<GenerateResponse> {
     const validIds = new Set(request.photos.map((photo) => photo.id));
     let photos = request.photos;
     let safetyDropped = false;
@@ -64,6 +82,8 @@ export class StoryGeneratorService {
         request.tone,
         request.mustInclude,
         request.atmosphere,
+        validIds,
+        report,
       );
 
       if (response.promptFeedback?.blockReason) {
@@ -99,13 +119,21 @@ export class StoryGeneratorService {
     }
   }
 
+  /**
+   * One streamed call. Accumulates the response text and, whenever another
+   * frame's JSON has closed, hands every frame written so far to `report`.
+   * Returns the same shape the non-streamed call did, so the caller above is
+   * unchanged: the whole text plus any prompt feedback.
+   */
   private async call(
     story: string,
     photos: Photo[],
-    tone?: Tone,
-    mustInclude?: string[],
-    atmosphere?: string,
-  ): Promise<GenerateContentResponse> {
+    tone: Tone | undefined,
+    mustInclude: string[] | undefined,
+    atmosphere: string | undefined,
+    validIds: Set<string>,
+    report?: FrameReporter,
+  ): Promise<Pick<GenerateContentResponse, 'text' | 'promptFeedback'>> {
     const parts: Part[] = [
       { text: buildPrompt(story, tone, mustInclude, atmosphere) },
       ...photos.flatMap((photo): Part[] => [
@@ -115,7 +143,7 @@ export class StoryGeneratorService {
     ];
 
     try {
-      return await this.genai.models.generateContent({
+      const stream = await this.genai.models.generateContentStream({
         model: this.model,
         contents: [{ role: 'user', parts }],
         config: {
@@ -124,6 +152,21 @@ export class StoryGeneratorService {
           abortSignal: AbortSignal.timeout(this.timeoutMs),
         },
       });
+
+      let text = '';
+      let promptFeedback: GenerateContentResponse['promptFeedback'];
+      let reported = 0;
+      for await (const chunk of stream) {
+        text += chunk.text ?? '';
+        promptFeedback ??= chunk.promptFeedback;
+        if (!report) continue;
+        const written = completeFrames(text);
+        if (written.length <= reported) continue;
+        reported = written.length;
+        const frames = shapeFrames(written, validIds);
+        if (frames.length > 0) report(frames);
+      }
+      return { text, promptFeedback };
     } catch (err) {
       throw this.mapError(err);
     }
