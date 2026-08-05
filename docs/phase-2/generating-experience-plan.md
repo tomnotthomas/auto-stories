@@ -3,7 +3,8 @@
 The 20–40s wait becomes the app's introduction to what it does: the user's own photos on a light
 table, the model's choices caught and written on as they land, the kept pile becoming the story.
 Reverses [decision 3.7](../decisions.md#37-latency-ux); the reasoning is
-[7.29](../decisions.md#729-the-wait-shows-the-work-and-the-user-can-pull-a-photo-out-of-it-reverses-37).
+[7.29](../decisions.md#729-the-wait-shows-the-work-and-the-user-can-pull-a-photo-out-of-it-reverses-37)
+and [7.30](../decisions.md#730-each-pick-is-shown-as-it-is-made--streamed-where-the-model-allows-it-paced-where-it-does-not).
 
 Code: `apps/web/src/app/features/generating/` — `lane-engine.ts` (state + geometry, no DOM),
 `frame-type.ts` (a frame's words, set), `generating.ts` (rendering, gesture, sequencing).
@@ -107,23 +108,34 @@ with the measured one (`geometryFor(w, h)`).
 - The overshoots are Web Animations keyframes. A finished `fill: forwards` animation keeps owning
   the properties it animated, so every move cancels what was on the element first.
 
-## Scope boundary (slice 1)
+## How a choice reaches the screen
 
-One round trip: `GenerationService.requestStory()` hands the result back and the screen holds it
-until the reveal is over, then `applyOutcome()` lands it. No `generateContentStream`, no new
-endpoints, no contract change.
+The generate call is streamed (`generateContentStream` — still one call, one `responseSchema`). As
+each frame's JSON closes, the server reports every frame written so far on the job's `processing`
+state, and the screen queues it and catches it. What is streamed is advisory: it goes through the
+same `shapeFrames` as the final result, and the story on the terminal `done` event is authoritative.
 
-Because every frame arrives at once, only the **first** choice is read out in full; the rest land on
-the kept pile with their words already set. Reading all six out would tell the whole story before the
-user is let into it, and would add ~25s to a wait we are trying to make worth sitting through.
+```
+model → completeFrames(partial JSON) → JobState.frames (SSE) → streamStory(onFrames) → catch queue
+```
+
+**Streaming alone does not spread the picks.** Measured against `gemini-flash-latest` with 8 photos:
+~17s reading the photos, then the whole answer written in ~640ms. So by the time anything is known,
+six choices are waiting at once.
+
+**That is what the pace is for.** Every beat divides by it, so the choreography is untouched and only
+the time changes. When the story lands, whatever has not been shown is fitted into a **6s budget**
+(`paceFor`, capped at 4× so the beats still read) and each photo is caught, held, written on and laid
+down in turn — about a second each. The first choice is always read at full speed. Measured end to
+end, the picks land at 20.7s, 25.2s, 26.2s, 27.9s, 28.8s, 30.0s.
 
 ## Next
 
-- **Stream the frames.** With `generateContentStream` each choice arrives as the model makes it, so
-  every frame gets its own catch spread across the real wait — which is what the beat structure was
-  designed for.
 - **Send the user's picks up with the request** instead of appending them afterwards, once a pick
   made during generation can still reach the call.
 - **Reveal the frame's real composition.** The catch sets the words in the generating screen's own
   type; the story screen then re-sets them under the story's Look. Rendering the composition itself
   during the catch would remove the last seam in the hand-over.
+- **Shorten the read.** The 17s before the first token is the model ingesting eight photos. Smaller
+  proxies or a cheaper first pass would move the picks earlier, which the reveal is already built to
+  take advantage of.
