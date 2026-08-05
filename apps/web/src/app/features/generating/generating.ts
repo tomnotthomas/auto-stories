@@ -25,7 +25,7 @@ import {
   type LaneGeometry,
   type Print,
 } from './lane-engine';
-import { beatsFor, typeFor, type PrintType, type TypeLine } from './frame-type';
+import { beatsFor, paceFor, typeFor, type PrintType, type TypeLine } from './frame-type';
 
 /** How far the reveal has got on one print. */
 interface Reveal {
@@ -59,8 +59,17 @@ const EASE_MOVE = 'cubic-bezier(0.32, 0.72, 0, 1)';
 const HINT_AFTER_MS = 2400;
 /** A tap during a hold means "I've read it" — the rest of that beat runs 4× . */
 const TAP_BOOST = 4;
-/** Between two of the model's later choices landing on the kept pile. */
-const DEAL_GAP_MS = 220;
+/**
+ * How long the screen will spend showing the choices still waiting once the
+ * story has landed. The model does its reading first and then writes the whole
+ * answer in well under a second, so in practice most choices are still waiting
+ * at that point — they are shown one at a time inside this budget rather than
+ * dropped on the pile together, because seeing each photo be chosen is the
+ * point of the screen (decision 7.30).
+ */
+const TAIL_BUDGET_MS = 6000;
+/** Roughly what one full catch costs, used to work out how much to speed up. */
+const ONE_CATCH_MS = 5000;
 /** The lane eases to a stop before the catch — it must never cut. */
 const STOP_MS = 300;
 /** The print's travel to the focal point, and the beat it is left to settle. */
@@ -512,14 +521,17 @@ export class Generating implements OnDestroy {
     frame: Frame,
     total: number | null,
     look: string | undefined,
+    pace = 1,
   ): Promise<void> {
     this.quiet.set(false);
     const agreed = this.story.userPicks().includes(frame.photoId);
     const view = this.bring(frame, total, agreed, look);
     if (!view) return;
-    if (!agreed && !this.reduced) await this.driftToFocal(view.print);
+    // A quick catch pulls the print in rather than waiting for it to drift up:
+    // there are others behind it.
+    if (!agreed && !this.reduced && pace === 1) await this.driftToFocal(view.print);
     if (!this.alive) return;
-    await this.catchIt(view);
+    await this.catchIt(view, pace);
     this.revealed.add(frame.photoId);
   }
 
@@ -533,38 +545,34 @@ export class Generating implements OnDestroy {
   }
 
   /**
-   * The story has landed. Whatever the model wrote is now known, so the reveal
-   * stops taking on new full catches: the one in flight finishes, and every
-   * choice that was never shown lands on the kept pile with its words already
-   * set. Reading the rest out in full here would tell the whole story before the
-   * user is let into it, and would add to a wait that is already over.
+   * The story has landed, so the whole of it is known. Every choice that has not
+   * been shown yet still gets shown — one at a time, each with the same beats —
+   * because watching the model pick each photo is the point. What gives way is
+   * the time, not the choreography: the run is paced to fit {@link
+   * TAIL_BUDGET_MS}, so six choices are read out quickly rather than dropped on
+   * the pile together.
    *
-   * The floor is one: if the model wrote everything so late that nothing was
-   * caught during the wait, the first choice is still read out properly.
+   * The first one caught is always read at full speed: if the model wrote
+   * everything at the last moment, the opener still gets its proper reveal.
    */
   private async reveal(frames: readonly Frame[], look: string): Promise<void> {
     this.storyLanded = true;
     while (this.alive && this.pumping) await this.wait(60);
     if (!this.alive) return;
 
-    if (this.revealed.size === 0 && frames.length > 0) {
-      await this.catchFrame(frames[0], frames.length, look);
+    const waiting = frames.filter((frame) => !this.revealed.has(frame.photoId));
+    if (waiting.length === 0) return;
+
+    const [first, ...rest] = this.revealed.size === 0 ? waiting : [];
+    if (first) {
+      await this.catchFrame(first, frames.length, look);
       if (!this.alive) return;
     }
-
-    for (const frame of frames) {
+    const tail = first ? rest : waiting;
+    const pace = paceFor(tail.length, TAIL_BUDGET_MS, ONE_CATCH_MS);
+    for (const frame of tail) {
       if (!this.alive) return;
-      if (this.revealed.has(frame.photoId)) continue;
-      const agreed = this.story.userPicks().includes(frame.photoId);
-      const next = this.bring(frame, frames.length, agreed, look);
-      if (!next) continue;
-      next.reveal = { scrim: true, rule: true, kicker: true, words: next.type?.wordCount ?? 0 };
-      next.print.held = false;
-      this.engine.toKept(next.print, false);
-      this.settleKept();
-      this.revealed.add(frame.photoId);
-      this.bump();
-      await this.wait(DEAL_GAP_MS);
+      await this.catchFrame(frame, frames.length, look, pace);
     }
   }
 
@@ -612,23 +620,24 @@ export class Generating implements OnDestroy {
    * blurs and recedes, the print comes forward — and only once it is completely
    * still do the words begin, one beat at a time.
    */
-  private async catchIt(view: PrintView): Promise<void> {
+  private async catchIt(view: PrintView, pace = 1): Promise<void> {
     const print = view.print;
     const type = view.type;
-    const beats = beatsFor(this.reduced);
+    const beats = beatsFor(this.reduced, pace);
+    const quicker = (ms: number): number => Math.max(1, Math.round(ms / pace));
     this.holding = true;
     print.held = true;
     print.settled = false;
 
     this.engine.vTarget = 0;
-    await this.wait(this.reduced ? 1 : STOP_MS);
+    await this.wait(this.reduced ? 1 : quicker(STOP_MS));
     if (!this.alive) return;
 
     this.engine.focusTarget = 1;
     this.chrome.set(false);
     this.hint.set(false);
-    this.comeForward(print);
-    await this.wait(this.reduced ? 200 : type?.agreed ? SETTLE_AGREED_MS : SETTLE_MS);
+    this.comeForward(print, pace);
+    await this.wait(this.reduced ? 200 : quicker(type?.agreed ? SETTLE_AGREED_MS : SETTLE_MS));
     if (!this.alive) return;
 
     // Complete stillness before any type: overlapping the settle with the
@@ -665,7 +674,7 @@ export class Generating implements OnDestroy {
     this.engine.toKept(print, false);
     this.settleKept();
     this.bump();
-    await this.wait(this.reduced ? 200 : TO_PILE_MS);
+    await this.wait(this.reduced ? 200 : quicker(TO_PILE_MS));
 
     this.engine.focusTarget = 0;
     this.engine.vTarget = 1;
@@ -675,7 +684,7 @@ export class Generating implements OnDestroy {
   }
 
   /** The print comes forward to the focal point with a small overshoot. */
-  private comeForward(print: Print): void {
+  private comeForward(print: Print, pace = 1): void {
     const element = this.elements.get(print.key);
     const geo = this.geometry();
     const from = element?.style.transform ?? '';
@@ -694,7 +703,7 @@ export class Generating implements OnDestroy {
             },
             { transform: to, offset: 1 },
           ],
-      this.reduced ? 260 : COME_FORWARD_MS,
+      this.reduced ? 260 : Math.max(1, Math.round(COME_FORWARD_MS / pace)),
       EASE_MOVE,
     );
     element.style.transform = to;

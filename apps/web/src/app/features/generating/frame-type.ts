@@ -69,9 +69,40 @@ export const REDUCED_BEATS: TypeBeats = {
   dwell: 320,
 };
 
-export function beatsFor(reduced: boolean): TypeBeats {
-  return reduced ? REDUCED_BEATS : TYPE_BEATS;
+/**
+ * The beats, optionally run faster. `pace` divides every one of them, so the
+ * choreography is identical and only the time it takes changes — which is what
+ * lets a queue of choices be shown one at a time without the screen outliving
+ * the story it is announcing (decision 7.30).
+ */
+export function beatsFor(reduced: boolean, pace = 1): TypeBeats {
+  const beats = reduced ? REDUCED_BEATS : TYPE_BEATS;
+  if (pace <= 1) return beats;
+  const quicker = (ms: number): number => Math.max(1, Math.round(ms / pace));
+  return {
+    stillness: quicker(beats.stillness),
+    scrim: quicker(beats.scrim),
+    rule: quicker(beats.rule),
+    kicker: quicker(beats.kicker),
+    kickerAgreed: quicker(beats.kickerAgreed),
+    word: quicker(beats.word),
+    lineGap: quicker(beats.lineGap),
+    dwell: quicker(beats.dwell),
+  };
 }
+
+/**
+ * How much faster a run of `remaining` choices has to go to fit the time the
+ * screen is willing to spend on them. 1 means the full beats; the cap keeps a
+ * quick reveal legible rather than a flicker.
+ */
+export function paceFor(remaining: number, budgetMs: number, oneCatchMs: number): number {
+  if (remaining <= 0) return 1;
+  return Math.min(MAX_PACE, Math.max(1, (remaining * oneCatchMs) / budgetMs));
+}
+
+/** Past this the beats stop reading as beats, so the run simply takes longer. */
+const MAX_PACE = 4;
 
 /** The reading a frame gets before its photo has been decoded — enough to ask
  * the Look which end of the frame its type hangs at. */
@@ -158,8 +189,8 @@ export function typeFor(
 
 /** How long the whole reveal takes, from the stillness to the last word. A
  * silent frame is only the stillness — there is nothing to write. */
-export function revealDuration(type: PrintType, reduced: boolean): number {
-  const beats = beatsFor(reduced);
+export function revealDuration(type: PrintType, reduced: boolean, pace = 1): number {
+  const beats = beatsFor(reduced, pace);
   if (type.silent) return beats.stillness;
   const kicker = type.agreed ? beats.kickerAgreed : beats.kicker;
   const gaps = Math.max(0, type.lines.length - 1) * beats.lineGap;
