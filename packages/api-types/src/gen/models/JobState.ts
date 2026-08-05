@@ -4,6 +4,7 @@
 */
 
 import type { ErrorCode } from "./ErrorCode.js";
+import type { Frame } from "./Frame.js";
 import type { GenerateResponse } from "./GenerateResponse.js";
 
 export type JobStateStatusEnum = "queued" | "processing" | "done" | "failed";
@@ -17,6 +18,11 @@ export type JobState = {
      * @type string
     */
     status: JobStateStatusEnum;
+    /**
+     * @description The frames the model has written **so far**, in order — sent while\n`processing` so the client can show each choice as it is made rather than\nall of them at the end (decision 7.30). Advisory and cumulative: each\nevent carries the whole list known at that moment, and `result` on the\nterminal `done` event is the authoritative story.\n
+     * @type array | undefined
+    */
+    frames?: Frame[];
     /**
      * @description The finished story. Present only when status is `done`.
      * @type object | undefined
