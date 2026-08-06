@@ -24,6 +24,9 @@ const STORY: GenerateOutcome = {
   response: { frames: FRAMES, look: 'magazine-masthead' },
 };
 
+/** How long the screen waits for display-sized copies before dealing. */
+const SOURCE_WAIT_MS = 700;
+
 /** Longer than the whole reveal — the drift in, the catch, and the ending. */
 const WHOLE_REVEAL_MS = 20_000;
 
@@ -51,8 +54,10 @@ describe('Generating', () => {
         return pending;
       },
     };
-    const images: Pick<ImageService, 'toProxies'> = {
+    const images: Pick<ImageService, 'toProxies' | 'toDisplayUrl'> = {
       toProxies: async () => [{ id: 'photo-1', b64: 'x' }],
+      // jsdom has no createImageBitmap; the lane falls back to the original.
+      toDisplayUrl: async () => null,
     };
 
     await TestBed.configureTestingModule({
@@ -96,6 +101,9 @@ describe('Generating', () => {
 
   it('deals the user’s own photos onto the table', async () => {
     const { story, harness } = await setup();
+    // The screen prepares display-sized copies before it deals (decision 7.34).
+    await play(SOURCE_WAIT_MS);
+
     const dealt = await harness.getPrintPhotoIds();
     expect(dealt.length).toBeGreaterThan(0);
     const picked = story.photos().map((photo) => photo.id);

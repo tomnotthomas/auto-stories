@@ -13,6 +13,7 @@ import {
 import { DOCUMENT } from '@angular/common';
 import type { Frame } from '@auto-stories/api-types';
 
+import { ImageService } from '../../story/image.service';
 import { StoryService } from '../../story/story.service';
 import { GenerationService } from '../../story/generation.service';
 import type { GenerateOutcome } from '../../story/story.gateway';
@@ -26,6 +27,7 @@ import {
   type Print,
 } from './lane-engine';
 import { beatsFor, paceFor, typeFor, type PrintType, type TypeLine } from './frame-type';
+import { SAMPLE_WINDOW, shouldLighten } from './frame-budget';
 
 /** How far the reveal has got on one print. */
 interface Reveal {
@@ -39,6 +41,10 @@ interface Reveal {
 /** A print plus the words the model set on it (the lane itself carries no text). */
 interface PrintView {
   readonly print: Print;
+  /** The image actually shown — a display-sized copy when one was ready in time,
+   * otherwise the original. Fixed when the print is dealt so it never swaps
+   * under the user. */
+  readonly src: string;
   type: PrintType | null;
   reveal: Reveal;
 }
@@ -68,6 +74,8 @@ const TAP_BOOST = 4;
 const TAIL_BUDGET_MS = 6000;
 /** Roughly what one full catch costs, used to work out how much to speed up. */
 const ONE_CATCH_MS = 5000;
+/** How long the first prints wait for their display-sized copies. */
+const SOURCE_WAIT_MS = 700;
 /** The lane eases to a stop before the catch — it must never cut. */
 const STOP_MS = 300;
 /** The print's travel to the focal point, and the beat it is left to settle. */
@@ -100,6 +108,7 @@ const TO_PILE_MS = 520;
 export class Generating implements OnDestroy {
   private readonly story = inject(StoryService);
   private readonly generation = inject(GenerationService);
+  private readonly images = inject(ImageService);
   private readonly hostRef = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly injector = inject(Injector);
   private readonly view = inject(DOCUMENT).defaultView;
@@ -156,6 +165,10 @@ export class Generating implements OnDestroy {
   private storyLanded = false;
   /** How long the story is — unknown until it lands. */
   private total: number | null = null;
+  /** Display-sized copies of the picked photos, by photo id. */
+  private readonly sources = new Map<string, string>();
+  /** Recent frame durations, watched so the lane can shed what it cannot afford. */
+  private readonly frameTimes: number[] = [];
   private ready: Promise<void>;
   private markReady: () => void = () => undefined;
 
@@ -171,25 +184,31 @@ export class Generating implements OnDestroy {
         if (key) this.elements.set(key, ref.nativeElement);
       }
     });
-    afterNextRender(() => this.start(), { injector: this.injector });
+    afterNextRender(() => void this.start(), { injector: this.injector });
     void this.run();
   }
 
   ngOnDestroy(): void {
     this.alive = false;
+    for (const url of this.sources.values()) URL.revokeObjectURL(url);
     if (this.raf) this.view?.cancelAnimationFrame(this.raf);
   }
 
   /* ── the table ─────────────────────────────────────────────────────────── */
 
   /** Measure the surface, deal the first prints, and start the loop. */
-  private start(): void {
+  private async start(): Promise<void> {
     const geo = this.measure();
     this.geometry.set(geo);
     this.engine = new LaneEngine(geo, { reduced: this.reduced });
     this.engine.setPool(
       this.story.photos().map((photo) => ({ id: photo.id, src: photo.previewUrl })),
     );
+    // Give the downscaled copies a moment to arrive before the first prints are
+    // dealt; whatever is not ready by then is dealt at full size, which looks
+    // identical and only costs memory.
+    await this.prepareSources();
+    if (!this.alive) return;
     this.engine.seed();
     this.sync();
     this.t0 = this.now();
@@ -217,6 +236,29 @@ export class Generating implements OnDestroy {
     }
   }
 
+  /**
+   * Decode a display-sized copy of each photo, one at a time so peak memory
+   * stays flat (4.5) and so a cheap phone is never decoding eight originals at
+   * once — which is itself a source of the stutter this is here to remove.
+   */
+  private async prepareSources(): Promise<void> {
+    const photos = this.story.photos();
+    const done = (async () => {
+      for (const photo of photos) {
+        if (!this.alive) return;
+        try {
+          const url = await this.images.toDisplayUrl(photo.file);
+          if (url) this.sources.set(photo.id, url);
+        } catch {
+          // No downscaled copy for this one; it is dealt at full size, which
+          // looks identical and only costs memory. Never a reason not to start.
+          return;
+        }
+      }
+    })();
+    await Promise.race([done, this.wait(SOURCE_WAIT_MS)]);
+  }
+
   private measure(): LaneGeometry {
     const rect = this.hostRef.nativeElement.getBoundingClientRect();
     return rect.width > 0 && rect.height > 0
@@ -229,6 +271,7 @@ export class Generating implements OnDestroy {
     this.raf = this.view?.requestAnimationFrame(this.tick) ?? 0;
     const dt = this.lastFrame ? now - this.lastFrame : 16;
     this.lastFrame = now;
+    this.watchTheBudget(dt);
     const { tucked } = this.engine.step(dt, now - this.t0);
     if (tucked.length) {
       for (const print of tucked) this.toss(print);
@@ -243,6 +286,18 @@ export class Generating implements OnDestroy {
    * photos the user has already been shown. */
   private updateQuiet(): void {
     this.quiet.set(this.engine.runningDry && !this.holding && !this.ending);
+  }
+
+  /**
+   * Watch what the frames are actually costing on this device and shed the depth
+   * blur if they are too slow (decision 7.34). There is no property that says
+   * "this phone is cheap", so the screen finds out by running.
+   */
+  private watchTheBudget(dt: number): void {
+    if (this.engine.isLightened || this.reduced) return;
+    this.frameTimes.push(dt);
+    if (this.frameTimes.length > SAMPLE_WINDOW) this.frameTimes.shift();
+    if (shouldLighten(this.frameTimes)) this.engine.lighten();
   }
 
   /** Write the lane's continuous state straight to the elements. A print that
@@ -272,6 +327,7 @@ export class Generating implements OnDestroy {
         (print) =>
           existing.get(print.key) ?? {
             print,
+            src: this.sources.get(print.photoId) ?? print.src,
             type: null,
             reveal: { scrim: false, rule: false, kicker: false, words: 0 },
           },
@@ -724,6 +780,15 @@ export class Generating implements OnDestroy {
   }
 
   /* ── template helpers ──────────────────────────────────────────────────── */
+
+  /** The classes a print carries beyond its static ones: a compositor layer only
+   * while it is actually moving, and — under reduced motion — the crossfade that
+   * takes the place of the drift. */
+  protected printClass(view: PrintView): string {
+    const classes = view.print.settled ? [] : ['will-change-[transform,opacity,filter]'];
+    if (this.reduced) classes.push('[transition:opacity_300ms_cubic-bezier(0.23,1,0.32,1)]');
+    return classes.join(' ');
+  }
 
   /** Reduced motion draws no rule; it fades one in that is already full width. */
   protected ruleTransform(view: PrintView): string {

@@ -131,9 +131,16 @@ export function transformFor(print: Print, geo: LaneGeometry, sway = 0): string 
   return transform(geo, print.x + sway, print.y, print.rot, print.scale);
 }
 
+/** How finely the depth blur is stepped. A blur is re-rendered whenever its
+ * radius changes, so holding the radius still for a few frames at a time lets
+ * the compositor reuse what it already drew — free on a fast GPU, the
+ * difference between smooth and choppy on a slow one. */
+const BLUR_STEP_PX = 0.5;
+
 /** The print's CSS filter — depth blur plus any pile wash. */
 export function filterFor(print: Print): string {
-  const blur = print.blur > 0.01 ? `blur(${round(print.blur)}px)` : '';
+  const stepped = Math.round(print.blur / BLUR_STEP_PX) * BLUR_STEP_PX;
+  const blur = stepped >= BLUR_STEP_PX ? `blur(${stepped}px)` : '';
   return [blur, print.wash].filter(Boolean).join(' ') || 'none';
 }
 
@@ -164,6 +171,8 @@ export class LaneEngine {
   private next = 0;
   /** Reduced motion: time since the last print was retired. */
   private held = 0;
+  /** The device could not afford the depth blur, so the lane stopped asking. */
+  private lightened = false;
   private readonly reduced: boolean;
   private readonly random: () => number;
 
@@ -330,8 +339,26 @@ export class LaneEngine {
   paint(print: Print): void {
     const t = clamp(Math.abs(print.y - this.geo.focal) / this.geo.range, 0, 1);
     print.scale = SCALE.drift * (1 - 0.24 * t) * (1 - 0.07 * this.focus);
-    print.blur = this.reduced ? 0 : 5.5 * t * t + 12 * this.focus;
+    print.blur = this.reduced || this.lightened ? 0 : 5.5 * t * t + 12 * this.focus;
     print.opacity = clamp((1 - 1.05 * Math.pow(t, 1.8)) * (1 - 0.86 * this.focus), 0.02, 1);
+  }
+
+  /**
+   * Stop asking for the depth blur — the device cannot hold the frame budget
+   * with it (decision 7.34). Depth is still read from scale and opacity, which
+   * cost nothing, so the lane keeps its shape; it just loses its softness. One
+   * way: a screen that flickered between sharp and soft would be worse than
+   * either.
+   */
+  lighten(): void {
+    if (this.lightened) return;
+    this.lightened = true;
+    for (const print of this.lane) this.paint(print);
+  }
+
+  /** True once the depth blur has been shed. */
+  get isLightened(): boolean {
+    return this.lightened;
   }
 
   /** Sideways sway, in px — a print on a table is never perfectly on rails. */
