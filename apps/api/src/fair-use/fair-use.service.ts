@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import type { Limits } from '@auto-stories/api-types';
 import { ApiErrors } from '../common/api-exception';
 
 /** Stop calling Gemini past this many stories/day (headroom under the free tier). */
@@ -61,7 +62,7 @@ export class FairUseService {
       return;
     }
     if (window.count >= this.ipHourlyLimit) {
-      throw ApiErrors.rateLimited();
+      throw ApiErrors.rateLimited(undefined, this.hourResetAt());
     }
     window.count += 1;
   }
@@ -76,9 +77,42 @@ export class FairUseService {
       this.daily = { start: dayStart, count: 0 };
     }
     if (this.daily.count >= this.dailyCap) {
-      throw ApiErrors.quotaExhausted();
+      throw ApiErrors.quotaExhausted(undefined, this.dayResetAt());
     }
     this.daily.count += 1;
+  }
+
+  /**
+   * What `ip` has left, for the client to warn with *before* the user does the
+   * work (decision 7.36). Read-only: asking how much is left never spends any.
+   */
+  limitsFor(ip: string): Limits {
+    const hourStart = this.windowStart(HOUR_MS);
+    const window = this.ipWindows.get(ip);
+    const used = window && window.start === hourStart ? window.count : 0;
+    const dayExhausted = this.dayCount() >= this.dailyCap;
+    return {
+      remaining: Math.max(0, this.ipHourlyLimit - used),
+      limit: this.ipHourlyLimit,
+      resetAt: this.hourResetAt(),
+      dayExhausted,
+      ...(dayExhausted ? { dayResetAt: this.dayResetAt() } : {}),
+    };
+  }
+
+  /** How many stories the shared budget has spent in the current day window. */
+  private dayCount(): number {
+    return this.daily.start === this.windowStart(DAY_MS) ? this.daily.count : 0;
+  }
+
+  /** When the current hour window rolls over, ISO-8601. */
+  private hourResetAt(): string {
+    return new Date(this.windowStart(HOUR_MS) + HOUR_MS).toISOString();
+  }
+
+  /** When the shared daily budget resets, ISO-8601. */
+  private dayResetAt(): string {
+    return new Date(this.windowStart(DAY_MS) + DAY_MS).toISOString();
   }
 
   /** Start of the clock-aligned window of the given size containing `now`. */

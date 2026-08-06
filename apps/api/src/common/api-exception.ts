@@ -25,11 +25,11 @@ export const DEFAULT_MESSAGE: Record<ErrorCode, string> = {
     "That request wasn't valid — check your photos and try again.",
   payload_too_large: 'That upload was too large — try fewer or smaller photos.',
   empty_result: "Couldn't shape a story — try different photos.",
-  rate_limited: 'Slow down a moment — try again shortly.',
-  quota_exhausted: 'At capacity today — try later.',
+  rate_limited: "That's your stories for this hour — everyone gets a turn.",
+  quota_exhausted: "Today's free stories are all used up.",
   upstream_error: 'The story engine is unavailable — retry in a moment.',
   safety_blocked: "Couldn't use some photos — try different ones.",
-  timeout: 'The story engine timed out — retry.',
+  timeout: 'The story engine took too long — try again.',
 };
 
 /**
@@ -41,6 +41,9 @@ export class ApiException extends HttpException {
   constructor(
     readonly code: ErrorCode,
     message?: string,
+    /** When the caller may try again, for refusals that pass on their own
+     * (decision 7.36). ISO-8601; absent when there is no known recovery time. */
+    readonly retryAt?: string,
   ) {
     super(message ?? DEFAULT_MESSAGE[code], STATUS_BY_CODE[code]);
   }
@@ -53,9 +56,10 @@ export const ApiErrors = {
   payloadTooLarge: (message?: string) =>
     new ApiException('payload_too_large', message),
   emptyResult: (message?: string) => new ApiException('empty_result', message),
-  rateLimited: (message?: string) => new ApiException('rate_limited', message),
-  quotaExhausted: (message?: string) =>
-    new ApiException('quota_exhausted', message),
+  rateLimited: (message?: string, retryAt?: string) =>
+    new ApiException('rate_limited', message, retryAt),
+  quotaExhausted: (message?: string, retryAt?: string) =>
+    new ApiException('quota_exhausted', message, retryAt),
   upstreamError: (message?: string) =>
     new ApiException('upstream_error', message),
   timeout: (message?: string) => new ApiException('timeout', message),

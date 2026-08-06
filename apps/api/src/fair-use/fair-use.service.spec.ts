@@ -24,6 +24,38 @@ function serviceWith(values: Record<string, number> = {}): {
 }
 
 describe('FairUseService', () => {
+  describe('telling the caller when they can try again (7.36)', () => {
+    it('says when the hour rolls over on a rate_limited refusal', () => {
+      const { service, setNow } = serviceWith({ RATE_LIMIT_PER_HOUR: 1 });
+      setNow(3 * HOUR + 90_000);
+      service.enforceIp('1.1.1.1');
+
+      try {
+        service.enforceIp('1.1.1.1');
+        throw new Error('expected a refusal');
+      } catch (err) {
+        expect((err as ApiException).code).toBe('rate_limited');
+        expect((err as ApiException).retryAt).toBe(
+          new Date(4 * HOUR).toISOString(),
+        );
+      }
+    });
+
+    it('says when the shared day rolls over on a quota_exhausted refusal', () => {
+      const { service, setNow } = serviceWith({ DAILY_GENERATION_CAP: 1 });
+      setNow(3 * HOUR);
+      service.consumeDailyBudget();
+
+      try {
+        service.consumeDailyBudget();
+        throw new Error('expected a refusal');
+      } catch (err) {
+        expect((err as ApiException).code).toBe('quota_exhausted');
+        expect((err as ApiException).retryAt).toBe(new Date(DAY).toISOString());
+      }
+    });
+  });
+
   describe('per-IP rate limit', () => {
     it('allows requests up to the hourly limit', () => {
       const { service } = serviceWith({ RATE_LIMIT_PER_HOUR: 3 });

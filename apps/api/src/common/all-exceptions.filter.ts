@@ -41,11 +41,13 @@ export class AllExceptionsFilter implements ExceptionFilter {
     let status: number = HttpStatus.SERVICE_UNAVAILABLE;
     let code: ErrorCode = 'upstream_error';
     let message: string = DEFAULT_MESSAGE.upstream_error;
+    let retryAt: string | undefined;
 
     if (exception instanceof ApiException) {
       status = exception.getStatus();
       code = exception.code;
       message = extractMessage(exception) ?? DEFAULT_MESSAGE[code];
+      retryAt = exception.retryAt;
     } else if (exception instanceof HttpException) {
       status = exception.getStatus();
       code =
@@ -69,7 +71,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
       );
     }
 
-    const body: ErrorResponse = { error: { code, message } };
+    const body: ErrorResponse = {
+      error: { code, message, ...(retryAt ? { retryAt } : {}) },
+    };
     res.status(status).json(body);
   }
 }
