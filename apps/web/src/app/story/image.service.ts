@@ -7,6 +7,11 @@ import type { PickedPhoto } from './story.service';
 export const MAX_EDGE = 1024;
 /** JPEG ~80% keeps faces/text legible while shrinking the payload (3.4). */
 export const JPEG_QUALITY = 0.8;
+/** Long edge for a photo that is only ever shown on screen. A phone's own
+ * screen is ~1200 device px across, and a 12MP original costs ~48MB of decoded
+ * bitmap to show in a box that size — memory pressure a cheap phone answers
+ * with garbage collection, which is what choppy looks like (decision 7.34). */
+export const DISPLAY_MAX_EDGE = 1440;
 
 /** Dimensions to draw at: fit within a max long-edge, keep aspect, never upscale. */
 export function fitWithin(
@@ -34,6 +39,30 @@ export class ImageService {
       proxies.push(await this.toProxy(photo));
     }
     return proxies;
+  }
+
+  /**
+   * A downscaled copy of the photo to *show*, as an object URL the caller owns
+   * and must revoke. Returns null if the photo cannot be decoded — the caller
+   * falls back to the original, which is correct, just heavier.
+   */
+  async toDisplayUrl(file: File, maxEdge = DISPLAY_MAX_EDGE): Promise<string | null> {
+    try {
+      const bitmap = await createImageBitmap(file);
+      try {
+        const { width, height } = fitWithin(bitmap.width, bitmap.height, maxEdge);
+        const canvas = new OffscreenCanvas(width, height);
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return null;
+        ctx.drawImage(bitmap, 0, 0, width, height);
+        const blob = await canvas.convertToBlob({ type: 'image/jpeg', quality: JPEG_QUALITY });
+        return URL.createObjectURL(blob);
+      } finally {
+        bitmap.close();
+      }
+    } catch {
+      return null;
+    }
   }
 
   /** Decode → downscale (~1024px long edge, JPEG ~80%) → raw base64 (no prefix). */

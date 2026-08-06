@@ -1,5 +1,6 @@
 import {
   KEEP_IN_LANE,
+  filterFor,
   REDUCED_HOLD_MS,
   LaneEngine,
   driftSpeed,
@@ -137,6 +138,61 @@ describe('LaneEngine — depth', () => {
     expect(print.y).toBe(before);
     expect(print.blur).toBe(0);
     expect(print.opacity).toBeGreaterThan(0);
+  });
+});
+
+describe('LaneEngine — shedding the depth blur on a slow device', () => {
+  it('stops asking for blur once it has been lightened', () => {
+    const lane = engine();
+    const print = lane.lane[0];
+    print.y = GEO.focal + GEO.range;
+    lane.paint(print);
+    expect(print.blur).toBeGreaterThan(0);
+
+    lane.lighten();
+
+    expect(lane.isLightened).toBe(true);
+    expect(print.blur).toBe(0);
+  });
+
+  it('keeps reading depth from scale and opacity, which cost nothing', () => {
+    const lane = engine();
+    lane.lighten();
+    const [near, far] = lane.lane;
+    near.y = GEO.focal;
+    far.y = GEO.focal + GEO.range;
+    lane.paint(near);
+    lane.paint(far);
+
+    expect(far.scale).toBeLessThan(near.scale);
+    expect(far.opacity).toBeLessThan(near.opacity);
+  });
+
+  it('never asks for blur again, however far the focus is pulled', () => {
+    const lane = engine();
+    lane.lighten();
+    lane.focusTarget = 1;
+    run(lane, 600, 0);
+    expect(lane.lane.every((print) => print.blur === 0)).toBe(true);
+  });
+});
+
+describe('filterFor', () => {
+  it('steps the blur so the compositor can reuse what it drew', () => {
+    const lane = engine();
+    const print = lane.lane[0];
+    print.blur = 2.34;
+    const a = filterFor(print);
+    print.blur = 2.41;
+    expect(filterFor(print)).toBe(a);
+  });
+
+  it('drops a blur too small to see rather than paying for it', () => {
+    const lane = engine();
+    const print = lane.lane[0];
+    print.blur = 0.2;
+    print.wash = '';
+    expect(filterFor(print)).toBe('none');
   });
 });
 

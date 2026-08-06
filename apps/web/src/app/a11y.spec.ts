@@ -72,8 +72,9 @@ describe('Accessibility (WCAG 2 A/AA)', () => {
         response: { frames: FRAMES, look: 'magazine-masthead' },
       }),
     };
-    const images: Pick<ImageService, 'toProxies'> = {
+    const images: Pick<ImageService, 'toProxies' | 'toDisplayUrl'> = {
       toProxies: async () => [{ id: 'p1', b64: 'x' }],
+      toDisplayUrl: async () => null,
     };
     await TestBed.configureTestingModule({
       imports: [Generating],
