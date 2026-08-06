@@ -1,0 +1,3 @@
+Roboto is licensed under the Apache License, Version 2.0.
+https://github.com/googlefonts/roboto-classic
+https://www.apache.org/licenses/LICENSE-2.0

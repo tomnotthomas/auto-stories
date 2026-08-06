@@ -9,15 +9,10 @@
       content="width=device-width, initial-scale=1, interactive-widget=resizes-content"
     />
     <link rel="icon" type="image/x-icon" href="favicon.ico" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <!-- Golden Hour uses Roboto 400/500/700 and Material Symbols Outlined for
-         icons (matches the design mockups' base.css). mat-icon is pointed at
-         this font set globally via MAT_ICON_DEFAULT_OPTIONS in app.config.ts. -->
-    <link
-      href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap"
-      rel="stylesheet"
-    />
+    <!-- Every face is served from this origin. Nothing here reaches a font CDN:
+         embedding Google Fonts sends the visitor's IP address to Google, which
+         needs consent under the GDPR (LG München I, 3 O 17493/20) — see
+         decision 7.38 and /privacy. -->
   </head>
   <body>
     <app-root></app-root>

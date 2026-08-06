@@ -799,6 +799,15 @@ Phase 1 leaves the finished frames in the app; this chapter is how they reach an
 - **Why not just raise the cap and keep hourly windows:** an hourly per-visitor window cannot express "two a day" — it either lets someone take two every hour (48/day, more than twice the entire budget) or refuses them for an hour when the thing they are waiting for is tomorrow. The window has to match the budget it is protecting.
 - **Consequence for the UX:** the warning threshold drops to **one left** (7.36), because with an allowance of two, warning at two would greet every first-time visitor with a rationing message. First story silent, second says "1 more story today", third is refused with the reason and the time it returns.
 
+### 7.38 Every font is served from our own origin
+- **Problem:** the app loaded Roboto and Material Symbols from `fonts.googleapis.com` / `fonts.gstatic.com`. A font served from a CDN is fetched by the browser, which means **every visitor's IP address is sent to Google before they have agreed to anything**. In Germany that is the fact pattern of *LG München I, 20.01.2022 – 3 O 17493/20*, which found it an unlawful transfer of personal data and awarded damages, and which set off a wave of warning letters.
+- **Found while** drafting the privacy policy: it is not possible to write an honest "we do not share your data with third parties" while the page pings a third party on load. The document forced the audit; the audit found the bug.
+- **Options:** (a) a consent banner in front of the fonts; (b) system fonts only; (c) **self-host every face.**
+- **Decision:** (c). Roboto and Material Symbols (both Apache-2.0, so redistributable) now sit in `public/fonts` next to the three display faces that were already self-hosted, with their licence text beside them. No `<link>` to any CDN remains, and the page contacts exactly one origin: its own.
+- **Why not a banner:** a consent gate in front of *the typeface* is the worst of both worlds — it taxes every visitor with a decision, and if they decline, the app renders in a fallback face. The design has opinions about type (7.16, 7.24); making it conditional on a click is not a design.
+- **Cost, stated plainly:** +320KB for the icon font, which is the whole Material Symbols set for the 32 icons we use. Subsetting it barely helps — every icon name is spelled from the same 26 letters, so a text-based subset keeps nearly everything (measured: 320KB → 221KB). The real fix is codepoint subsetting or SVG icons, logged as follow-up. It is a one-time cached download, not a per-frame cost, so it does not touch the work in 7.34/7.35.
+- **`font-display: block` for the icons**, not `swap`: an icon has no readable fallback, so a flash of the raw ligature name ("add_a_photo") is worse than a moment of nothing.
+
 # Chapter 8 — Lessons learned
 
 Working notes about *how* I worked on this, kept so I don't repeat the mistakes.
