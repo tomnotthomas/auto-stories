@@ -9,7 +9,6 @@ import {
 import type { GenerateAccepted } from '@auto-stories/api-types';
 import { ApiErrors } from '../common/api-exception';
 import { FairUseGuard } from '../fair-use/fair-use.guard';
-import { FairUseService } from '../fair-use/fair-use.service';
 import { JobService } from '../job/job.service';
 import { GenerateRequestDto } from './dto/generate-request.dto';
 import { sniffImageType } from './image.util';
@@ -29,7 +28,6 @@ import { StoryGeneratorService } from './story-generator.service';
 export class StoryController {
   constructor(
     private readonly generator: StoryGeneratorService,
-    private readonly fairUse: FairUseService,
     private readonly jobs: JobService,
   ) {}
 
@@ -45,10 +43,9 @@ export class StoryController {
     }
 
     const jobId = this.jobs.enqueue(async (report) => {
-      // Reserve the daily budget only when the job actually runs, so a queued
-      // job that never runs never spends it; a rejected upload never reaches
-      // here, so it never burns the budget either.
-      this.fairUse.consumeDailyBudget();
+      // The budget is reserved inside the generator, immediately before each
+      // model call — that is the unit the provider counts, and it makes a
+      // safety retry cost what it actually costs (decision 7.37).
       // The reporter carries each frame the model finishes out to the waiting
       // client over the job's SSE stream (decision 7.30).
       return this.generator.generate(request, report);

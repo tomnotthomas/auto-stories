@@ -81,31 +81,31 @@ describe('Create', () => {
   });
   describe('the fair-use allowance (7.36)', () => {
     const limits = (over: Partial<Limits> = {}): Limits => ({
-      remaining: 5,
-      limit: 5,
+      remaining: 2,
+      limit: 2,
       resetAt: '2026-08-06T15:00:00.000Z',
       dayExhausted: false,
       ...over,
     });
 
     it('says nothing while the user is nowhere near the limit', async () => {
-      story.setLimits(limits({ remaining: 5 }));
+      story.setLimits(limits({ remaining: 2 }));
       expect(await harness.getLimitNote()).toBeNull();
     });
 
-    it('still says nothing at three left — a number nobody needs yet', async () => {
-      story.setLimits(limits({ remaining: 3 }));
+    it('still says nothing while the whole allowance is intact', async () => {
+      story.setLimits(limits({ remaining: 2 }));
       expect(await harness.getLimitNote()).toBeNull();
     });
 
     it('says how many are left once it is close enough to matter', async () => {
-      story.setLimits(limits({ remaining: 2 }));
-      expect(await harness.getLimitNote()).toContain('2 more stories');
+      story.setLimits(limits({ remaining: 1 }));
+      expect(await harness.getLimitNote()).toContain('1 more story');
     });
 
     it('reads as one story, not "1 stories"', async () => {
       story.setLimits(limits({ remaining: 1 }));
-      expect(await harness.getLimitNote()).toContain('1 more story this hour');
+      expect(await harness.getLimitNote()).toContain('1 more story today');
     });
 
     it('says why, so the cap reads as fairness rather than a fault', async () => {
@@ -114,7 +114,7 @@ describe('Create', () => {
     });
 
     it('warns before the work when the shared day is already spent', async () => {
-      story.setLimits(limits({ remaining: 4, dayExhausted: true }));
+      story.setLimits(limits({ remaining: 2, dayExhausted: true }));
       expect(await harness.getLimitNote()).toContain('back tomorrow');
     });
 

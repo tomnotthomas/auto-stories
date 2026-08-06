@@ -50,7 +50,7 @@ describe('ErrorScreen', () => {
     it('says which limit was hit when the caller has had their hour’s worth', async () => {
       const harness = await render({ code: 'rate_limited', message: 'slow down' });
 
-      expect(await harness.getTitle()).toContain('this hour');
+      expect(await harness.getTitle()).toContain('today');
       expect(await harness.getWhy()).toContain('shared');
     });
 

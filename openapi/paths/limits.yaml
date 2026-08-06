@@ -3,8 +3,8 @@ get:
   tags: [ops]
   summary: What this caller has left under the fair-use guardrails.
   description: |
-    Reports the caller's remaining hourly allowance and whether the shared daily
-    budget is spent, so the client can warn *before* the user does the work
+    Reports the caller's remaining allowance for the day and whether the shared
+    daily budget is spent, so the client can warn *before* the user does the work
     rather than refusing them after it (decision 7.36).
 
     Not rate limited itself: reading how much is left must never cost some of it.

@@ -34,9 +34,12 @@ export const MIN_PHOTOS = 3;
 export const MAX_PHOTOS = 30;
 /** The story line is one guided sentence; a soft cap keeps it focused (5.6). */
 export const MAX_STORY_LENGTH = 150;
-/** Say how many stories are left only from here down. Above it the number is
- * noise: it taxes every user to explain a limit almost none of them reach. */
-export const WARN_AT_REMAINING = 2;
+/** Say how many stories are left only from here down.
+ *
+ * The whole allowance is two a day (7.37), so this is one: a first-time visitor
+ * with everything still to spend is told nothing, and the warning arrives on
+ * their second story — before the wall, not on it. */
+export const WARN_AT_REMAINING = 1;
 
 /** A specific failure to show the user — the contract's ErrorCode, or a
  * transport `network` failure — each mapped to its own screen (4.3, 5.7). */

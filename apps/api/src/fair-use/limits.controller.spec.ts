@@ -25,7 +25,7 @@ describe('LimitsController', () => {
         FairUseService,
         {
           provide: ConfigService,
-          useValue: configWith({ RATE_LIMIT_PER_HOUR: 5 }),
+          useValue: configWith({ RATE_LIMIT_PER_DAY: 5 }),
         },
       ],
     }).compile();
@@ -38,7 +38,7 @@ describe('LimitsController', () => {
     expect(controller.limits(asRequest('1.1.1.1'))).toEqual({
       remaining: 5,
       limit: 5,
-      resetAt: new Date(4 * HOUR).toISOString(),
+      resetAt: new Date(24 * HOUR).toISOString(),
       dayExhausted: false,
     });
   });
@@ -65,16 +65,16 @@ describe('LimitsController', () => {
     expect(controller.limits(asRequest('1.1.1.1')).remaining).toBe(5);
   });
 
-  it('says when the allowance comes back', () => {
+  it('says when the allowance comes back — the next day', () => {
     expect(controller.limits(asRequest('1.1.1.1')).resetAt).toBe(
-      new Date(4 * HOUR).toISOString(),
+      new Date(24 * HOUR).toISOString(),
     );
   });
 
   it('flags the shared day being spent, and when it returns', () => {
     const spent = new FairUseService(configWith({ DAILY_GENERATION_CAP: 1 }));
     spent.now = () => 3 * HOUR;
-    spent.consumeDailyBudget();
+    spent.reserveCall();
     const withSpentDay = new LimitsController(spent);
 
     const limits = withSpentDay.limits(asRequest('1.1.1.1'));
@@ -101,7 +101,7 @@ describe('LimitsController', () => {
     };
 
     it('reports a number even when the limit was configured as a string', () => {
-      const limits = fromEnv({ RATE_LIMIT_PER_HOUR: '3' }).limits(
+      const limits = fromEnv({ RATE_LIMIT_PER_DAY: '3' }).limits(
         asRequest('1.1.1.1'),
       );
 
@@ -112,7 +112,7 @@ describe('LimitsController', () => {
 
     it('falls back rather than disabling the guard on nonsense', () => {
       for (const bad of ['', 'lots', '0', '-4']) {
-        const limits = fromEnv({ RATE_LIMIT_PER_HOUR: bad }).limits(
+        const limits = fromEnv({ RATE_LIMIT_PER_DAY: bad }).limits(
           asRequest('1.1.1.1'),
         );
         expect(limits.limit).toBeGreaterThan(0);

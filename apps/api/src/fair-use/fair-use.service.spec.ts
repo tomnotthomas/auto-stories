@@ -2,7 +2,8 @@ import { ConfigService } from '@nestjs/config';
 import { ApiException } from '../common/api-exception';
 import { FairUseService } from './fair-use.service';
 
-const HOUR = 60 * 60 * 1000;
+const MINUTE = 60 * 1000;
+const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
 
 /** ConfigService stub returning the given overrides (else the caller default). */
@@ -23,119 +24,166 @@ function serviceWith(values: Record<string, number> = {}): {
   return { service, setNow: (ms) => (current = ms) };
 }
 
+/** The error code of a refusal, or null when the call went through. */
+function refusalFrom(run: () => void): string | null {
+  try {
+    run();
+    return null;
+  } catch (err) {
+    expect(err).toBeInstanceOf(ApiException);
+    return (err as ApiException).code;
+  }
+}
+
 describe('FairUseService', () => {
-  describe('telling the caller when they can try again (7.36)', () => {
-    it('says when the hour rolls over on a rate_limited refusal', () => {
-      const { service, setNow } = serviceWith({ RATE_LIMIT_PER_HOUR: 1 });
-      setNow(3 * HOUR + 90_000);
+  describe('what one visitor may take in a day', () => {
+    it('allows a visitor up to their daily share', () => {
+      const { service } = serviceWith({ RATE_LIMIT_PER_DAY: 2 });
+      expect(() => {
+        service.enforceIp('1.1.1.1');
+        service.enforceIp('1.1.1.1');
+      }).not.toThrow();
+    });
+
+    it('turns the same visitor away once they have had it', () => {
+      const { service } = serviceWith({ RATE_LIMIT_PER_DAY: 2 });
+      service.enforceIp('1.1.1.1');
+      service.enforceIp('1.1.1.1');
+
+      expect(refusalFrom(() => service.enforceIp('1.1.1.1'))).toBe(
+        'rate_limited',
+      );
+    });
+
+    it('says their share comes back tomorrow, not in an hour', () => {
+      const { service, setNow } = serviceWith({ RATE_LIMIT_PER_DAY: 1 });
+      setNow(3 * HOUR);
       service.enforceIp('1.1.1.1');
 
       try {
         service.enforceIp('1.1.1.1');
         throw new Error('expected a refusal');
       } catch (err) {
-        expect((err as ApiException).code).toBe('rate_limited');
-        expect((err as ApiException).retryAt).toBe(
-          new Date(4 * HOUR).toISOString(),
-        );
-      }
-    });
-
-    it('says when the shared day rolls over on a quota_exhausted refusal', () => {
-      const { service, setNow } = serviceWith({ DAILY_GENERATION_CAP: 1 });
-      setNow(3 * HOUR);
-      service.consumeDailyBudget();
-
-      try {
-        service.consumeDailyBudget();
-        throw new Error('expected a refusal');
-      } catch (err) {
-        expect((err as ApiException).code).toBe('quota_exhausted');
         expect((err as ApiException).retryAt).toBe(new Date(DAY).toISOString());
       }
     });
-  });
 
-  describe('per-IP rate limit', () => {
-    it('allows requests up to the hourly limit', () => {
-      const { service } = serviceWith({ RATE_LIMIT_PER_HOUR: 3 });
-      expect(() => {
-        service.enforceIp('1.1.1.1');
-        service.enforceIp('1.1.1.1');
-        service.enforceIp('1.1.1.1');
-      }).not.toThrow();
-    });
-
-    it('throws rate_limited once an IP exceeds the hourly limit', () => {
-      const { service } = serviceWith({ RATE_LIMIT_PER_HOUR: 2 });
-      service.enforceIp('1.1.1.1');
+    it('keeps visitors apart', () => {
+      const { service } = serviceWith({ RATE_LIMIT_PER_DAY: 1 });
       service.enforceIp('1.1.1.1');
 
-      let caught: unknown;
-      try {
-        service.enforceIp('1.1.1.1');
-      } catch (err) {
-        caught = err;
-      }
-      expect(caught).toBeInstanceOf(ApiException);
-      expect((caught as ApiException).code).toBe('rate_limited');
+      expect(refusalFrom(() => service.enforceIp('2.2.2.2'))).toBeNull();
     });
 
-    it('tracks each IP independently', () => {
-      const { service } = serviceWith({ RATE_LIMIT_PER_HOUR: 1 });
-      expect(() => {
-        service.enforceIp('1.1.1.1');
-        service.enforceIp('2.2.2.2');
-      }).not.toThrow();
-    });
-
-    it('resets an IP window after the hour rolls over', () => {
-      const { service, setNow } = serviceWith({ RATE_LIMIT_PER_HOUR: 1 });
-      setNow(30 * 60 * 1000); // 00:30
+    it('gives them their share back the next day', () => {
+      const { service, setNow } = serviceWith({ RATE_LIMIT_PER_DAY: 1 });
       service.enforceIp('1.1.1.1');
-      setNow(30 * 60 * 1000 + HOUR); // 01:30 — new window
-      expect(() => service.enforceIp('1.1.1.1')).not.toThrow();
+      setNow(DAY + 1);
+
+      expect(refusalFrom(() => service.enforceIp('1.1.1.1'))).toBeNull();
     });
   });
 
-  describe('global daily budget', () => {
-    it('allows calls up to the daily cap', () => {
+  describe("the day's model calls", () => {
+    it('lets calls through while the budget lasts', () => {
+      const { service } = serviceWith({ DAILY_GENERATION_CAP: 20 });
+      expect(() => {
+        for (let i = 0; i < 20; i++) service.reserveCall();
+      }).not.toThrow();
+    });
+
+    it('refuses once the day is spent, before anything reaches the provider', () => {
       const { service } = serviceWith({ DAILY_GENERATION_CAP: 2 });
-      expect(() => {
-        service.consumeDailyBudget();
-        service.consumeDailyBudget();
-      }).not.toThrow();
+      service.reserveCall();
+      service.reserveCall();
+
+      expect(refusalFrom(() => service.reserveCall())).toBe('quota_exhausted');
     });
 
-    it('throws quota_exhausted once the daily cap is spent', () => {
-      const { service } = serviceWith({ DAILY_GENERATION_CAP: 1 });
-      service.consumeDailyBudget();
-
-      let caught: unknown;
-      try {
-        service.consumeDailyBudget();
-      } catch (err) {
-        caught = err;
-      }
-      expect(caught).toBeInstanceOf(ApiException);
-      expect((caught as ApiException).code).toBe('quota_exhausted');
-    });
-
-    it('resets the budget after the day rolls over', () => {
+    it('says the budget returns tomorrow', () => {
       const { service, setNow } = serviceWith({ DAILY_GENERATION_CAP: 1 });
-      setNow(12 * HOUR); // midday
-      service.consumeDailyBudget();
-      setNow(12 * HOUR + DAY); // next midday — new day
-      expect(() => service.consumeDailyBudget()).not.toThrow();
+      setNow(5 * HOUR);
+      service.reserveCall();
+
+      try {
+        service.reserveCall();
+        throw new Error('expected a refusal');
+      } catch (err) {
+        expect((err as ApiException).retryAt).toBe(new Date(DAY).toISOString());
+      }
+    });
+
+    it('starts fresh the next day', () => {
+      const { service, setNow } = serviceWith({ DAILY_GENERATION_CAP: 1 });
+      setNow(12 * HOUR);
+      service.reserveCall();
+      setNow(12 * HOUR + DAY);
+
+      expect(refusalFrom(() => service.reserveCall())).toBeNull();
     });
   });
 
-  it('applies sane defaults when no config is provided', () => {
-    // Default cap is 1200 and per-IP is a few/hour; a single call is fine.
-    const { service } = serviceWith();
-    expect(() => {
+  describe("the minute's model calls", () => {
+    it('has room while the minute is not full', () => {
+      const { service } = serviceWith({ CALLS_PER_MINUTE: 5 });
+      for (let i = 0; i < 4; i++) service.reserveCall();
+
+      expect(service.msUntilCallAllowed()).toBe(0);
+    });
+
+    it('asks the caller to wait for the next minute rather than failing', () => {
+      const { service, setNow } = serviceWith({ CALLS_PER_MINUTE: 2 });
+      setNow(20_000);
+      service.reserveCall();
+      service.reserveCall();
+
+      // A wait, not a refusal: the user is already waiting and could not have
+      // done anything differently.
+      expect(service.msUntilCallAllowed()).toBe(40_000);
+      expect(refusalFrom(() => service.reserveCall())).toBeNull();
+    });
+
+    it('opens up again once the minute rolls over', () => {
+      const { service, setNow } = serviceWith({ CALLS_PER_MINUTE: 1 });
+      service.reserveCall();
+      setNow(MINUTE + 1);
+
+      expect(service.msUntilCallAllowed()).toBe(0);
+    });
+
+    it('never asks for a negative wait', () => {
+      const { service, setNow } = serviceWith({ CALLS_PER_MINUTE: 1 });
+      setNow(30_000);
+      service.reserveCall();
+      setNow(59_999);
+
+      expect(service.msUntilCallAllowed()).toBeGreaterThanOrEqual(0);
+    });
+  });
+
+  describe('the defaults are the free tier we are actually on', () => {
+    it('allows twenty model calls a day and no more', () => {
+      const { service } = serviceWith();
+      for (let i = 0; i < 20; i++) service.reserveCall();
+
+      expect(refusalFrom(() => service.reserveCall())).toBe('quota_exhausted');
+    });
+
+    it('allows five model calls a minute before anyone is asked to wait', () => {
+      const { service } = serviceWith();
+      for (let i = 0; i < 5; i++) service.reserveCall();
+
+      expect(service.msUntilCallAllowed()).toBeGreaterThan(0);
+    });
+
+    it('gives one visitor two stories a day', () => {
+      const { service } = serviceWith();
       service.enforceIp('1.1.1.1');
-      service.consumeDailyBudget();
-    }).not.toThrow();
+      service.enforceIp('1.1.1.1');
+
+      expect(refusalFrom(() => service.enforceIp('1.1.1.1'))).toBe(
+        'rate_limited',
+      );
+    });
   });
 });

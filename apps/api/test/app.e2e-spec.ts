@@ -127,6 +127,8 @@ describe('App (e2e)', () => {
         limit: expect.any(Number),
         dayExhausted: false,
       });
+      // The free tier is small: two stories per visitor per day (7.37).
+      expect(res.body.limit).toBe(2);
       expect(Date.parse(res.body.resetAt as string)).not.toBeNaN();
     });
 
@@ -321,12 +323,12 @@ describe('App (e2e)', () => {
   describe('fair-use guardrails', () => {
     // Config is read at module init, so set env before boot() and restore after.
     const original = {
-      perHour: process.env.RATE_LIMIT_PER_HOUR,
+      perDay: process.env.RATE_LIMIT_PER_DAY,
       dailyCap: process.env.DAILY_GENERATION_CAP,
     };
 
     afterEach(() => {
-      restoreEnv('RATE_LIMIT_PER_HOUR', original.perHour);
+      restoreEnv('RATE_LIMIT_PER_DAY', original.perDay);
       restoreEnv('DAILY_GENERATION_CAP', original.dailyCap);
     });
 
@@ -335,10 +337,11 @@ describe('App (e2e)', () => {
       photos: photos(3),
     });
 
-    // The hourly IP limit is enforced by the guard, before the handler runs, so
-    // a flooding client is still turned away synchronously.
-    it('returns rate_limited (429) once an IP exceeds the hourly limit', async () => {
-      process.env.RATE_LIMIT_PER_HOUR = '1';
+    // The per-visitor limit is enforced by the guard, before the handler runs,
+    // so a flooding client is turned away synchronously — and, crucially,
+    // without anything reaching the provider (7.37).
+    it('returns rate_limited (429) once a visitor has had their day', async () => {
+      process.env.RATE_LIMIT_PER_DAY = '1';
       process.env.DAILY_GENERATION_CAP = '1000';
       await boot();
 
@@ -349,13 +352,16 @@ describe('App (e2e)', () => {
         .send(story())
         .expect(429);
       expect(res.body.error.code).toBe('rate_limited');
+      expect(res.body.error.retryAt).toEqual(expect.any(String));
+      // One accepted story = one model call; the refusal cost nothing.
+      expect(generateContent).toHaveBeenCalledTimes(1);
     });
 
-    // The daily budget is spent when the job RUNS, not when it is accepted, so a
-    // queued job that never runs never spends it. Exhaustion therefore surfaces
-    // as a failed job rather than a rejected request.
-    it('fails the job with quota_exhausted once the daily budget is spent', async () => {
-      process.env.RATE_LIMIT_PER_HOUR = '1000';
+    // The budget is spent at the model call, so a queued job that never gets
+    // that far never spends it. Exhaustion surfaces as a failed job rather than
+    // a rejected request.
+    it('fails the job with quota_exhausted once the day of calls is spent', async () => {
+      process.env.RATE_LIMIT_PER_DAY = '1000';
       process.env.DAILY_GENERATION_CAP = '1';
       await boot();
 

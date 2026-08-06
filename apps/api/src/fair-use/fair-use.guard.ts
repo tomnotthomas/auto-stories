@@ -3,7 +3,7 @@ import type { Request } from 'express';
 import { FairUseService } from './fair-use.service';
 
 /**
- * Counts each request to a guarded route against its source IP's hourly limit
+ * Counts each request to a guarded route against its source IP’s daily share
  * (approach 4.1), before the handler runs. A flooding client is turned away
  * with rate_limited (429) prior to any validation or model work.
  */

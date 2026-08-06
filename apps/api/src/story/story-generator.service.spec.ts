@@ -2,8 +2,10 @@ import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import { ApiError } from '@google/genai';
+import { ApiErrors } from '../common/api-exception';
 import type { GenerateRequest } from '@auto-stories/api-types';
 import { StoryGeneratorService } from './story-generator.service';
+import { FairUseService } from '../fair-use/fair-use.service';
 import { GENAI } from './story.constants';
 import { DEFAULT_LOOK } from './caption-style';
 
@@ -50,11 +52,21 @@ async function makeService(
 /** The service with the raw stream mock, for tests about chunk-by-chunk arrival. */
 async function makeStreamingService(
   generateContentStream: jest.Mock,
+  fairUse: Partial<FairUseService> = {},
 ): Promise<StoryGeneratorService> {
   const moduleRef = await Test.createTestingModule({
     providers: [
       StoryGeneratorService,
       { provide: GENAI, useValue: { models: { generateContentStream } } },
+      // The budget is reserved at the model call now (7.37).
+      {
+        provide: FairUseService,
+        useValue: {
+          msUntilCallAllowed: () => 0,
+          reserveCall: jest.fn(),
+          ...fairUse,
+        },
+      },
       {
         provide: ConfigService,
         useValue: { get: (_k: string, d: unknown) => d },
@@ -416,6 +428,108 @@ describe('StoryGeneratorService', () => {
       const result = await service.generate(makeRequest(3));
 
       expect(result.frames).toHaveLength(3);
+    });
+  });
+  describe('the free tier budget (7.37)', () => {
+    const oneStory = () =>
+      jest.fn(() =>
+        Promise.resolve(
+          (function* () {
+            yield {
+              text: JSON.stringify({
+                look: 'minimal',
+                frames: [{ photoId: 'p1', order: 1, headline: 'x' }],
+              }),
+            };
+          })(),
+        ),
+      );
+
+    it('reserves a call before making one', async () => {
+      const stream = oneStory();
+      const reserveCall = jest.fn();
+      const service = await makeStreamingService(stream, { reserveCall });
+
+      await service.generate(makeRequest(3));
+
+      expect(reserveCall).toHaveBeenCalledTimes(1);
+      expect(reserveCall.mock.invocationCallOrder[0]).toBeLessThan(
+        stream.mock.invocationCallOrder[0],
+      );
+    });
+
+    it('never reaches the provider once the day is spent', async () => {
+      const stream = oneStory();
+      const service = await makeStreamingService(stream, {
+        reserveCall: jest.fn(() => {
+          throw ApiErrors.quotaExhausted();
+        }),
+      });
+
+      await expect(service.generate(makeRequest(3))).rejects.toMatchObject({
+        code: 'quota_exhausted',
+      });
+      // The whole point: a refused request costs no quota.
+      expect(stream).not.toHaveBeenCalled();
+    });
+
+    it('spends one call per attempt, so a safety retry costs two', async () => {
+      const reserveCall = jest.fn();
+      const blockedThenFine = jest
+        .fn()
+        .mockImplementationOnce(() =>
+          Promise.resolve(
+            (function* () {
+              yield { promptFeedback: { blockReason: 'SAFETY' }, text: '' };
+            })(),
+          ),
+        )
+        .mockImplementationOnce(() =>
+          Promise.resolve(
+            (function* () {
+              yield {
+                text: JSON.stringify({
+                  look: 'minimal',
+                  frames: [{ photoId: 'p1', order: 1, headline: 'x' }],
+                }),
+              };
+            })(),
+          ),
+        );
+      const service = await makeStreamingService(blockedThenFine, {
+        reserveCall,
+      });
+
+      await service.generate(makeRequest(4));
+
+      expect(blockedThenFine).toHaveBeenCalledTimes(2);
+      expect(reserveCall).toHaveBeenCalledTimes(2);
+    });
+
+    it('waits out a full minute instead of failing the user', async () => {
+      jest.useFakeTimers();
+      try {
+        const stream = oneStory();
+        const msUntilCallAllowed = jest
+          .fn()
+          .mockReturnValueOnce(5_000)
+          .mockReturnValue(0);
+        const service = await makeStreamingService(stream, {
+          msUntilCallAllowed,
+        });
+
+        const pending = service.generate(makeRequest(3));
+        // Still holding off — the request has not been made.
+        await Promise.resolve();
+        expect(stream).not.toHaveBeenCalled();
+
+        await jest.advanceTimersByTimeAsync(5_000);
+        await pending;
+
+        expect(stream).toHaveBeenCalledTimes(1);
+      } finally {
+        jest.useRealTimers();
+      }
     });
   });
 });
