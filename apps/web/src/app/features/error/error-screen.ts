@@ -39,6 +39,9 @@ export class ErrorScreen implements OnDestroy {
   protected readonly canRetry = computed(() => canRetryAt(this.error()?.retryAt, this.now()));
   /** Whether to offer a retry at all: not for a failure the same input repeats. */
   protected readonly offersRetry = computed(() => this.copy().next !== 'change-photos');
+  /** Whether there is work to come back to, so the screen only promises it is
+   * kept when something actually is. */
+  protected readonly hasWork = computed(() => this.story.photoCount() > 0);
 
   ngOnDestroy(): void {
     clearInterval(this.timer);
@@ -49,13 +52,11 @@ export class ErrorScreen implements OnDestroy {
     this.story.startGenerating();
   }
 
-  protected startOver(): void {
-    this.story.reset();
-  }
-
-  /** Back to the picker with the photos intact, for the failures the same set
-   * cannot pass. Start over throws the work away; this keeps it. */
-  protected changePhotos(): void {
+  /** The only way off this screen other than a retry (decision 7.39): back to
+   * the picker with the photos, story line and tone still there. Labelled "Go
+   * back" for the failures that may pass on a retry, and "Change photos" for
+   * the ones the same set cannot pass — one destination, two intents. */
+  protected backToPicker(): void {
     this.story.startCreating();
   }
 }

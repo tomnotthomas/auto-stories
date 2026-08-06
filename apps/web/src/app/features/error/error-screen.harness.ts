@@ -7,12 +7,17 @@ export class ErrorScreenHarness extends ComponentHarness {
 
   private readonly why = this.locatorFor('[data-why]');
   private readonly when = this.locatorForOptional('[data-when]');
+  private readonly kept = this.locatorForOptional('[data-kept]');
   private readonly heading = this.locatorFor('h1');
+  private readonly tryAgainButton = this.locatorForOptional(
+    MatButtonHarness.with({ text: /Try again/ }),
+  );
   private readonly changePhotosButton = this.locatorForOptional(
     MatButtonHarness.with({ text: /Change photos/ }),
   );
-  private readonly tryAgainButton = this.locatorFor(MatButtonHarness.with({ text: /Try again/ }));
-  private readonly startOverButton = this.locatorFor(MatButtonHarness.with({ text: /Start over/ }));
+  private readonly goBackButton = this.locatorForOptional(
+    MatButtonHarness.with({ text: /Go back/ }),
+  );
 
   /** What the screen says happened. */
   async getTitle(): Promise<string> {
@@ -30,14 +35,20 @@ export class ErrorScreenHarness extends ComponentHarness {
     return when ? when.text() : null;
   }
 
+  /** What the screen promises is kept, if it promises anything. */
+  async getKept(): Promise<string | null> {
+    const kept = await this.kept();
+    return kept ? kept.text() : null;
+  }
+
   /** Whether a retry is offered at all. */
   async hasTryAgain(): Promise<boolean> {
-    return (await this.tryAgainButtonOptional()) !== null;
+    return (await this.tryAgainButton()) !== null;
   }
 
   /** Whether the retry is currently usable. */
   async isTryAgainEnabled(): Promise<boolean> {
-    const button = await this.tryAgainButtonOptional();
+    const button = await this.tryAgainButton();
     return button !== null && !(await button.isDisabled());
   }
 
@@ -46,23 +57,30 @@ export class ErrorScreenHarness extends ComponentHarness {
     return (await this.changePhotosButton()) !== null;
   }
 
-  /** Go back to the picker, keeping the photos. */
-  async clickChangePhotos(): Promise<void> {
-    const button = await this.changePhotosButton();
-    if (button) await button.click();
+  /** Whether the screen offers a way out that keeps the work. */
+  async hasGoBack(): Promise<boolean> {
+    return (await this.goBackButton()) !== null;
   }
-
-  private readonly tryAgainButtonOptional = this.locatorForOptional(
-    MatButtonHarness.with({ text: /Try again/ }),
-  );
 
   /** Retry generation. */
   async clickTryAgain(): Promise<void> {
-    await (await this.tryAgainButton()).click();
+    await this.click(await this.tryAgainButton(), 'Try again');
   }
 
-  /** Start the flow over. */
-  async clickStartOver(): Promise<void> {
-    await (await this.startOverButton()).click();
+  /** Back to the picker to pick a different set. */
+  async clickChangePhotos(): Promise<void> {
+    await this.click(await this.changePhotosButton(), 'Change photos');
+  }
+
+  /** Back to the picker with the work intact. */
+  async clickGoBack(): Promise<void> {
+    await this.click(await this.goBackButton(), 'Go back');
+  }
+
+  /** Click a button the screen only sometimes offers, saying which one is
+   * missing rather than passing silently when it is not there. */
+  private async click(button: MatButtonHarness | null, label: string): Promise<void> {
+    if (!button) throw new Error(`The error screen does not offer "${label}"`);
+    await button.click();
   }
 }

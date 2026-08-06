@@ -71,6 +71,19 @@ describe('Create', () => {
     expect(story.tone()).toBe('heartfelt');
   });
 
+  it('comes back showing the photos, story line and tone already picked', async () => {
+    // What "Go back" from the error screen relies on (7.39): the picker renders
+    // from the service, so returning to it restores the work with no
+    // persistence of its own.
+    story.addPhotos([imageFile('a.jpg'), imageFile('b.jpg'), imageFile('c.jpg')]);
+    story.setStoryLine('Maya turns one at the lake');
+    story.setTone('heartfelt');
+
+    expect(await harness.photoCount()).toBe(3);
+    expect(await harness.getStoryLine()).toBe('Maya turns one at the lake');
+    expect(await harness.getSelectedTone()).toContain('Heartfelt');
+  });
+
   it('starts generating when Create is clicked', async () => {
     story.addPhotos([imageFile('a.jpg'), imageFile('b.jpg'), imageFile('c.jpg')]);
     await harness.typeStory('A day at the lake');
