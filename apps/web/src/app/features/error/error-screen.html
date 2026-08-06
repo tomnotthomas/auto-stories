@@ -13,18 +13,28 @@
     </p>
   }
 
+  <!-- What the failure cost them: nothing. Said before they have to trust it,
+       and only when there is work to come back to (decision 7.39). -->
+  @if (hasWork()) {
+    <p data-kept class="mat-label-large max-w-xs text-on-surface-variant">
+      Your photos and story line are kept.
+    </p>
+  }
+
   <div class="mt-4 flex w-full max-w-xs flex-col gap-2">
     @if (offersRetry()) {
       <button matButton="filled" [disabled]="!canRetry()" (click)="tryAgain()">
         <mat-icon>refresh</mat-icon>
         Try again
       </button>
+      <!-- The way out that keeps the work. Not repeated in the other branch:
+           Change photos already goes here. -->
+      <button matButton (click)="backToPicker()">Go back</button>
     } @else {
-      <button matButton="filled" (click)="changePhotos()">
+      <button matButton="filled" (click)="backToPicker()">
         <mat-icon>photo_library</mat-icon>
         Change photos
       </button>
     }
-    <button matButton (click)="startOver()">Start over</button>
   </div>
 </section>
