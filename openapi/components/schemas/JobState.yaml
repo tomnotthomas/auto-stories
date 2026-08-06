@@ -35,3 +35,11 @@ properties:
       message:
         type: string
         description: Human-readable message safe to surface to the user.
+      retryAt:
+        type: string
+        format: date-time
+        description: |
+          When the caller may try again, for the refusals that pass on their
+          own. The shared daily budget is reserved inside the job, so
+          `quota_exhausted` reaches the client here rather than on the accept
+          — this is the path that carries its reset time (decision 7.36).

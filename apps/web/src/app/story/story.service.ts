@@ -1,5 +1,5 @@
 import { Injectable, computed, signal } from '@angular/core';
-import type { ErrorCode, Frame, Tone } from '@auto-stories/api-types';
+import type { ErrorCode, Frame, Limits, Tone } from '@auto-stories/api-types';
 
 import { pickReadable, sampleLuminance } from './caption-style';
 import { cohesionFilter, frameLuminance } from './caption-cohesion';
@@ -34,12 +34,17 @@ export const MIN_PHOTOS = 3;
 export const MAX_PHOTOS = 30;
 /** The story line is one guided sentence; a soft cap keeps it focused (5.6). */
 export const MAX_STORY_LENGTH = 150;
+/** Say how many stories are left only from here down. Above it the number is
+ * noise: it taxes every user to explain a limit almost none of them reach. */
+export const WARN_AT_REMAINING = 2;
 
 /** A specific failure to show the user — the contract's ErrorCode, or a
  * transport `network` failure — each mapped to its own screen (4.3, 5.7). */
 export interface StoryError {
   readonly code: ErrorCode | 'network';
   readonly message: string;
+  /** When the refusal lifts, for the limits that pass on their own (7.36). */
+  readonly retryAt?: string;
 }
 
 /** A generated frame plus what the device worked out for it: the reading of the
@@ -137,6 +142,7 @@ export class StoryService {
   private readonly _error = signal<StoryError | null>(null);
   private readonly _coachSeen = signal(false);
   private readonly _sparks = signal<ReadonlyMap<string, SparkState>>(new Map());
+  private readonly _limits = signal<Limits | null>(null);
   private seq = 0;
 
   /** The screen the flow shell should render. */
@@ -159,6 +165,21 @@ export class StoryService {
   readonly coachSeen = this._coachSeen.asReadonly();
   /** Per-spark user edits (dragged spot / dismissed / done), keyed by {@link sparkKey}. */
   readonly sparks = this._sparks.asReadonly();
+  /** What the caller has left under the fair-use guardrails, or null until it
+   * has been read (7.36). */
+  readonly limits = this._limits.asReadonly();
+  /** True when the picker should say how many are left: only once it is close
+   * enough to matter. Telling someone on their first story that they are being
+   * counted makes rationing the subject of the product. */
+  readonly limitWorthSaying = computed(() => {
+    const limits = this._limits();
+    return limits !== null && (limits.dayExhausted || limits.remaining <= WARN_AT_REMAINING);
+  });
+
+  /** Record what the server says is left. */
+  setLimits(limits: Limits | null): void {
+    this._limits.set(limits);
+  }
 
   /** How many photos are picked. */
   readonly photoCount = computed(() => this._photos().length);

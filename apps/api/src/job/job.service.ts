@@ -119,7 +119,11 @@ export class JobService {
 /** Map a thrown value to the typed error the client already understands (4.3). */
 function toError(err: unknown): ErrorResponse['error'] {
   if (err instanceof ApiException) {
-    return { code: err.code, message: err.message };
+    return {
+      code: err.code,
+      message: err.message,
+      ...(err.retryAt ? { retryAt: err.retryAt } : {}),
+    };
   }
   return {
     code: 'upstream_error',

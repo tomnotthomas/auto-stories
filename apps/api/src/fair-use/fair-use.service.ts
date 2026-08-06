@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Limits } from '@auto-stories/api-types';
 import { ApiErrors } from '../common/api-exception';
+import { positiveInt } from '../common/config.util';
 
 /** Stop calling Gemini past this many stories/day (headroom under the free tier). */
 const DEFAULT_DAILY_CAP = 1200;
@@ -40,12 +41,14 @@ export class FairUseService {
   private readonly ipWindows = new Map<string, Window>();
 
   constructor(config: ConfigService) {
-    this.dailyCap = config.get<number>(
-      'DAILY_GENERATION_CAP',
+    // Coerced, not just typed — see positiveInt. Left raw this reached the
+    // contract as `"limit": "3"`, a string where an integer was promised.
+    this.dailyCap = positiveInt(
+      config.get('DAILY_GENERATION_CAP'),
       DEFAULT_DAILY_CAP,
     );
-    this.ipHourlyLimit = config.get<number>(
-      'RATE_LIMIT_PER_HOUR',
+    this.ipHourlyLimit = positiveInt(
+      config.get('RATE_LIMIT_PER_HOUR'),
       DEFAULT_IP_HOURLY_LIMIT,
     );
   }

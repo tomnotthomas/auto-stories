@@ -43,5 +43,10 @@ export type JobState = {
          * @type string
         */
         message: string;
+        /**
+         * @description When the caller may try again, for the refusals that pass on their\nown. The shared daily budget is reserved inside the job, so\n`quota_exhausted` reaches the client here rather than on the accept\n— this is the path that carries its reset time (decision 7.36).\n
+         * @type string | undefined, date-time
+        */
+        retryAt?: string;
     };
 };

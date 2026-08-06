@@ -19,8 +19,18 @@ describe('App', () => {
       providers: [
         // The generating screen kicks off a call on mount; keep it pending so the
         // flow stays on 'generating' and no real HTTP/canvas runs in the shell test.
-        { provide: ImageService, useValue: { toProxies: async () => [], toDisplayUrl: async () => null } },
-        { provide: StoryGateway, useValue: { generate: () => new Promise<never>(() => {}) } },
+        {
+          provide: ImageService,
+          useValue: { toProxies: async () => [], toDisplayUrl: async () => null },
+        },
+        {
+          provide: StoryGateway,
+          useValue: {
+            generate: () => new Promise<never>(() => {}),
+            // The picker reads the fair-use allowance on arrival (7.36).
+            limits: async () => null,
+          },
+        },
       ],
     }).compileComponents();
 

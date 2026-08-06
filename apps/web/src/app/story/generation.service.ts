@@ -56,7 +56,11 @@ export class GenerationService {
         outcome.response.look,
       );
     } else {
-      this.story.failStory({ code: outcome.code, message: outcome.message });
+      this.story.failStory({
+        code: outcome.code,
+        message: outcome.message,
+        ...(outcome.retryAt ? { retryAt: outcome.retryAt } : {}),
+      });
     }
   }
 

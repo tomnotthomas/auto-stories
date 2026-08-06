@@ -10,6 +10,8 @@ import { MatChipListboxHarness } from '@angular/material/chips/testing';
 export class CreateHarness extends ComponentHarness {
   static hostSelector = 'app-create';
 
+  private readonly limitNote = this.locatorForOptional('[data-limit-note]');
+
   private readonly title = this.locatorFor('h1');
   private readonly backButton = this.locatorFor(
     MatButtonHarness.with({ selector: '[aria-label="Back to example"]' }),
@@ -62,5 +64,11 @@ export class CreateHarness extends ComponentHarness {
   /** Submit the story. */
   async clickCreate(): Promise<void> {
     await (await this.createButton()).click();
+  }
+
+  /** What the picker says about the fair-use allowance, or null when silent. */
+  async getLimitNote(): Promise<string | null> {
+    const note = await this.limitNote();
+    return note ? note.text() : null;
   }
 }

@@ -90,4 +90,33 @@ describe('LimitsController', () => {
   it('falls back to a shared bucket when the request has no ip', () => {
     expect(controller.limits({} as Request).remaining).toBe(5);
   });
+  describe('limits configured from the environment', () => {
+    /** Env vars arrive as strings; the contract promises integers. */
+    const fromEnv = (values: Record<string, string>): LimitsController => {
+      const service = new FairUseService({
+        get: (key: string) => values[key],
+      } as unknown as ConfigService);
+      service.now = () => 3 * HOUR;
+      return new LimitsController(service);
+    };
+
+    it('reports a number even when the limit was configured as a string', () => {
+      const limits = fromEnv({ RATE_LIMIT_PER_HOUR: '3' }).limits(
+        asRequest('1.1.1.1'),
+      );
+
+      expect(limits.limit).toBe(3);
+      expect(typeof limits.limit).toBe('number');
+      expect(typeof limits.remaining).toBe('number');
+    });
+
+    it('falls back rather than disabling the guard on nonsense', () => {
+      for (const bad of ['', 'lots', '0', '-4']) {
+        const limits = fromEnv({ RATE_LIMIT_PER_HOUR: bad }).limits(
+          asRequest('1.1.1.1'),
+        );
+        expect(limits.limit).toBeGreaterThan(0);
+      }
+    });
+  });
 });
