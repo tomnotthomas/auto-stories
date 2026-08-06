@@ -773,6 +773,12 @@ Phase 1 leaves the finished frames in the app; this chapter is how they reach an
 - **Why the blur is what gets shed:** depth is carried by scale, opacity *and* blur; the first two cost nothing. Shedding the blur costs the softness and keeps the shape, so the lane still reads as a lane.
 - **Measured:** on a desktop GPU the blur is free at phone pixel density (60fps with and without it, frame for frame) — which is why this could not be found by measuring on the machine it was written on. Under a main thread blocked past the frame budget, the lane sheds within ~1.2s: three prints carrying `blur(1px)` before, none after.
 
+### 7.35 The loop writes only what changed
+- **Problem:** [7.34](#734-the-lane-is-cheap-by-default-and-sheds-what-a-phone-cannot-afford) made the *effects* cheaper but left the loop that drives them alone, and the loop was doing the same work whether anything had changed or not: four style writes per print per frame — transform, opacity, filter, z-index — ~916 CSSOM writes a second. Three of the four are almost always the value that is already there. Stepping the blur (7.34) only pays if the frames in between *skip the write*, and they were not skipping it.
+- **Decision, all invisible:** the loop remembers what it last wrote to each print and writes a property only when the value actually differs; opacity is quantised to two decimals (a 1% step is below what an eye can resolve, and it turns a value that changed every frame into one that rarely does); the loop iterates the lane rather than every print ever dealt; the geometry signal is read once per frame instead of once per print; and print images decode off the frame that deals them (`decoding="async"`), so a photo-sized decode is no longer able to land inside a frame.
+- **Measured, same build and same run, toggled at runtime so the comparison is honest:** **916 → 148 style writes per second**, a 6.2× reduction. Nothing on screen changes.
+- **Why this is worth its own entry:** the previous round reached for the expensive-looking thing (the blur) and was right about the effect but not about the machinery around it. A per-frame loop should be judged on what it *writes*, not on what it computes — computing a value and discovering it is unchanged is cheap; handing it to the CSSOM is not.
+
 # Chapter 8 — Lessons learned
 
 Working notes about *how* I worked on this, kept so I don't repeat the mistakes.
