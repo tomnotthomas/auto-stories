@@ -49,6 +49,14 @@ interface PrintView {
   reveal: Reveal;
 }
 
+/** The last values written to a print's element. */
+interface Painted {
+  transform: string;
+  opacity: string;
+  filter: string;
+  z: string;
+}
+
 /** One of the story's progress bars, which a kept print flattens into. */
 interface Segment {
   readonly index: number;
@@ -145,6 +153,10 @@ export class Generating implements OnDestroy {
   private readonly printEls = viewChildren<ElementRef<HTMLElement>>('printEl');
   private readonly segmentEls = viewChildren<ElementRef<HTMLElement>>('segmentEl');
   private readonly elements = new Map<string, HTMLElement>();
+  /** What was last written to each print's element, so an unchanged value is
+   * never written again. The whole point of stepping the blur is that it holds
+   * still for several frames — which only pays if those frames skip the write. */
+  private readonly painted = new Map<string, Painted>();
 
   private raf = 0;
   private lastFrame = 0;
@@ -232,7 +244,8 @@ export class Generating implements OnDestroy {
     for (const print of this.engine.prints) {
       const element = this.elements.get(print.key);
       for (const running of element?.getAnimations?.() ?? []) running.cancel();
-      this.place(print);
+      this.forget(print);
+      this.place(print, geo);
     }
   }
 
@@ -303,20 +316,50 @@ export class Generating implements OnDestroy {
   /** Write the lane's continuous state straight to the elements. A print that
    * has landed on a pile is left alone — its own animation owns it. */
   private render(): void {
-    for (const print of this.engine.prints) {
-      if (print.settled) continue;
-      this.place(print);
-    }
+    // Only what is moving: a print that has landed on a pile is not in the lane,
+    // and everything in the lane is by definition still going somewhere.
+    const geo = this.geometry();
+    for (const print of this.engine.lane) this.place(print, geo);
   }
 
   /** Write one print's current state to its element. */
-  private place(print: Print): void {
+  private place(print: Print, geo = this.geometry()): void {
     const element = this.elements.get(print.key);
     if (!element) return;
-    element.style.transform = transformFor(print, this.geometry(), this.engine.swayFor(print));
-    element.style.opacity = String(print.opacity);
-    element.style.filter = filterFor(print);
-    element.style.zIndex = String(print.z);
+    const transform = transformFor(print, geo, this.engine.swayFor(print));
+    // Two decimals: a 1% step in opacity is below what an eye can see, and it
+    // turns a value that changed every frame into one that rarely does.
+    const opacity = print.opacity.toFixed(2);
+    const filter = filterFor(print);
+    const z = String(print.z);
+
+    const last = this.painted.get(print.key);
+    if (!last) {
+      element.style.transform = transform;
+      element.style.opacity = opacity;
+      element.style.filter = filter;
+      element.style.zIndex = z;
+      this.painted.set(print.key, { transform, opacity, filter, z });
+      return;
+    }
+    // Writing a property is never free, even when the value is identical: it is
+    // a CSSOM call and a style-invalidation check per print per frame.
+    if (last.transform !== transform) {
+      element.style.transform = transform;
+      last.transform = transform;
+    }
+    if (last.opacity !== opacity) {
+      element.style.opacity = opacity;
+      last.opacity = opacity;
+    }
+    if (last.filter !== filter) {
+      element.style.filter = filter;
+      last.filter = filter;
+    }
+    if (last.z !== z) {
+      element.style.zIndex = z;
+      last.z = z;
+    }
   }
 
   /** Rebuild the render list from the lane, keeping the words already set. */
@@ -354,6 +397,7 @@ export class Generating implements OnDestroy {
 
   /** A print tossed onto the seen pile — the rotation overshoots, then settles. */
   private toss(print: Print): void {
+    this.forget(print);
     const element = this.elements.get(print.key);
     const geo = this.geometry();
     // Reduced motion: it goes out where it stands. Sliding it up to the pile
@@ -408,6 +452,7 @@ export class Generating implements OnDestroy {
   private restack(): void {
     const geo = this.geometry();
     for (const print of this.engine.kept) {
+      this.forget(print);
       const element = this.elements.get(print.key);
       if (!element) continue;
       const to = transformFor(print, geo);
@@ -658,6 +703,7 @@ export class Generating implements OnDestroy {
 
   /** The print comes forward to the focal point with a small overshoot. */
   private comeForward(print: Print, pace = 1): void {
+    this.forget(print);
     const element = this.elements.get(print.key);
     const geo = this.geometry();
     const from = element?.style.transform ?? '';
@@ -691,6 +737,7 @@ export class Generating implements OnDestroy {
    * frame opens full-bleed. The loading screen becomes the story screen. */
   private async land(frames: readonly Frame[]): Promise<void> {
     this.ending = true;
+    for (const print of this.engine.prints) this.forget(print);
     this.chrome.set(false);
     this.quiet.set(false);
     this.engine.arrangeKept(frames.map((frame) => frame.photoId));
@@ -805,6 +852,12 @@ export class Generating implements OnDestroy {
   }
 
   /* ── plumbing ──────────────────────────────────────────────────────────── */
+
+  /** An animation or a pile move writes the element's style itself, so whatever
+   * was last painted is no longer what is on the element. */
+  private forget(print: Print): void {
+    this.painted.delete(print.key);
+  }
 
   private play(
     element: HTMLElement,
