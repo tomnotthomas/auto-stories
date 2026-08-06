@@ -17,4 +17,15 @@ writeFileSync(
   join(landingRoot, 'index.html'),
   '<!doctype html><title>Landing</title><body data-page="landing-root-fixture">',
 );
+// The legal pages ship as siblings of index.html (apps/landing/build.py emits
+// them). Each carries its own marker so a test can prove the right file — not
+// the landing index — answered the request.
+writeFileSync(
+  join(landingRoot, 'privacy.html'),
+  '<!doctype html><title>Datenschutz</title><body data-page="privacy-fixture">',
+);
+writeFileSync(
+  join(landingRoot, 'imprint.html'),
+  '<!doctype html><title>Impressum</title><body data-page="imprint-fixture">',
+);
 process.env.LANDING_ROOT = landingRoot;

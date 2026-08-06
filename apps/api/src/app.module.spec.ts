@@ -39,6 +39,24 @@ describe('Single-container web hosting', () => {
     expect(res.text).toContain('landing-root-fixture');
   });
 
+  // The legal pages are linked from the landing footer and have to be reachable
+  // at a URL a person can be told over the phone. Both spellings are pinned:
+  // the file name, and the extensionless path (which only resolves because the
+  // landing host is mounted with serveStaticOptions.extensions — without it the
+  // '/' catch-all would answer /privacy with the landing page itself).
+  it.each([
+    ['/privacy.html', 'privacy-fixture'],
+    ['/privacy', 'privacy-fixture'],
+    ['/imprint.html', 'imprint-fixture'],
+    ['/imprint', 'imprint-fixture'],
+  ])('serves the legal page at %s', async (path, marker) => {
+    const res = await request(app.getHttpServer()).get(path);
+
+    expect(res.status).toBe(200);
+    expect(res.text).toContain(marker);
+    expect(res.text).not.toContain('landing-root-fixture');
+  });
+
   it('serves the web app index.html for a client-side route under /app', async () => {
     const res = await request(app.getHttpServer()).get('/app/story/new');
 

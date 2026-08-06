@@ -205,6 +205,14 @@ jobs:
           curl -fsS http://localhost:3000/app/ | grep -qi '<app-root' \
             || { echo "::error::web app not served at /app"; docker logs auto-stories; exit 1; }
           echo "web app served at /app"
+          # The legal pages are separate COPYs in the Dockerfile and resolve
+          # extensionless only because of serveStaticOptions.extensions. Both
+          # are easy to lose silently, so both are pinned here.
+          for path in /privacy /privacy.html /imprint /imprint.html; do
+            curl -fsS "http://localhost:3000$path" | grep -qi 'Auto Stories' \
+              || { echo "::error::legal page not served at $path"; docker logs auto-stories; exit 1; }
+          done
+          echo "legal pages served at /privacy and /imprint"
 
       - name: Tear down
         if: always()
