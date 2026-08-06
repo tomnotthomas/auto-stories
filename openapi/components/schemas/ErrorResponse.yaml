@@ -14,14 +14,14 @@ properties:
         type: string
         description: Human-readable message safe to surface to the user.
         examples:
-          - Slow down a moment — try again shortly.
+          - That's your stories for today — everyone gets a turn.
       retryAt:
         type: string
         format: date-time
         description: |
           When the caller may try again, for the refusals that pass on their
-          own — `rate_limited` when the hour rolls over, `quota_exhausted` when
-          the shared day does. Absent for failures with no known recovery time.
+          own — both `rate_limited` and `quota_exhausted` when the day rolls
+          over. Absent for failures with no known recovery time.
           Present so the client can say *when* instead of "shortly", and so a
           retry button is not offered before it can possibly work (7.36).
         examples:

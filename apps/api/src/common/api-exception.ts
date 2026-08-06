@@ -25,7 +25,7 @@ export const DEFAULT_MESSAGE: Record<ErrorCode, string> = {
     "That request wasn't valid — check your photos and try again.",
   payload_too_large: 'That upload was too large — try fewer or smaller photos.',
   empty_result: "Couldn't shape a story — try different photos.",
-  rate_limited: "That's your stories for this hour — everyone gets a turn.",
+  rate_limited: "That's your stories for today — everyone gets a turn.",
   quota_exhausted: "Today's free stories are all used up.",
   upstream_error: 'The story engine is unavailable — retry in a moment.',
   safety_blocked: "Couldn't use some photos — try different ones.",

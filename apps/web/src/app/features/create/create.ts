@@ -55,9 +55,9 @@ export class Create {
     const limits = this.story.limits();
     if (!limits) return null;
     if (limits.dayExhausted) return "Today's free stories are all used up — back tomorrow.";
-    if (limits.remaining === 0) return 'No more stories this hour — the free tier is shared.';
+    if (limits.remaining === 0) return 'No more stories today — the free tier is shared.';
     const plural = limits.remaining === 1 ? 'story' : 'stories';
-    return `${limits.remaining} more ${plural} this hour — the free tier is shared.`;
+    return `${limits.remaining} more ${plural} today — the free tier is shared.`;
   });
 
   /** Tone chips — the labels shown; the value is the contract Tone enum. */

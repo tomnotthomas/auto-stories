@@ -15,6 +15,7 @@ import type {
 } from '@auto-stories/api-types';
 import { ApiException, ApiErrors } from '../common/api-exception';
 import { positiveInt } from '../common/config.util';
+import { FairUseService } from '../fair-use/fair-use.service';
 import { normalizeLook } from './caption-style';
 import { completeFrames } from './partial-frames';
 import { buildPrompt } from './prompt.builder';
@@ -53,6 +54,7 @@ export class StoryGeneratorService {
 
   constructor(
     @Inject(GENAI) private readonly genai: GoogleGenAI,
+    private readonly fairUse: FairUseService,
     config: ConfigService,
   ) {
     this.model = config.get<string>('MODEL', DEFAULT_MODEL);
@@ -146,6 +148,12 @@ export class StoryGeneratorService {
       ]),
     ];
 
+    // Wait for a slot if the minute is full, then reserve the day's call. Both
+    // happen before the request is made, so a refusal costs no quota (7.37).
+    const wait = this.fairUse.msUntilCallAllowed();
+    if (wait > 0) await sleep(wait);
+    this.fairUse.reserveCall();
+
     try {
       const stream = await this.genai.models.generateContentStream({
         model: this.model,
@@ -217,4 +225,9 @@ function parseStory(text: string | undefined): {
   } catch {
     return {};
   }
+}
+
+/** Hold off for `ms`, so a burst waits for the next minute instead of failing. */
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }

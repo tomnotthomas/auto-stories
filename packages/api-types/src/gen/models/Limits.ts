@@ -9,19 +9,19 @@
 */
 export type Limits = {
     /**
-     * @description Stories this caller can still start in the current hour.
+     * @description Stories this caller can still start today.
      * @minLength 0
      * @type integer
     */
     remaining: number;
     /**
-     * @description Stories one caller may start per hour. Sent so the client can say \"2 of 5\" without hardcoding a number the server owns.
+     * @description Stories one caller may start per day. Sent so the client never hardcodes a number the server owns.
      * @minLength 1
      * @type integer
     */
     limit: number;
     /**
-     * @description When the caller\'s hour window rolls over and `remaining` returns to `limit`.
+     * @description When the caller\'s day rolls over and `remaining` returns to `limit`.
      * @type string, date-time
     */
     resetAt: string;

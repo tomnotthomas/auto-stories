@@ -34,14 +34,14 @@ export interface ErrorCopy {
 const COPY: Record<FailureCode, ErrorCopy> = {
   rate_limited: {
     icon: 'hourglass_top',
-    title: "That's your stories for this hour",
-    why: 'The free tier is shared, so there is a cap per person and everyone gets a turn.',
+    title: "That's your stories for today",
+    why: 'The free tier is small and shared, so there is a cap per person and everyone gets a turn.',
     next: 'wait',
   },
   quota_exhausted: {
     icon: 'battery_alert',
     title: "Today's free stories are all used up",
-    why: 'Everyone here shares one free allowance a day, and today it has run out.',
+    why: 'Everyone here shares one small free allowance a day, and today it has run out.',
     next: 'wait',
   },
   timeout: {

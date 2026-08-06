@@ -10,19 +10,19 @@ properties:
   remaining:
     type: integer
     minimum: 0
-    description: Stories this caller can still start in the current hour.
+    description: Stories this caller can still start today.
     examples: [2]
   limit:
     type: integer
     minimum: 1
-    description: Stories one caller may start per hour. Sent so the client can
-      say "2 of 5" without hardcoding a number the server owns.
-    examples: [5]
+    description: Stories one caller may start per day. Sent so the client never
+      hardcodes a number the server owns.
+    examples: [2]
   resetAt:
     type: string
     format: date-time
-    description: When the caller's hour window rolls over and `remaining`
-      returns to `limit`.
+    description: When the caller's day rolls over and `remaining` returns to
+      `limit`.
     examples: ['2026-08-06T15:00:00.000Z']
   dayExhausted:
     type: boolean

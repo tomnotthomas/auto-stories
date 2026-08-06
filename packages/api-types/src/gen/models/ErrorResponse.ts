@@ -24,7 +24,7 @@ export type ErrorResponse = {
         */
         message: string;
         /**
-         * @description When the caller may try again, for the refusals that pass on their\nown — `rate_limited` when the hour rolls over, `quota_exhausted` when\nthe shared day does. Absent for failures with no known recovery time.\nPresent so the client can say *when* instead of \"shortly\", and so a\nretry button is not offered before it can possibly work (7.36).\n
+         * @description When the caller may try again, for the refusals that pass on their\nown — both `rate_limited` and `quota_exhausted` when the day rolls\nover. Absent for failures with no known recovery time.\nPresent so the client can say *when* instead of \"shortly\", and so a\nretry button is not offered before it can possibly work (7.36).\n
          * @type string | undefined, date-time
         */
         retryAt?: string;
