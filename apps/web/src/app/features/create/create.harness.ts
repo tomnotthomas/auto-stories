@@ -40,10 +40,21 @@ export class CreateHarness extends ComponentHarness {
     await (await this.storyField()).setValue(text);
   }
 
+  /** What the "What's the story?" field currently shows. */
+  async getStoryLine(): Promise<string> {
+    return (await this.storyField()).getValue();
+  }
+
   /** Select a tone chip by its visible label. */
   async selectTone(label: string): Promise<void> {
     const [chip] = await (await this.toneList()).getChips({ text: new RegExp(label) });
     await chip.select();
+  }
+
+  /** The label of the tone chip currently shown as selected, or null. */
+  async getSelectedTone(): Promise<string | null> {
+    const [chip] = await (await this.toneList()).getChips({ selected: true });
+    return chip ? chip.getText() : null;
   }
 
   /** Number of picked photos currently shown (one remove button per photo). */
