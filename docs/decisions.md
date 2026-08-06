@@ -808,6 +808,14 @@ Phase 1 leaves the finished frames in the app; this chapter is how they reach an
 - **Cost, stated plainly:** +320KB for the icon font, which is the whole Material Symbols set for the 32 icons we use. Subsetting it barely helps — every icon name is spelled from the same 26 letters, so a text-based subset keeps nearly everything (measured: 320KB → 221KB). The real fix is codepoint subsetting or SVG icons, logged as follow-up. It is a one-time cached download, not a per-frame cost, so it does not touch the work in 7.34/7.35.
 - **`font-display: block` for the icons**, not `swap`: an icon has no readable fallback, so a flash of the raw ligature name ("add_a_photo") is worse than a moment of nothing.
 
+### 7.39 A failure the user did not cause must not cost them their work
+- **Problem:** the error screen's only non-retry way out was "Start over", which called `reset()` — it revoked every photo's object URL and cleared the photos, the story line and the tone, dropping the user back on the first-open example. When the API is simply unavailable (`upstream_error`, `network`, `timeout`) the failure is ours, and the one escape hatch made the user re-pick their photos and retype their line to recover from it.
+- **Options:** (a) keep "Start over" and persist the work somewhere so it can be restored; (b) leave only "Try again", so the screen has no second way out; (c) **replace it with "Go back", which returns to the picker with the work still in place.**
+- **Decision:** (c). The secondary action is now "Go back" → `startCreating()`, the same call "Change photos" already made. Nothing is discarded and nothing new is persisted: `startCreating()` only sets the phase, and the picker renders from the service — photos from `story.photos()`, the line from `story.storyLine()`, the tone from `story.tone()` — so returning to it restores all three. `reset()` is unchanged; the story screen and the picker's back arrow still use it, where starting over is what the user asked for.
+- **One destination, two labels, never both:** with a retry on offer the buttons are "Try again" + "Go back"; without one the primary is already "Change photos", which leads to the same picker, so no "Go back" is added beside it. Two buttons doing the identical thing is not a choice.
+- **The screen states that the work is kept**, above the buttons and only when there are photos to keep, so the user does not have to click to find out what the failure cost them.
+- **Why not (a):** persistence is new machinery for a problem that only existed because the screen threw the work away. **Why not (b):** a screen whose single button is a retry that keeps failing is a dead end.
+
 # Chapter 8 — Lessons learned
 
 Working notes about *how* I worked on this, kept so I don't repeat the mistakes.
