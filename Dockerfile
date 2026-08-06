@@ -48,9 +48,13 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
 COPY --from=builder /app/apps/api/package.json ./apps/api/package.json
 COPY --from=builder /app/apps/web/dist ./apps/web/dist
-# The landing page is one self-contained file; ship just that so LANDING_ROOT
-# holds only what is served.
+# The landing page and the legal pages are each one self-contained file; ship
+# just those so LANDING_ROOT holds only what is served. They are named
+# individually rather than copied as a directory so the authoring sources
+# (page.html, *.page.html, assets/) never reach the runtime image.
 COPY --from=builder /app/apps/landing/index.html ./apps/landing/index.html
+COPY --from=builder /app/apps/landing/privacy.html ./apps/landing/privacy.html
+COPY --from=builder /app/apps/landing/imprint.html ./apps/landing/imprint.html
 
 # Run unprivileged; the `node` user ships with the base image.
 USER node

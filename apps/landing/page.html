@@ -339,6 +339,11 @@ h1,h2,p{margin:0}
 .btn:focus-visible{outline:3px solid var(--coral-70);outline-offset:3px}
 footer{position:relative;z-index:2;text-align:center;padding:30px 24px 46px;color:var(--on-var);font:var(--label);border-top:1px solid var(--outline-var)}
 footer b{color:var(--on)}
+footer p{max-width:64ch;margin:0 auto}
+footer .legal{display:flex;gap:22px;justify-content:center;flex-wrap:wrap;margin-top:14px}
+footer .legal a{color:var(--on-var);text-decoration:none;border-bottom:1px solid var(--outline-var);padding-bottom:2px}
+footer .legal a:hover{color:var(--coral-70);border-bottom-color:var(--coral-70)}
+footer .legal a:focus-visible{outline:3px solid var(--coral-70);outline-offset:3px}
 
 /* reduced-motion gallery (hidden unless reduced) */
 .rgallery{display:none}
@@ -552,7 +557,16 @@ footer b{color:var(--on)}
     <div class="rgallery" id="rgallery" aria-hidden="true"></div>
   </section>
 
-  <footer><b>Auto Stories</b> — a private memory journal. Your photos never leave the app until you post.</footer>
+  <!-- The claim here has to match the privacy policy, so it states what the app
+       actually does: the photos are sent to the AI that writes the story, and
+       then dropped. See privacy.page.html §3 and §5. -->
+  <footer>
+    <p><b>Auto Stories</b> — a private memory journal. Your photos go to the AI that writes the story, then they're dropped: nothing stored, no account, no tracking.</p>
+    <nav class="legal" aria-label="Legal">
+      <a href="/privacy.html">Datenschutz / Privacy</a>
+      <a href="/imprint.html">Impressum</a>
+    </nav>
+  </footer>
 </main>
 
 <script>/*@PRETEXT@*/</script>

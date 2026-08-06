@@ -1,0 +1,184 @@
+/* ============================================================= *
+ * Auto Stories — shared styling for the legal pages.
+ * Same Golden Hour palette and Roboto scale as page.html, but a
+ * reading layout: one column, sane measure, no motion.
+ * Inlined by build.py at the LEGAL marker, so a legal page ships
+ * as one file with zero network requests (decision 7.38).
+ * ============================================================= */
+
+:root{
+  color-scheme: dark;
+
+  /* Golden Hour — dark scheme roles (identical to page.html) */
+  --bg:#0d0b0a;
+  --surface:#1a110f;
+  --s-low:#231917;
+  --s:#271d1b;
+  --on:#f1dfda;
+  --on-var:#dcc1ba;
+  --outline:#a48b85;
+  --outline-var:#55423e;
+
+  --primary:#ffb4a1;
+  --coral:#F0603A;   --coral-70:#ff8b6c;
+  --plum:#B5476B;
+
+  --display:400 clamp(2rem,5vw,2.9rem)/1.08 'Roboto',system-ui,sans-serif;
+  --headline:500 clamp(1.25rem,2.6vw,1.6rem)/1.2 'Roboto',system-ui,sans-serif;
+  --title:500 1.05rem/1.4 'Roboto',system-ui,sans-serif;
+  --body:400 1rem/1.65 'Roboto',system-ui,sans-serif;
+  --label:500 .875rem/1.25rem 'Roboto',system-ui,sans-serif;
+}
+
+*,*::before,*::after{box-sizing:border-box}
+
+body{
+  margin:0; background:var(--bg); color:var(--on); font:var(--body);
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+}
+
+/* ---- masthead ------------------------------------------------------ */
+.top{
+  position:relative; overflow:hidden;
+  border-bottom:1px solid var(--outline-var);
+  padding:26px 24px 40px;
+}
+.top .sky{
+  position:absolute; inset:0; z-index:0; pointer-events:none;
+  background:
+    radial-gradient(120% 140% at 50% -40%, color-mix(in srgb,var(--coral) 40%,transparent) 0%, transparent 60%),
+    radial-gradient(90% 120% at 85% -10%, color-mix(in srgb,var(--plum) 34%,transparent) 0%, transparent 62%);
+}
+.top > *{position:relative; z-index:1}
+.wrap{max-width:74ch; margin-inline:auto}
+.home{
+  display:inline-flex; align-items:center; gap:8px;
+  font:var(--label); letter-spacing:.02em; color:var(--on-var); text-decoration:none;
+}
+.home:hover{color:var(--on)}
+.home .i{width:1.1em;height:1.1em;fill:currentColor}
+h1{
+  margin:22px 0 0; font:var(--display); letter-spacing:-.02em;
+  background:linear-gradient(180deg,#fff,#ffd9cf);
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+}
+.sub{margin:10px 0 0; font:var(--body); color:var(--on-var); max-width:52ch}
+
+/* language switch */
+.langs{display:flex; flex-wrap:wrap; gap:10px; margin-top:20px}
+.langs a{
+  display:inline-flex; align-items:center; height:38px; padding:0 18px;
+  border-radius:100px; border:1px solid var(--outline);
+  font:var(--label); color:var(--on); text-decoration:none;
+}
+.langs a:hover{border-color:var(--coral-70); color:var(--coral-70)}
+
+/* ---- body ---------------------------------------------------------- */
+main{padding:0 24px 64px}
+section{padding-top:46px}
+section + section{border-top:1px solid var(--outline-var); margin-top:46px}
+h2{
+  margin:0 0 6px; font:var(--headline); letter-spacing:-.01em; color:#fff;
+  scroll-margin-top:16px;
+}
+h3{margin:34px 0 8px; font:var(--title); color:var(--primary)}
+h3:first-of-type{margin-top:26px}
+p{margin:0 0 14px; max-width:74ch; color:var(--on-var)}
+p.lead{color:var(--on)}
+ul,ol{margin:0 0 16px; padding-left:22px; max-width:74ch; color:var(--on-var)}
+li{margin:0 0 8px}
+li::marker{color:var(--outline)}
+strong,b{color:var(--on); font-weight:600}
+a{color:var(--coral-70)}
+a:hover{color:var(--primary)}
+:focus-visible{outline:3px solid var(--coral-70); outline-offset:3px; border-radius:4px}
+
+.stamp{margin:0 0 26px; font:var(--label); color:var(--outline)}
+
+/* a paragraph that must not be skimmed past */
+.callout{
+  margin:22px 0; padding:18px 20px; border-radius:14px;
+  background:var(--s-low); border:1px solid var(--outline-var);
+  border-left:3px solid var(--coral);
+}
+.callout p:last-child{margin-bottom:0}
+.callout p{color:var(--on)}
+
+/* placeholders the operator must fill in before publishing */
+.fill{
+  padding:1px 7px; border-radius:5px;
+  background:color-mix(in srgb,var(--coral) 22%,transparent);
+  border:1px dashed var(--coral-70); color:var(--on);
+  font:var(--label); white-space:nowrap;
+}
+
+/* Per-category tables (what is processed, why, on what basis, for how long).
+   Four columns of prose do not fit the 74ch reading measure, so the table
+   breaks out of it — symmetric negative margins keep it on the same axis —
+   and falls back to horizontal scrolling once even that is too narrow. */
+.table{
+  --tw:min(60rem, calc(100vw - 48px));
+  width:var(--tw); margin:0 0 18px; margin-inline:calc((100% - var(--tw)) / 2);
+  overflow-x:auto; -webkit-overflow-scrolling:touch;
+}
+table{border-collapse:collapse; width:100%; min-width:42rem; font-size:.94rem}
+caption{text-align:left; padding-bottom:8px; font:var(--label); color:var(--outline)}
+th,td{
+  text-align:left; vertical-align:top; padding:11px 14px;
+  border-bottom:1px solid var(--outline-var); color:var(--on-var);
+}
+th{color:var(--on); font-weight:600}
+/* Only the column headers may refuse to wrap; a row header is a sentence and
+   must wrap, or it forces every other column off the edge. */
+thead th{white-space:nowrap}
+tbody th{width:26%}
+tbody tr:last-child th,tbody tr:last-child td{border-bottom:none}
+
+footer{
+  max-width:74ch; margin:0 auto; padding:28px 24px 46px;
+  border-top:1px solid var(--outline-var);
+  font:var(--label); color:var(--on-var); text-align:center;
+}
+footer b{color:var(--on)}
+footer a{margin-inline:6px}
+
+/* On a phone, four columns of legal prose become four unreadable slivers and a
+   sideways scroll nobody discovers. Below 720px each row restacks as a card:
+   the row header is its title, and every cell carries its column name from
+   data-label. The <thead> is hidden visually but stays in the accessibility
+   tree, so the table is still a table to a screen reader. */
+@media (max-width:720px){
+  .table{--tw:100%; overflow:visible}
+  table{display:block; min-width:0}
+  /* display:table-caption inside a display:block table collapses to a shrink
+     wrapped column; make it a plain block so it uses the full width. */
+  caption{display:block; width:100%}
+  thead{
+    position:absolute; width:1px; height:1px;
+    overflow:hidden; clip-path:inset(50%); white-space:nowrap;
+  }
+  tbody,tbody tr,tbody th,tbody td{display:block; width:auto}
+  tbody tr{
+    padding:16px; margin-bottom:14px; border-radius:14px;
+    background:var(--s-low); border:1px solid var(--outline-var);
+  }
+  tbody th{font:var(--title); color:var(--on); padding:0 0 12px; border-bottom:none}
+  tbody td{padding:0 0 12px; border-bottom:none}
+  tbody tr td:last-child{padding-bottom:0}
+  tbody td::before{
+    content:attr(data-label); display:block;
+    font:var(--label); color:var(--outline); margin-bottom:2px;
+  }
+}
+
+@media (max-width:640px){
+  .top{padding:20px 18px 32px}
+  main{padding:0 18px 52px}
+}
+
+@media print{
+  body{background:#fff; color:#000}
+  .top .sky,.langs,.home{display:none}
+  h1,h2{color:#000; background:none; -webkit-text-fill-color:#000}
+  p,li,td,th{color:#000}
+}

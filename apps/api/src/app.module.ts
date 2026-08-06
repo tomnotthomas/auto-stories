@@ -42,6 +42,13 @@ const serveStatic = [
           // The landing page owns the site root. Exclude the sibling hosts so
           // this catch-all never swallows the app or the backend routes.
           exclude: ['/api/{*splat}', '/healthz', '/app', '/app/{*splat}'],
+          serveStaticOptions: {
+            // Try `<path>.html` before falling through. The legal pages are
+            // linked as /privacy and /imprint; without this the '/' catch-all
+            // answers those with the landing page itself — a 200 carrying the
+            // wrong document, which is worse than a 404.
+            extensions: ['html'],
+          },
         }),
       ]
     : []),
