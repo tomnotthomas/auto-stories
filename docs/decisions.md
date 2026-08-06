@@ -831,6 +831,15 @@ Phase 1 leaves the finished frames in the app; this chapter is how they reach an
 - **`/privacy` is served, not just `/privacy.html`.** Without `serveStaticOptions.extensions` the site-root catch-all answered `/privacy` with the **landing page at HTTP 200** — a wrong document under a right-looking status, which a 404 would at least have made obvious. Both spellings are now pinned by tests.
 - **The Impressum is voluntary.** No company, no revenue, so § 5 DDG probably does not bite. It is published anyway because the cost is a name and an address and the cost of being wrong is an Abmahnung. Nothing that would only be true of a business — legal form, register entry, VAT ID — is stated.
 
+### 7.41 Say it where the photos are handed over, and only promise what we control (supersedes the footer line in 7.40)
+- **Problem:** two gaps were left after 7.40. (i) The replacement footer line — *"then they're dropped: nothing stored, no account, no tracking"* — still overclaimed. Our server does drop the photos, but "nothing stored" reads as *nobody* stores them, while the policy on the same page says Google's free-tier terms permit product improvement and human review and that we cannot verifiably promise either regime. The footer therefore promised what the policy expressly declined to promise. (ii) The only link to the policy was in that footer, on the landing page; `/app/create` — the screen that actually uploads the photos — had no link at all.
+- **Options:** (a) drop the data claim from the footer entirely; (b) keep it and qualify it in a footnote; (c) **say what we do, and hand the rest to the policy.**
+- **Decision:** (c). The footer now reads *"Your photos go to Google's Gemini to write the story; we keep nothing, no account, no tracking. What Google may do with them is in the privacy policy."* The first-person claim is one we can evidence from our own code; the part we cannot evidence is pointed at the document that explains it instead of being summarised into a promise.
+- **"private" was dropped from the description.** Next to a data claim, "a private memory journal" reads as a statement about handling rather than about product category, and the photos are sent to a third party whose free tier permits human review. The concrete sentence carries the meaning without it.
+- **The disclosure moved to the point of hand-over.** The picker states *"Your photos are sent to Google's Gemini to write the story"* with the policy linked, under the create button — the moment before the upload, not a footer on a different page.
+- **The link opens in a new tab.** The picker holds photos, story line and tone in memory only, so a same-tab navigation to `/privacy.html` would discard all three — the exact loss 7.39 was written to prevent. Reading the policy must not cost the user their work.
+- **Why not (a):** "no account, no tracking" is true, unusual, and worth saying. **Why not (b):** a footnote qualifying a headline claim is a sign the headline claim is wrong.
+
 # Chapter 8 — Lessons learned
 
 Working notes about *how* I worked on this, kept so I don't repeat the mistakes.
