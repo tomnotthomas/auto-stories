@@ -18,7 +18,16 @@
       class="absolute top-0 left-0 touch-none overflow-hidden rounded-[22px] bg-black shadow-[0_22px_48px_rgba(0,0,0,0.55),0_0_0_1px_rgba(255,255,255,0.08)]"
       [class]="printClass(view)"
     >
-      <img [src]="view.src" alt="" class="pointer-events-none block h-full w-full object-cover" />
+      <!-- `decoding=async` keeps the decode of a newly dealt print off the frame
+           that deals it: decoding a photo-sized image synchronously is long
+           enough to be the stutter, and a print is dealt below the fold where a
+           frame or two of nothing cannot be seen. -->
+      <img
+        [src]="view.src"
+        alt=""
+        decoding="async"
+        class="pointer-events-none block h-full w-full object-cover"
+      />
 
       @if (view.type; as type) {
         <!-- The paper the words are written on: the story's own near-black,
