@@ -5,7 +5,7 @@ import {
   PayloadTooLargeException,
 } from '@nestjs/common';
 import { AllExceptionsFilter } from './all-exceptions.filter';
-import { ApiErrors } from './api-exception';
+import { ApiErrors, DEFAULT_MESSAGE } from './api-exception';
 
 function mockHost(): {
   host: ArgumentsHost;
@@ -88,8 +88,25 @@ describe('AllExceptionsFilter', () => {
 
     expect(json.mock.calls[0][0].error).toEqual({
       code: 'rate_limited',
-      message: expect.stringContaining('Slow down'),
+      message: DEFAULT_MESSAGE.rate_limited,
     });
+  });
+
+  it('passes on when the caller may try again, for a refusal that has a time', () => {
+    const { host, json } = mockHost();
+    const retryAt = '2026-08-06T15:00:00.000Z';
+
+    filter.catch(ApiErrors.rateLimited(undefined, retryAt), host);
+
+    expect(json.mock.calls[0][0].error.retryAt).toBe(retryAt);
+  });
+
+  it('leaves retryAt off a failure with no known recovery time', () => {
+    const { host, json } = mockHost();
+
+    filter.catch(ApiErrors.upstreamError(), host);
+
+    expect(json.mock.calls[0][0].error).not.toHaveProperty('retryAt');
   });
 
   it('maps a generic 4xx HttpException with a string body to invalid_request', () => {

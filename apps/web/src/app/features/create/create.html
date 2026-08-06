@@ -12,7 +12,14 @@
     <label
       class="m-4 flex flex-1 cursor-pointer flex-col items-center justify-center gap-2 rounded-3xl border-2 border-dashed border-outline-variant bg-surface-container-high text-primary"
     >
-      <input type="file" accept="image/*" multiple hidden aria-label="Add photos" (change)="onPick($event)" />
+      <input
+        type="file"
+        accept="image/*"
+        multiple
+        hidden
+        aria-label="Add photos"
+        (change)="onPick($event)"
+      />
       <mat-icon class="h-12 w-12 text-5xl leading-none">add_photo_alternate</mat-icon>
       <span class="mat-title-medium">Add your photos</span>
       <span class="mat-label-medium text-on-surface-variant">Pick 3–30 to start your story</span>
@@ -30,7 +37,11 @@
     >
       @for (photo of story.photos(); track photo.id) {
         <div class="relative aspect-square overflow-hidden">
-          <img [src]="photo.previewUrl" alt="" class="absolute inset-0 h-full w-full object-cover" />
+          <img
+            [src]="photo.previewUrl"
+            alt=""
+            class="absolute inset-0 h-full w-full object-cover"
+          />
           <button
             type="button"
             aria-label="Remove photo"
@@ -100,5 +111,12 @@
       <mat-icon>auto_awesome</mat-icon>
       Create my story
     </button>
+
+    <!-- What is left, said before the work rather than after the refusal — and
+         only once it is close enough to matter (decision 7.36). A caption under
+         the commitment, not a banner: this is a fact, not an alarm. -->
+    @if (limitNote(); as note) {
+      <p data-limit-note class="mat-label-medium text-center text-on-surface-variant">{{ note }}</p>
+    }
   </div>
 </section>

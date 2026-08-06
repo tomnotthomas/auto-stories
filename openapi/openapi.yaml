@@ -49,5 +49,7 @@ paths:
     $ref: './paths/jobs-id.yaml'
   /api/v1/jobs/{id}/events:
     $ref: './paths/jobs-id-events.yaml'
+  /api/v1/limits:
+    $ref: './paths/limits.yaml'
   /healthz:
     $ref: './paths/healthz.yaml'

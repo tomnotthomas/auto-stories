@@ -9,11 +9,13 @@ import type {
   GenerateRequest,
   GenerateResponse,
   JobState,
+  Limits,
 } from '@auto-stories/api-types';
 
 /** URI-path-versioned endpoints served from the same origin as the app (3.12). */
 export const GENERATE_URL = '/api/v1/generate';
 export const JOBS_URL = '/api/v1/jobs';
+export const LIMITS_URL = '/api/v1/limits';
 
 /**
  * The result of accepting a generate request: the enqueued job's id, or a
@@ -21,7 +23,13 @@ export const JOBS_URL = '/api/v1/jobs';
  */
 export type AcceptOutcome =
   | { readonly ok: true; readonly jobId: string }
-  | { readonly ok: false; readonly code: ErrorCode | 'network'; readonly message: string };
+  | {
+      readonly ok: false;
+      readonly code: ErrorCode | 'network';
+      readonly message: string;
+      /** When the refusal lifts, for the limits that pass on their own (7.36). */
+      readonly retryAt?: string;
+    };
 
 /**
  * The terminal result of a generation job — a discriminated union so callers
@@ -31,7 +39,12 @@ export type AcceptOutcome =
  */
 export type GenerateOutcome =
   | { readonly ok: true; readonly response: GenerateResponse }
-  | { readonly ok: false; readonly code: ErrorCode | 'network'; readonly message: string };
+  | {
+      readonly ok: false;
+      readonly code: ErrorCode | 'network';
+      readonly message: string;
+      readonly retryAt?: string;
+    };
 
 /** Opens an SSE stream. Injected so tests can supply a fake EventSource. */
 export type EventSourceFactory = (url: string) => EventSource;
@@ -67,6 +80,19 @@ export class StoryGateway {
 
   private readonly http = inject(HttpClient);
   private readonly openEvents = inject(EVENT_SOURCE_FACTORY);
+
+  /**
+   * What this caller has left under the fair-use guardrails (7.36), so the
+   * picker can say so before the user does the work. Returns null when it
+   * cannot be read — the picker then says nothing, which is the same as today.
+   */
+  async limits(): Promise<Limits | null> {
+    try {
+      return await firstValueFrom(this.http.get<Limits>(LIMITS_URL));
+    } catch {
+      return null;
+    }
+  }
 
   /** Enqueue a generation job; returns its id or a synchronous error outcome. */
   async generate(request: GenerateRequest): Promise<AcceptOutcome> {
@@ -130,6 +156,7 @@ export class StoryGateway {
             ok: false,
             code: state.error?.code ?? 'network',
             message: state.error?.message ?? NETWORK_MESSAGE,
+            ...(state.error?.retryAt ? { retryAt: state.error.retryAt } : {}),
           });
         }
         // queued → keep waiting for the terminal event.
@@ -149,7 +176,12 @@ export class StoryGateway {
     if (err instanceof HttpErrorResponse) {
       const body = err.error as ErrorResponse | null;
       if (body?.error?.code) {
-        return { ok: false, code: body.error.code, message: body.error.message };
+        return {
+          ok: false,
+          code: body.error.code,
+          message: body.error.message,
+          ...(body.error.retryAt ? { retryAt: body.error.retryAt } : {}),
+        };
       }
     }
     return { ok: false, code: 'network', message: NETWORK_MESSAGE };

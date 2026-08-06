@@ -15,3 +15,14 @@ properties:
         description: Human-readable message safe to surface to the user.
         examples:
           - Slow down a moment — try again shortly.
+      retryAt:
+        type: string
+        format: date-time
+        description: |
+          When the caller may try again, for the refusals that pass on their
+          own — `rate_limited` when the hour rolls over, `quota_exhausted` when
+          the shared day does. Absent for failures with no known recovery time.
+          Present so the client can say *when* instead of "shortly", and so a
+          retry button is not offered before it can possibly work (7.36).
+        examples:
+          - '2026-08-06T15:00:00.000Z'

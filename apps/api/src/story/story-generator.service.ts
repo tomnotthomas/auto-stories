@@ -14,6 +14,7 @@ import type {
   Tone,
 } from '@auto-stories/api-types';
 import { ApiException, ApiErrors } from '../common/api-exception';
+import { positiveInt } from '../common/config.util';
 import { normalizeLook } from './caption-style';
 import { completeFrames } from './partial-frames';
 import { buildPrompt } from './prompt.builder';
@@ -55,8 +56,11 @@ export class StoryGeneratorService {
     config: ConfigService,
   ) {
     this.model = config.get<string>('MODEL', DEFAULT_MODEL);
-    this.timeoutMs = config.get<number>(
-      'GENERATION_TIMEOUT_MS',
+    // Coerced, not just typed — see positiveInt. Read raw, a configured
+    // GENERATION_TIMEOUT_MS arrives as a string and AbortSignal.timeout throws
+    // TypeError before the model is ever called, failing every generation.
+    this.timeoutMs = positiveInt(
+      config.get('GENERATION_TIMEOUT_MS'),
       DEFAULT_TIMEOUT_MS,
     );
   }

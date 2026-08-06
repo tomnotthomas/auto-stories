@@ -1,13 +1,30 @@
-<section class="flex h-full flex-col items-center justify-center gap-4 bg-surface px-8 text-center text-on-surface">
-  <mat-icon class="h-16 w-16 text-[64px] text-primary">sentiment_dissatisfied</mat-icon>
-  <h1 class="mat-headline-small">That didn't work</h1>
-  <p class="mat-label-large max-w-xs text-on-surface-variant">{{ error()?.message }}</p>
+<section
+  class="flex h-full flex-col items-center justify-center gap-3 bg-surface px-8 text-center text-on-surface"
+>
+  <mat-icon class="h-16 w-16 text-[64px] text-primary">{{ copy().icon }}</mat-icon>
+  <h1 class="mat-headline-small">{{ copy().title }}</h1>
+
+  <!-- Why it happened. A limit the user cannot see reads as a broken app. -->
+  <p data-why class="mat-label-large max-w-xs text-on-surface-variant">{{ copy().why }}</p>
+
+  @if (retryLabel(); as at) {
+    <p data-when class="mat-label-large max-w-xs text-on-surface">
+      You can start another at {{ at }}.
+    </p>
+  }
 
   <div class="mt-4 flex w-full max-w-xs flex-col gap-2">
-    <button matButton="filled" (click)="tryAgain()">
-      <mat-icon>refresh</mat-icon>
-      Try again
-    </button>
+    @if (offersRetry()) {
+      <button matButton="filled" [disabled]="!canRetry()" (click)="tryAgain()">
+        <mat-icon>refresh</mat-icon>
+        Try again
+      </button>
+    } @else {
+      <button matButton="filled" (click)="changePhotos()">
+        <mat-icon>photo_library</mat-icon>
+        Change photos
+      </button>
+    }
     <button matButton (click)="startOver()">Start over</button>
   </div>
 </section>

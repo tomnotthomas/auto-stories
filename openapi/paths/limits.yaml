@@ -1,0 +1,40 @@
+get:
+  operationId: getLimits
+  tags: [ops]
+  summary: What this caller has left under the fair-use guardrails.
+  description: |
+    Reports the caller's remaining hourly allowance and whether the shared daily
+    budget is spent, so the client can warn *before* the user does the work
+    rather than refusing them after it (decision 7.36).
+
+    Not rate limited itself: reading how much is left must never cost some of it.
+  responses:
+    '200':
+      description: The caller's current allowance.
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/Limits.yaml'
+          examples:
+            plenty:
+              summary: Nothing to warn about
+              value:
+                remaining: 5
+                limit: 5
+                resetAt: '2026-08-06T15:00:00.000Z'
+                dayExhausted: false
+            nearly:
+              summary: Worth telling the user before they start
+              value:
+                remaining: 1
+                limit: 5
+                resetAt: '2026-08-06T15:00:00.000Z'
+                dayExhausted: false
+            dayGone:
+              summary: The shared free tier is spent for today
+              value:
+                remaining: 3
+                limit: 5
+                resetAt: '2026-08-06T15:00:00.000Z'
+                dayExhausted: true
+                dayResetAt: '2026-08-07T00:00:00.000Z'

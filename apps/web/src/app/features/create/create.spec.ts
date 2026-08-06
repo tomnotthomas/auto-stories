@@ -4,6 +4,7 @@ import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import { Create } from './create';
 import { CreateHarness } from './create.harness';
 import { StoryService } from '../../story/story.service';
+import type { Limits } from '@auto-stories/api-types';
 
 function imageFile(name = 'photo.jpg'): File {
   return new File(['bytes'], name, { type: 'image/jpeg' });
@@ -77,5 +78,49 @@ describe('Create', () => {
     await harness.clickCreate();
 
     expect(story.phase()).toBe('generating');
+  });
+  describe('the fair-use allowance (7.36)', () => {
+    const limits = (over: Partial<Limits> = {}): Limits => ({
+      remaining: 5,
+      limit: 5,
+      resetAt: '2026-08-06T15:00:00.000Z',
+      dayExhausted: false,
+      ...over,
+    });
+
+    it('says nothing while the user is nowhere near the limit', async () => {
+      story.setLimits(limits({ remaining: 5 }));
+      expect(await harness.getLimitNote()).toBeNull();
+    });
+
+    it('still says nothing at three left — a number nobody needs yet', async () => {
+      story.setLimits(limits({ remaining: 3 }));
+      expect(await harness.getLimitNote()).toBeNull();
+    });
+
+    it('says how many are left once it is close enough to matter', async () => {
+      story.setLimits(limits({ remaining: 2 }));
+      expect(await harness.getLimitNote()).toContain('2 more stories');
+    });
+
+    it('reads as one story, not "1 stories"', async () => {
+      story.setLimits(limits({ remaining: 1 }));
+      expect(await harness.getLimitNote()).toContain('1 more story this hour');
+    });
+
+    it('says why, so the cap reads as fairness rather than a fault', async () => {
+      story.setLimits(limits({ remaining: 1 }));
+      expect(await harness.getLimitNote()).toContain('shared');
+    });
+
+    it('warns before the work when the shared day is already spent', async () => {
+      story.setLimits(limits({ remaining: 4, dayExhausted: true }));
+      expect(await harness.getLimitNote()).toContain('back tomorrow');
+    });
+
+    it('says nothing at all when the allowance could not be read', async () => {
+      story.setLimits(null);
+      expect(await harness.getLimitNote()).toBeNull();
+    });
   });
 });

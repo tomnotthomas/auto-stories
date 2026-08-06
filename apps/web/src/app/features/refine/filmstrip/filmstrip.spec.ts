@@ -21,22 +21,21 @@ describe('RefineFilmstrip', () => {
     await TestBed.configureTestingModule({ imports: [RefineFilmstrip] }).compileComponents();
     story = TestBed.inject(StoryService);
     story.addPhotos(Array.from({ length: count }, (_, i) => imageFile(`p${i}.jpg`)));
-    const frames: Frame[] = story
-      .photos()
-      .map((photo, i) => ({
-        photoId: photo.id,
-        order: i + 1,
-        caption: `caption ${i + 1}`, headline: `caption ${i + 1}`,
-        style: {
-          font: 'inter',
-          weight: 'regular',
-          case: 'normal',
-          align: 'center',
-          size: 'm',
-          position: 'bottom-center',
-          letterbox: 'blur',
-        },
-      }));
+    const frames: Frame[] = story.photos().map((photo, i) => ({
+      photoId: photo.id,
+      order: i + 1,
+      caption: `caption ${i + 1}`,
+      headline: `caption ${i + 1}`,
+      style: {
+        font: 'inter',
+        weight: 'regular',
+        case: 'normal',
+        align: 'center',
+        size: 'm',
+        position: 'bottom-center',
+        letterbox: 'blur',
+      },
+    }));
     story.completeStory(frames, false);
     fixture = TestBed.createComponent(RefineFilmstrip);
     return TestbedHarnessEnvironment.harnessForFixture(fixture, RefineFilmstripHarness);
@@ -78,9 +77,16 @@ describe('RefineFilmstrip', () => {
   it('reorders frames when a thumbnail is dragged', async () => {
     await render(4);
     const before = story.frames().map((f) => f.photoId);
-    (fixture.componentInstance as unknown as {
-      onReorder(e: { previousIndex: number; currentIndex: number }): void;
-    }).onReorder({ previousIndex: 0, currentIndex: 2 });
-    expect(story.frames().map((f) => f.photoId)).toEqual([before[1], before[2], before[0], before[3]]);
+    (
+      fixture.componentInstance as unknown as {
+        onReorder(e: { previousIndex: number; currentIndex: number }): void;
+      }
+    ).onReorder({ previousIndex: 0, currentIndex: 2 });
+    expect(story.frames().map((f) => f.photoId)).toEqual([
+      before[1],
+      before[2],
+      before[0],
+      before[3],
+    ]);
   });
 });

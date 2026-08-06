@@ -117,6 +117,36 @@ describe('App (e2e)', () => {
   describe('ops + generate', () => {
     beforeEach(() => boot());
 
+    it('GET /api/v1/limits reports what the caller has left', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/api/v1/limits')
+        .expect(200);
+
+      expect(res.body).toMatchObject({
+        remaining: expect.any(Number),
+        limit: expect.any(Number),
+        dayExhausted: false,
+      });
+      expect(Date.parse(res.body.resetAt as string)).not.toBeNaN();
+    });
+
+    it('reading the limits never spends any of them', async () => {
+      const before = await request(app.getHttpServer()).get('/api/v1/limits');
+      await request(app.getHttpServer()).get('/api/v1/limits');
+      const after = await request(app.getHttpServer()).get('/api/v1/limits');
+
+      expect(after.body.remaining).toBe(before.body.remaining);
+    });
+
+    it('counts a started story against the caller', async () => {
+      const before = await request(app.getHttpServer()).get('/api/v1/limits');
+
+      await enqueue({ story: 'beach day', photos: photos(3) });
+
+      const after = await request(app.getHttpServer()).get('/api/v1/limits');
+      expect(after.body.remaining).toBe((before.body.remaining as number) - 1);
+    });
+
     it('GET /healthz reports a healthy status', () => {
       return request(app.getHttpServer())
         .get('/healthz')
