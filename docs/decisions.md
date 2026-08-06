@@ -816,6 +816,21 @@ Phase 1 leaves the finished frames in the app; this chapter is how they reach an
 - **The screen states that the work is kept**, above the buttons and only when there are photos to keep, so the user does not have to click to find out what the failure cost them.
 - **Why not (a):** persistence is new machinery for a problem that only existed because the screen threw the work away. **Why not (b):** a screen whose single button is a retry that keeps failing is a dead end.
 
+### 7.40 The privacy policy states the free tier's terms, and the footer stops contradicting it
+- **Problem:** the landing footer read *"a private memory journal. Your photos never leave the app until you post."* That is false. The browser downscales each photo and POSTs it to our server, which sends it to Google's Gemini API in Oregon. Publishing a privacy policy next to that sentence would have put a true document and a false claim on the same page.
+- **What the free tier's terms actually say.** The *Gemini API Additional Terms of Service* (effective 2026-03-23, last updated 2026-04-28) provide under **Unpaid Services** that Google uses submitted content and generated responses "to provide, improve, and develop Google products and services and machine learning technologies", that "human reviewers may read, annotate, and process your API input and output", and — in Google's own words — "Do not submit sensitive, confidential, or personal information to the Unpaid Services."
+- **The same page carries two clauses that pull the other way**, both read at the source:
+  - a carve-out: for developers in the EEA, Switzerland or the UK, the stricter *Paid Services* data terms apply to unpaid quota too, so content is not used for product improvement;
+  - a use restriction: *"You may use only Paid Services when making API Clients available to users in the European Economic Area, Switzerland, or the United Kingdom."*
+- **Options for what to write:** (a) claim the EEA carve-out and say Google does not train on the photos; (b) say nothing about the tier; (c) **state the broad free-tier rule, name the carve-out, and tell the user to assume the broad one.**
+- **Decision:** (c), placed at the very top of the page rather than in a recipients section, plus a new footer line that says what actually happens: *"Your photos go to the AI that writes the story, then they're dropped: nothing stored, no account, no tracking."*
+- **Why not (a):** which regime Google applies to a given call is Google's determination, not something the code can show or the operator can evidence to a user. A promise we cannot verify is the same kind of claim as the sentence being removed.
+- **Why not (b):** it is the one fact a person needs before choosing a photo. Everything else in the document is smaller than it.
+- **Consequence, not yet resolved:** the use restriction means the free tier is not a lawful configuration for an EEA-facing service under Google's own terms. Either the API moves to a billed project, or the service is not offered in the EEA. Logged as the blocking item before launch, not fixed here.
+- **The pages ship through `build.py`, like the landing page.** Sources are `privacy.page.html` / `imprint.page.html`; the build inlines Roboto and `assets/legal.css` so each page is one file that fetches nothing — the standard 7.38 set. They skip the photo and Pretext markers, which they have no use for.
+- **`/privacy` is served, not just `/privacy.html`.** Without `serveStaticOptions.extensions` the site-root catch-all answered `/privacy` with the **landing page at HTTP 200** — a wrong document under a right-looking status, which a 404 would at least have made obvious. Both spellings are now pinned by tests.
+- **The Impressum is voluntary.** No company, no revenue, so § 5 DDG probably does not bite. It is published anyway because the cost is a name and an address and the cost of being wrong is an Abmahnung. Nothing that would only be true of a business — legal form, register entry, VAT ID — is stated.
+
 # Chapter 8 — Lessons learned
 
 Working notes about *how* I worked on this, kept so I don't repeat the mistakes.
