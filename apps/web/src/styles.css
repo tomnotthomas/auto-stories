@@ -2,6 +2,71 @@
 
 @import 'tailwindcss';
 
+/* ── Fonts ───────────────────────────────────────────────────────────────────
+ * All self-hosted, all served from this origin. A font CDN would send every
+ * visitor's IP address to a third party before they had agreed to anything,
+ * which is the one thing a privacy policy cannot paper over (decision 7.38).
+ *
+ * The UI face and the icons are Apache-2.0; the caption faces below are OFL.
+ * Licence text sits beside each file in public/fonts. */
+@font-face {
+  font-family: 'Roboto';
+  font-style: normal;
+  font-weight: 100 900;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url('/fonts/roboto-latin.woff2') format('woff2');
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Roboto';
+  font-style: normal;
+  font-weight: 100 900;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url('/fonts/roboto-latin-ext.woff2') format('woff2');
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1D00-1DBF,
+    U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113,
+    U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Material Symbols Outlined';
+  font-style: normal;
+  font-weight: 400;
+  /* `block`, not `swap`: an icon has no readable fallback, so a flash of the
+   * ligature name ("add_a_photo") is worse than a moment of nothing. */
+  font-display: block;
+  src: url('/fonts/material-symbols-outlined.woff2') format('woff2');
+}
+
+/* The class Google's stylesheet used to provide. mat-icon is pointed at this
+ * font set globally (MAT_ICON_DEFAULT_OPTIONS in app.config.ts), and the icon
+ * name is a ligature, so `liga` has to stay on. */
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  font-variation-settings:
+    'FILL' 0,
+    'wght' 400,
+    'GRAD' 0,
+    'opsz' 24;
+  -webkit-font-feature-settings: 'liga';
+  font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+}
+
 /* Self-hosted caption faces (OFL, bundled; license .txt beside each). Used by the
  * canvas frame-renderer and the DOM preview. Bricolage is the display face; the
  * serif slot renders Fraunces and the handwriting slot renders Shantell Sans
