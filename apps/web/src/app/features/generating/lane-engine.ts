@@ -10,10 +10,20 @@
 export interface LanePhoto {
   readonly id: string;
   readonly src: string;
+  /** The photo's own width ÷ height. Unknown until the file has been decoded,
+   * so the lane falls back to {@link DEFAULT_ASPECT} rather than wait. */
+  readonly aspect?: number;
 }
 
 /** Which pile a print currently belongs to. */
 export type Pile = 'lane' | 'seen' | 'kept';
+
+/** A rectangle in px. Everything that centres or opens a print works off one,
+ * and a {@link Print} is one — a print carries its own. */
+export interface Box {
+  readonly w: number;
+  readonly h: number;
+}
 
 /** One printed photo on the table. Mutable by design: the loop writes ~60×/s. */
 export interface Print {
@@ -21,6 +31,12 @@ export interface Print {
   readonly key: string;
   readonly photoId: string;
   readonly src: string;
+  /** The photo's own width ÷ height — what {@link w}/{@link h} are built from. */
+  readonly aspect: number;
+  /** The print's box, in px. Written when it is dealt and again only when the
+   * surface resizes — never in the loop, which moves the print by transform. */
+  w: number;
+  h: number;
   x: number;
   y: number;
   /** Resting rotation, in degrees. */
@@ -43,20 +59,17 @@ export interface Print {
   slot: { x: number; y: number; scale: number } | null;
 }
 
-/** Every landmark on the surface, in px, derived from its measured size. */
+/** Every landmark on the surface, in px, derived from its measured size. A
+ * print's own size is not one of them — see {@link boxFor}. */
 export interface LaneGeometry {
   readonly w: number;
   readonly h: number;
-  readonly cardW: number;
-  readonly cardH: number;
   /** A print above this line has left the lane. */
   readonly laneTop: number;
   /** Where a print is sharp, full size, and where the model catches it. */
   readonly focal: number;
   /** Distance from the focal point over which depth falls off. */
   readonly range: number;
-  /** Scale that fills the surface — the first frame opening full-bleed. */
-  readonly open: number;
 }
 
 /* ── The authored values, as ratios of the 390×844 surface they were set on ── */
@@ -83,26 +96,71 @@ export const KEEP_IN_LANE = 4;
 const DRIFT_PX_PER_S = 215;
 /** The drift halves every this-many ms of waiting. */
 const DECAY_MS = 19_000;
-/** Scales, relative to the print's own size — surface-independent. */
+/**
+ * Scales, relative to the print's own box — surface-independent.
+ *
+ * Size is how this screen says what state a print is in, so the four have to
+ * stay four (decision 7.42): the catch is a step up from the drift, and the two
+ * piles a long step down. `drift` puts a drifting print at ~72% of the surface
+ * width, which is where the screen spends most of the wait.
+ */
 const SCALE = {
-  drift: 0.365,
-  held: 0.94,
-  laid: 0.235,
-  seen: 0.112,
+  drift: 0.73,
+  held: 0.97,
+  laid: 0.2,
+  seen: 0.098,
 } as const;
 
+/** Where the model holds a print, as a fraction of the surface height. A held
+ * print is nearly the height of the surface, so it is centred on it. */
+const HOLD_Y = 0.5;
+/** The held print is lifted clear of both piles, which it now overlaps. */
+const HELD_Z = 20;
+
+/** A phone photo, and what a print is sized as until its own shape is known. */
+export const DEFAULT_ASPECT = 9 / 16;
+/** The most of the surface a print's box may take at scale 1, in each
+ * direction. Height leads; width is the cap that catches landscape photos. */
+const BOX_MAX_H = 0.95;
+const BOX_MAX_W = 1;
+/** Shapes beyond a panorama or a lift-shaft are clamped, so one odd file cannot
+ * produce a print that is a sliver or that nothing else fits around. */
+const MIN_ASPECT = 0.3;
+const MAX_ASPECT = 3;
+
 export function geometryFor(w: number, h: number): LaneGeometry {
-  const cardH = h * r(694);
   return {
     w,
     h,
-    cardW: w,
-    cardH,
     laneTop: h * r(128),
     focal: h * r(348),
     range: h * r(480),
-    open: h / cardH,
   };
+}
+
+/**
+ * The box one photo is printed at: the largest rectangle of *that photo's own
+ * shape* that fits the surface. Height leads, width caps it — so a portrait
+ * photo gets a tall print, a landscape one a wide print, and neither is cropped
+ * to fit a shape the surface chose for it (decision 7.42).
+ */
+export function boxFor(geo: LaneGeometry, aspect: number = DEFAULT_ASPECT): Box {
+  const usable = Number.isFinite(aspect) && aspect > 0 ? aspect : DEFAULT_ASPECT;
+  const a = clamp(usable, MIN_ASPECT, MAX_ASPECT);
+  let h = geo.h * BOX_MAX_H;
+  let w = h * a;
+  if (w > geo.w * BOX_MAX_W) {
+    w = geo.w * BOX_MAX_W;
+    h = w / a;
+  }
+  return { w: round(w), h: round(h) };
+}
+
+/** The scale at which a print covers the whole surface — the first frame
+ * opening full-bleed into the story screen, cropped the way that screen crops
+ * it. */
+export function openFor(box: Box, geo: LaneGeometry): number {
+  return Math.max(geo.w / box.w, geo.h / box.h);
 }
 
 /** Vertical drift in px/ms, decaying with how long the user has been waiting. */
@@ -111,24 +169,20 @@ export function driftSpeed(geo: LaneGeometry, elapsedMs: number): number {
   return base / (1 + elapsedMs / DECAY_MS);
 }
 
-/** A CSS transform that puts a print's *centre* at (x, y), then rotates and
- * scales it. The overshoots and the final open are built from this directly. */
-export function transform(
-  geo: LaneGeometry,
-  x: number,
-  y: number,
-  rot: number,
-  scale: number,
-): string {
+/** A CSS transform that puts a box's *centre* at (x, y), then rotates and
+ * scales it. The overshoots and the final open are built from this directly.
+ * The box is the print's own, so two prints of different shapes at the same
+ * point land in the same place on the surface. */
+export function transform(box: Box, x: number, y: number, rot: number, scale: number): string {
   return (
-    `translate3d(${round(x - geo.cardW / 2)}px, ${round(y - geo.cardH / 2)}px, 0) ` +
+    `translate3d(${round(x - box.w / 2)}px, ${round(y - box.h / 2)}px, 0) ` +
     `rotate(${round(rot)}deg) scale(${round(scale)})`
   );
 }
 
 /** Where a print is right now, plus any sideways sway. */
-export function transformFor(print: Print, geo: LaneGeometry, sway = 0): string {
-  return transform(geo, print.x + sway, print.y, print.rot, print.scale);
+export function transformFor(print: Print, sway = 0): string {
+  return transform(print, print.x + sway, print.y, print.rot, print.scale);
 }
 
 /** How finely the depth blur is stepped. A blur is re-rendered whenever its
@@ -227,6 +281,13 @@ export class LaneEngine {
     const sx = geo.w / this.geo.w;
     const sy = geo.h / this.geo.h;
     this.geo = geo;
+    // Every print is re-derived from its own photo's shape, so a print keeps
+    // its shape across the resize rather than the surface's.
+    for (const print of this.prints) {
+      const box = boxFor(geo, print.aspect);
+      print.w = box.w;
+      print.h = box.h;
+    }
     // A print still in the lane keeps its place proportionally; a print on a
     // pile is laid out again from the pile's own rule, so nothing drifts.
     for (const print of this.lane) {
@@ -254,12 +315,19 @@ export class LaneEngine {
   }
 
   private create(photo: LanePhoto): Print {
+    // The print's size is settled here, once, from the photo's own shape — a
+    // print that resized after it had been dealt would read as a mistake.
+    const aspect = photo.aspect ?? DEFAULT_ASPECT;
+    const box = boxFor(this.geo, aspect);
     const print: Print = {
       key: photo.id,
       photoId: photo.id,
       src: photo.src,
+      aspect,
+      w: box.w,
+      h: box.h,
       x: this.geo.w / 2 + (this.random() * 2 - 1) * this.geo.w * (40 / REF_W),
-      y: this.geo.h + this.geo.cardH * SCALE.drift * 0.55,
+      y: this.geo.h + box.h * SCALE.drift * 0.55,
       rot: (this.random() * 2 - 1) * 3.6,
       phase: this.random() * 6.28,
       scale: SCALE.drift,
@@ -447,12 +515,12 @@ export class LaneEngine {
     print.settled = false;
     print.rot = 0;
     print.x = this.geo.w / 2;
-    print.y = this.geo.h * 0.4;
+    print.y = this.geo.h * HOLD_Y;
     print.scale = SCALE.held;
     print.blur = 0;
     print.opacity = 1;
     print.wash = '';
-    print.z = 5;
+    print.z = HELD_Z;
   }
 
   /** The scale a print reaches while the model holds it. */
