@@ -1,6 +1,12 @@
 import { TestBed } from '@angular/core/testing';
 
-import { MAX_PHOTOS, MAX_STORY_LENGTH, StoryService, sparkKey } from './story.service';
+import {
+  DEFAULT_PHOTO_ASPECT,
+  MAX_PHOTOS,
+  MAX_STORY_LENGTH,
+  StoryService,
+  sparkKey,
+} from './story.service';
 import { DEFAULT_ACCENT } from './accent-color';
 import { textParts } from './look';
 
@@ -73,6 +79,63 @@ describe('StoryService', () => {
     service.addPhotos(Array.from({ length: MAX_PHOTOS + 3 }, (_, i) => imageFile(`p${i}.jpg`)));
     expect(service.photoCount()).toBe(MAX_PHOTOS);
     expect(service.isFull()).toBe(true);
+  });
+
+  describe('the shape of a picked photo', () => {
+    /** Stand in for the browser decoder with a photo of a known size. */
+    function decodesAs(width: number, height: number): () => void {
+      const real = globalThis.createImageBitmap;
+      globalThis.createImageBitmap = (() =>
+        Promise.resolve({
+          width,
+          height,
+          close: () => undefined,
+        })) as unknown as typeof createImageBitmap;
+      return () => {
+        globalThis.createImageBitmap = real;
+      };
+    }
+
+    it('assumes a phone photo until the file has been read', () => {
+      service.addPhotos([imageFile('a.jpg')]);
+      expect(service.photos()[0].aspect).toBeCloseTo(DEFAULT_PHOTO_ASPECT, 5);
+    });
+
+    it('records the photo’s own shape once it can be decoded', async () => {
+      const restore = decodesAs(1200, 800);
+      try {
+        service.addPhotos([imageFile('a.jpg')]);
+        await vi.waitFor(() => expect(service.photos()[0].aspect).toBeCloseTo(1.5, 3));
+      } finally {
+        restore();
+      }
+    });
+
+    it('keeps the assumed shape when the photo cannot be decoded', async () => {
+      const real = globalThis.createImageBitmap;
+      globalThis.createImageBitmap = (() =>
+        Promise.reject(new Error('undecodable'))) as unknown as typeof createImageBitmap;
+      try {
+        service.addPhotos([imageFile('a.jpg')]);
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(service.photos()[0].aspect).toBeCloseTo(DEFAULT_PHOTO_ASPECT, 5);
+      } finally {
+        globalThis.createImageBitmap = real;
+      }
+    });
+
+    it('leaves a photo the user removed while it was being read', async () => {
+      const restore = decodesAs(1200, 800);
+      try {
+        service.addPhotos([imageFile('a.jpg')]);
+        service.removePhoto(service.photos()[0].id);
+        await vi.waitFor(() => expect(service.photoCount()).toBe(0));
+        expect(service.photos()).toEqual([]);
+      } finally {
+        restore();
+      }
+    });
   });
 
   it('removes a photo by id', () => {

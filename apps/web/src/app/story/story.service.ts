@@ -26,7 +26,15 @@ export interface PickedPhoto {
   readonly file: File;
   /** Object URL for showing the photo in the picker grid. */
   readonly previewUrl: string;
+  /** The photo's own width ÷ height, so anything laying it out can keep its
+   * shape. {@link DEFAULT_PHOTO_ASPECT} until the file has been decoded
+   * (decision 7.42). */
+  readonly aspect: number;
 }
+
+/** What a picked photo is assumed to be until it has been read: a phone photo.
+ * Kept for any file that cannot be decoded. */
+export const DEFAULT_PHOTO_ASPECT = 9 / 16;
 
 /** A story needs a beginning, middle, and payoff — so at least 3 frames (1.11). */
 export const MIN_PHOTOS = 3;
@@ -78,6 +86,19 @@ const NEUTRAL_ANALYSIS: PhotoAnalysis = {
   accent: DEFAULT_ACCENT,
   bands: { top: 0, middle: 0, bottom: 0 },
 };
+
+/** A photo's own width ÷ height, or null if the file cannot be decoded. The
+ * bitmap is closed straight away — only its dimensions are wanted. */
+async function naturalAspect(file: File): Promise<number | null> {
+  try {
+    const bitmap = await createImageBitmap(file);
+    const aspect = bitmap.width / bitmap.height;
+    bitmap.close();
+    return Number.isFinite(aspect) && aspect > 0 ? aspect : null;
+  } catch {
+    return null;
+  }
+}
 
 /** Where to sample the photo's luminance for a composition — the middle of the
  * band its type hangs in. */
@@ -147,6 +168,8 @@ export class StoryService {
   private readonly _sparks = signal<ReadonlyMap<string, SparkState>>(new Map());
   private readonly _limits = signal<Limits | null>(null);
   private seq = 0;
+  /** Photo shapes are read one batch after another, never all at once. */
+  private measuring: Promise<void> = Promise.resolve();
 
   /** The screen the flow shell should render. */
   readonly phase = this._phase.asReadonly();
@@ -223,11 +246,40 @@ export class StoryService {
   addPhotos(files: readonly File[]): void {
     const room = MAX_PHOTOS - this._photos().length;
     if (room <= 0) return;
-    const added = files
+    const added: PickedPhoto[] = files
       .filter((file) => file.type.startsWith('image/'))
       .slice(0, room)
-      .map((file) => ({ id: `photo-${++this.seq}`, file, previewUrl: URL.createObjectURL(file) }));
-    if (added.length) this._photos.update((photos) => [...photos, ...added]);
+      .map((file) => ({
+        id: `photo-${++this.seq}`,
+        file,
+        previewUrl: URL.createObjectURL(file),
+        aspect: DEFAULT_PHOTO_ASPECT,
+      }));
+    if (!added.length) return;
+    this._photos.update((photos) => [...photos, ...added]);
+    this.measureShapes(added);
+  }
+
+  /**
+   * Read each new photo's real shape and record it. Done here, on the picker,
+   * because that is minutes before anything lays a photo out — so the generating
+   * screen has every shape in hand before its first paint and never has to
+   * resize a print it has already dealt.
+   *
+   * Decoded one at a time, and queued behind any earlier batch, so peak memory
+   * stays flat however many were picked (4.5). A file that cannot be decoded
+   * keeps {@link DEFAULT_PHOTO_ASPECT}.
+   */
+  private measureShapes(added: readonly PickedPhoto[]): void {
+    this.measuring = this.measuring.then(async () => {
+      for (const photo of added) {
+        const aspect = await naturalAspect(photo.file);
+        if (aspect === null) continue;
+        this._photos.update((photos) =>
+          photos.map((p) => (p.id === photo.id ? { ...p, aspect } : p)),
+        );
+      }
+    });
   }
 
   /** Remove a picked photo and release its preview URL. */
