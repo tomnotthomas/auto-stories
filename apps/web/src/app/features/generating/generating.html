@@ -13,15 +13,20 @@
     <div
       #printEl
       [attr.data-print]="view.print.photoId"
-      [style.width.px]="geo.cardW"
-      [style.height.px]="geo.cardH"
+      [style.width.px]="view.print.w"
+      [style.height.px]="view.print.h"
       class="absolute top-0 left-0 touch-none overflow-hidden rounded-[22px] bg-black shadow-[0_22px_48px_rgba(0,0,0,0.55),0_0_0_1px_rgba(255,255,255,0.08)]"
       [class]="printClass(view)"
     >
       <!-- `decoding=async` keeps the decode of a newly dealt print off the frame
            that deals it: decoding a photo-sized image synchronously is long
            enough to be the stutter, and a print is dealt below the fold where a
-           frame or two of nothing cannot be seen. -->
+           frame or two of nothing cannot be seen.
+
+           `object-cover` crops nothing now that the box is the photo's own
+           shape; it is kept as the fallback for the one case where the shape is
+           not known — an undecodable file, printed at the assumed 9:16 — where
+           filling the box is better than letterboxing it. -->
       <img
         [src]="view.src"
         alt=""

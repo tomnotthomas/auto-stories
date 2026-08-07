@@ -1,12 +1,16 @@
 import {
+  DEFAULT_ASPECT,
   KEEP_IN_LANE,
+  boxFor,
   filterFor,
+  openFor,
   REDUCED_HOLD_MS,
   LaneEngine,
   driftSpeed,
   geometryFor,
   transform,
   transformFor,
+  type LaneGeometry,
   type LanePhoto,
   type Print,
 } from './lane-engine';
@@ -14,16 +18,28 @@ import {
 /** A phone-shaped surface — the size the motion values were authored against. */
 const GEO = geometryFor(390, 844);
 
+/** The surface the shape defects were measured on, and the shape of the photos
+ * that showed them (810×1440). */
+const MEASURED = geometryFor(406, 752);
+const TALL = 810 / 1440;
+const WIDE = 1.5;
+
 function photos(count: number): LanePhoto[] {
   return Array.from({ length: count }, (_, i) => ({ id: `p${i + 1}`, src: `blob:${i + 1}` }));
 }
 
 /** Deterministic scatter so positions are assertable. */
-function engine(pool = photos(8), reduced = false): LaneEngine {
-  const lane = new LaneEngine(GEO, { reduced, random: () => 0.5 });
+function engine(pool = photos(8), reduced = false, geo: LaneGeometry = GEO): LaneEngine {
+  const lane = new LaneEngine(geo, { reduced, random: () => 0.5 });
   lane.setPool(pool);
   lane.seed();
   return lane;
+}
+
+/** One print of a known shape, on the measured surface. */
+function printOf(aspect: number): { lane: LaneEngine; print: Print } {
+  const lane = engine([{ id: 'p', src: 'blob:p', aspect }], false, MEASURED);
+  return { lane, print: lane.lane[0] };
 }
 
 /** Run the loop for `ms` in 16ms frames. */
@@ -32,19 +48,70 @@ function run(lane: LaneEngine, ms: number, from = 0): void {
 }
 
 describe('lane geometry', () => {
-  it('sizes the print and the piles in proportion to the surface', () => {
+  it('sizes the lane’s landmarks in proportion to the surface', () => {
     const small = geometryFor(390, 844);
     const large = geometryFor(780, 1688);
-    expect(large.cardW / small.cardW).toBeCloseTo(2);
-    expect(large.cardH / small.cardH).toBeCloseTo(2);
     expect(large.laneTop / small.laneTop).toBeCloseTo(2);
     expect(large.focal / small.focal).toBeCloseTo(2);
+    expect(large.range / small.range).toBeCloseTo(2);
   });
 
   it('keeps the authored landmarks at the reference size', () => {
-    expect(GEO.cardH).toBeCloseTo(694, 0);
     expect(GEO.laneTop).toBeCloseTo(128, 0);
     expect(GEO.focal).toBeCloseTo(348, 0);
+  });
+});
+
+describe('boxFor — a print is the shape of its own photo', () => {
+  it('gives a print the aspect of the photo in it, not of the surface', () => {
+    const box = boxFor(MEASURED, TALL);
+    expect(box.w / box.h).toBeCloseTo(TALL, 3);
+    // The defect: the box used to take the surface's own shape instead.
+    expect(box.w / box.h).not.toBeCloseTo(MEASURED.w / MEASURED.h, 2);
+  });
+
+  it('gives a landscape photo a box wider than it is tall', () => {
+    const box = boxFor(MEASURED, WIDE);
+    expect(box.w / box.h).toBeCloseTo(WIDE, 3);
+    expect(box.w).toBeGreaterThan(box.h);
+  });
+
+  it('keeps every shape inside the surface, in both directions', () => {
+    for (const aspect of [0.4, TALL, 0.75, 1, 1.333, WIDE, 2]) {
+      const box = boxFor(MEASURED, aspect);
+      expect(box.w).toBeLessThanOrEqual(MEASURED.w);
+      expect(box.h).toBeLessThanOrEqual(MEASURED.h);
+      // …and is never so small that the print stops being the subject.
+      expect(box.w).toBeGreaterThan(MEASURED.w * 0.3);
+      expect(box.h).toBeGreaterThan(MEASURED.h * 0.2);
+    }
+  });
+
+  it('falls back to a phone photo’s shape while the aspect is unknown', () => {
+    expect(boxFor(MEASURED)).toEqual(boxFor(MEASURED, DEFAULT_ASPECT));
+  });
+
+  it('scales with the surface', () => {
+    const small = boxFor(geometryFor(390, 844), TALL);
+    const large = boxFor(geometryFor(780, 1688), TALL);
+    expect(large.w / small.w).toBeCloseTo(2);
+    expect(large.h / small.h).toBeCloseTo(2);
+  });
+
+  it('ignores an aspect that is not a usable number', () => {
+    expect(boxFor(MEASURED, 0)).toEqual(boxFor(MEASURED, DEFAULT_ASPECT));
+    expect(boxFor(MEASURED, Number.NaN)).toEqual(boxFor(MEASURED, DEFAULT_ASPECT));
+  });
+});
+
+describe('openFor', () => {
+  it('opens a print until it covers the whole surface', () => {
+    for (const aspect of [TALL, WIDE]) {
+      const box = boxFor(MEASURED, aspect);
+      const open = openFor(box, MEASURED);
+      expect(box.w * open).toBeGreaterThanOrEqual(MEASURED.w - 0.01);
+      expect(box.h * open).toBeGreaterThanOrEqual(MEASURED.h - 0.01);
+    }
   });
 });
 
@@ -99,6 +166,120 @@ describe('LaneEngine — the lane', () => {
     expect(print.pile).toBe('seen');
     expect(lane.seen).toContain(print);
     expect(lane.seenCount).toBe(1);
+  });
+});
+
+describe('LaneEngine — each print keeps its own photo’s shape', () => {
+  it('deals every photo into a box of that photo’s own aspect', () => {
+    const lane = engine(
+      [
+        { id: 'tall', src: 'blob:1', aspect: TALL },
+        { id: 'wide', src: 'blob:2', aspect: WIDE },
+      ],
+      false,
+      MEASURED,
+    );
+    const [tall, wide] = lane.prints;
+
+    expect(tall.w / tall.h).toBeCloseTo(TALL, 3);
+    expect(wide.w / wide.h).toBeCloseTo(WIDE, 3);
+    expect(wide.w).toBeGreaterThan(tall.w);
+    expect(wide.h).toBeLessThan(tall.h);
+  });
+
+  it('deals a print at a size it will not have to change afterwards', () => {
+    const { lane, print } = printOf(WIDE);
+    const { w, h } = print;
+    run(lane, 2000, 0);
+    expect(print.w).toBe(w);
+    expect(print.h).toBe(h);
+  });
+
+  it('re-derives each print’s box from its own photo when the surface resizes', () => {
+    const lane = engine(
+      [
+        { id: 'tall', src: 'blob:1', aspect: TALL },
+        { id: 'wide', src: 'blob:2', aspect: WIDE },
+      ],
+      false,
+      MEASURED,
+    );
+
+    lane.resize(geometryFor(812, 1504));
+
+    const [tall, wide] = lane.prints;
+    expect(tall.w / tall.h).toBeCloseTo(TALL, 3);
+    expect(wide.w / wide.h).toBeCloseTo(WIDE, 3);
+    expect(tall.w).toBeCloseTo(boxFor(geometryFor(812, 1504), TALL).w, 3);
+  });
+
+  it('deals a print in from below the surface by its own height, whatever its shape', () => {
+    for (const aspect of [TALL, WIDE]) {
+      const lane = new LaneEngine(MEASURED, { random: () => 0.5 });
+      lane.setPool([{ id: 'p', src: 'blob:p', aspect }]);
+      const print = lane.deal();
+      expect(print).not.toBeNull();
+      if (!print) return;
+      expect(print.y - (print.h * print.scale) / 2).toBeGreaterThanOrEqual(MEASURED.h);
+    }
+  });
+});
+
+describe('LaneEngine — how big each state reads', () => {
+  it('gives a drifting print most of the surface width', () => {
+    for (const aspect of [TALL, 0.75, 1, WIDE]) {
+      const { lane, print } = printOf(aspect);
+      print.y = MEASURED.focal;
+      lane.paint(print);
+
+      const share = (print.w * print.scale) / MEASURED.w;
+      expect(share).toBeGreaterThanOrEqual(0.7);
+      expect(share).toBeLessThanOrEqual(0.8);
+    }
+  });
+
+  it('keeps a held print clearly larger than a drifting one, and both piles small', () => {
+    const lane = engine(photos(4), false, MEASURED);
+    const [drifting, caught, kept, gone] = lane.lane;
+    drifting.y = MEASURED.focal;
+    lane.paint(drifting);
+    lane.hold(caught);
+    lane.toKept(kept);
+    lane.toSeen(gone);
+
+    expect(caught.scale).toBeGreaterThan(drifting.scale);
+    expect(drifting.scale).toBeGreaterThan(kept.scale);
+    expect(kept.scale).toBeGreaterThan(gone.scale);
+    // Size is how this screen says what state a print is in — the catch has to
+    // be a step up, and the piles a step down, not a nudge either way.
+    expect(caught.scale / drifting.scale).toBeGreaterThan(1.25);
+    expect(kept.scale / drifting.scale).toBeLessThan(0.4);
+  });
+
+  it('keeps a held print inside the surface, whatever shape it is', () => {
+    for (const aspect of [0.4, TALL, 1, WIDE]) {
+      const { lane, print } = printOf(aspect);
+      lane.hold(print);
+      expect(print.y - (print.h * print.scale) / 2).toBeGreaterThanOrEqual(0);
+      expect(print.y + (print.h * print.scale) / 2).toBeLessThanOrEqual(MEASURED.h);
+      expect(print.w * print.scale).toBeLessThanOrEqual(MEASURED.w);
+    }
+  });
+
+  it('draws the held print above the piles it is lifted clear of', () => {
+    const lane = engine(photos(4), false, MEASURED);
+    const [caught, kept] = lane.lane;
+    lane.toKept(kept);
+    lane.hold(caught);
+    expect(caught.z).toBeGreaterThan(kept.z);
+  });
+
+  it('keeps the kept pile inside the bottom of the surface', () => {
+    const lane = engine(photos(4), false, MEASURED);
+    for (const print of [...lane.lane]) lane.toKept(print);
+    for (const print of lane.kept) {
+      expect(print.y + (print.h * print.scale) / 2).toBeLessThanOrEqual(MEASURED.h);
+    }
   });
 });
 
@@ -339,22 +520,45 @@ describe('LaneEngine — the piles', () => {
 });
 
 describe('transformFor', () => {
-  it('positions the print by its centre and carries rotation and scale', () => {
+  it('positions the print by the centre of its own box, with rotation and scale', () => {
     const lane = engine();
     const print = lane.lane[0];
     print.x = 195;
     print.y = 400;
     print.rot = 0;
     print.scale = 0.5;
-    expect(transformFor(print, GEO)).toBe(
-      `translate3d(${195 - GEO.cardW / 2}px, ${400 - GEO.cardH / 2}px, 0) rotate(0deg) scale(0.5)`,
+    // Transforms are written to sub-pixel precision, not to the last float bit.
+    const px = (v: number): number => Math.round(v * 1000) / 1000;
+    expect(transformFor(print)).toBe(
+      `translate3d(${px(195 - print.w / 2)}px, ${px(400 - print.h / 2)}px, 0) ` +
+        `rotate(0deg) scale(0.5)`,
     );
+  });
+
+  it('centres each print by its own box, not by a shared one', () => {
+    const lane = engine(
+      [
+        { id: 'tall', src: 'blob:1', aspect: TALL },
+        { id: 'wide', src: 'blob:2', aspect: WIDE },
+      ],
+      false,
+      MEASURED,
+    );
+    const [tall, wide] = lane.prints;
+    tall.x = wide.x = MEASURED.w / 2;
+    tall.y = wide.y = MEASURED.focal;
+    tall.rot = wide.rot = 0;
+    tall.scale = wide.scale = 0.5;
+
+    // Same place, same scale, same rotation — only the box differs, and that is
+    // enough to put them in different spots on the surface.
+    expect(transformFor(tall)).not.toBe(transformFor(wide));
   });
 
   it('carries the sway as a sideways offset', () => {
     const lane = engine();
     const print = lane.lane[0];
     print.x = 195;
-    expect(transformFor(print, GEO, 12)).toBe(transform(GEO, 207, print.y, print.rot, print.scale));
+    expect(transformFor(print, 12)).toBe(transform(print, 207, print.y, print.rot, print.scale));
   });
 });

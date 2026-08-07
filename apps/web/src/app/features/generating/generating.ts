@@ -21,6 +21,7 @@ import {
   LaneEngine,
   filterFor,
   geometryFor,
+  openFor,
   transform,
   transformFor,
   type LaneGeometry,
@@ -214,7 +215,9 @@ export class Generating implements OnDestroy {
     this.geometry.set(geo);
     this.engine = new LaneEngine(geo, { reduced: this.reduced });
     this.engine.setPool(
-      this.story.photos().map((photo) => ({ id: photo.id, src: photo.previewUrl })),
+      this.story
+        .photos()
+        .map((photo) => ({ id: photo.id, src: photo.previewUrl, aspect: photo.aspect })),
     );
     // Give the downscaled copies a moment to arrive before the first prints are
     // dealt; whatever is not ready by then is dealt at full size, which looks
@@ -245,8 +248,11 @@ export class Generating implements OnDestroy {
       const element = this.elements.get(print.key);
       for (const running of element?.getAnimations?.() ?? []) running.cancel();
       this.forget(print);
-      this.place(print, geo);
+      this.place(print);
     }
+    // Each print's box has been re-derived from its own photo, and the box is a
+    // binding rather than a loop write — so the render list has to be re-read.
+    this.bump();
   }
 
   /**
@@ -318,15 +324,14 @@ export class Generating implements OnDestroy {
   private render(): void {
     // Only what is moving: a print that has landed on a pile is not in the lane,
     // and everything in the lane is by definition still going somewhere.
-    const geo = this.geometry();
-    for (const print of this.engine.lane) this.place(print, geo);
+    for (const print of this.engine.lane) this.place(print);
   }
 
   /** Write one print's current state to its element. */
-  private place(print: Print, geo = this.geometry()): void {
+  private place(print: Print): void {
     const element = this.elements.get(print.key);
     if (!element) return;
-    const transform = transformFor(print, geo, this.engine.swayFor(print));
+    const transform = transformFor(print, this.engine.swayFor(print));
     // Two decimals: a 1% step in opacity is below what an eye can see, and it
     // turns a value that changed every frame into one that rarely does.
     const opacity = print.opacity.toFixed(2);
@@ -399,7 +404,6 @@ export class Generating implements OnDestroy {
   private toss(print: Print): void {
     this.forget(print);
     const element = this.elements.get(print.key);
-    const geo = this.geometry();
     // Reduced motion: it goes out where it stands. Sliding it up to the pile
     // would be the movement this mode exists to avoid, and the pile it would
     // land on is not drawn in this mode anyway — the tally carries the count.
@@ -414,7 +418,7 @@ export class Generating implements OnDestroy {
       }
       return;
     }
-    const to = transformFor(print, geo);
+    const to = transformFor(print);
     const filter = filterFor(print);
     if (element) {
       this.play(
@@ -426,7 +430,7 @@ export class Generating implements OnDestroy {
             filter: element.style.filter || 'none',
           },
           {
-            transform: transform(geo, print.x, print.y, print.rot * 1.5, print.scale * 1.04),
+            transform: transform(print, print.x, print.y, print.rot * 1.5, print.scale * 1.04),
             offset: 0.62,
           },
           { transform: to, opacity: '0.66', filter },
@@ -450,12 +454,11 @@ export class Generating implements OnDestroy {
   }
 
   private restack(): void {
-    const geo = this.geometry();
     for (const print of this.engine.kept) {
       this.forget(print);
       const element = this.elements.get(print.key);
       if (!element) continue;
-      const to = transformFor(print, geo);
+      const to = transformFor(print);
       const filter = filterFor(print);
       this.play(
         element,
@@ -608,7 +611,9 @@ export class Generating implements OnDestroy {
     const photo = this.story.photos().find((candidate) => candidate.id === frame.photoId);
     if (!photo) return null;
     const existing = this.engine.prints.find((print) => print.photoId === frame.photoId);
-    const print = existing ?? this.engine.dealNamed({ id: photo.id, src: photo.previewUrl });
+    const print =
+      existing ??
+      this.engine.dealNamed({ id: photo.id, src: photo.previewUrl, aspect: photo.aspect });
     if (existing && existing.pile !== 'lane') {
       this.engine.lift(existing);
       this.seenCount.set(this.engine.seenCount);
@@ -705,10 +710,9 @@ export class Generating implements OnDestroy {
   private comeForward(print: Print, pace = 1): void {
     this.forget(print);
     const element = this.elements.get(print.key);
-    const geo = this.geometry();
     const from = element?.style.transform ?? '';
     this.engine.hold(print);
-    const to = transformFor(print, geo);
+    const to = transformFor(print);
     if (!element) return;
     this.play(
       element,
@@ -717,7 +721,7 @@ export class Generating implements OnDestroy {
         : [
             { transform: from, offset: 0 },
             {
-              transform: transform(geo, print.x, print.y, print.rot, print.scale * 1.022),
+              transform: transform(print, print.x, print.y, print.rot, print.scale * 1.022),
               offset: 0.74,
             },
             { transform: to, offset: 1 },
@@ -767,16 +771,18 @@ export class Generating implements OnDestroy {
     this.segments.set(
       kept.map((print, i) => {
         const left = 14 + i * (width + 4);
-        const slot = print.slot ?? { x: geo.w / 2, y: geo.h, scale: 0.235 };
+        const slot = print.slot ?? { x: geo.w / 2, y: geo.h, scale: print.scale };
         const dx = slot.x - (left + width / 2);
         const dy = slot.y - 23.5;
+        // The bar starts as the print it came from, so each one is measured
+        // against that print's own box rather than a shared card.
         return {
           index: i,
           left,
           width,
           from:
             `translate(${dx.toFixed(2)}px, ${dy.toFixed(2)}px) ` +
-            `scale(${((geo.cardW * slot.scale) / width).toFixed(3)}, ${((geo.cardH * slot.scale) / 3).toFixed(3)})`,
+            `scale(${((print.w * slot.scale) / width).toFixed(3)}, ${((print.h * slot.scale) / 3).toFixed(3)})`,
         };
       }),
     );
@@ -808,7 +814,10 @@ export class Generating implements OnDestroy {
           element,
           [
             { transform: element.style.transform, borderRadius: '22px' },
-            { transform: transform(geo, geo.w / 2, geo.h / 2, 0, geo.open), borderRadius: '0px' },
+            {
+              transform: transform(print, geo.w / 2, geo.h / 2, 0, openFor(print, geo)),
+              borderRadius: '0px',
+            },
           ],
           this.reduced ? 260 : 700,
           EASE_MOVE,
