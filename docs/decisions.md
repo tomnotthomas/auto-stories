@@ -840,6 +840,16 @@ Phase 1 leaves the finished frames in the app; this chapter is how they reach an
 - **The link opens in a new tab.** The picker holds photos, story line and tone in memory only, so a same-tab navigation to `/privacy.html` would discard all three — the exact loss 7.39 was written to prevent. Reading the policy must not cost the user their work.
 - **Why not (a):** "no account, no tracking" is true, unusual, and worth saying. **Why not (b):** a footnote qualifying a headline claim is a sign the headline claim is wrong.
 
+### 7.43 An icon that renders is not an icon that is right
+- **Problem:** every icon name in the app resolves in the shipped font, so nothing looks broken, but five of them draw the wrong meaning: `ios_share` on the primary "Post to Instagram" button (one platform's share convention, shown to every user, including Android where the three-node `share` is the convention); `add_a_photo` on the example CTA (a camera with a plus, when the flow only picks existing photos and the picker it leads to already uses `add_photo_alternate`); `battery_alert` for `quota_exhausted` (device power, when the failure is a shared daily API allowance); `auto_fix_high` on the "1 photo didn't fit" banner (a wand promising enhancement, on a notice that reports fewer photos were used); and `error_outline` for `invalid_request` (the legacy Material *Icons* spelling, kept only as a font alias).
+- **Options:** (a) leave them — they all render; (b) swap each for the symbol that matches what the control does; (c) detect the platform and pick a share glyph per device.
+- **Decision:** (b). `ios_share` → `share`, `add_a_photo` → `add_photo_alternate`, `battery_alert` → `data_usage`, `auto_fix_high` → `info`, `error_outline` → `error`. Icons only: no copy, layout, size or colour changed.
+- **Why:** the icon is read before the label. Each of these five names a different action or cause than the control actually has, so the icon has to be un-learned from the text next to it.
+- **`data_usage`, not `hourglass_disabled`, for a spent quota.** `rate_limited` sits directly above it on `hourglass_top`; two hourglasses would read as one failure, and they are two — different causes, different copy. A meter that has run out is distinguishable at a glance.
+- **`info`, not a wand, on the partial-story banner.** The banner reports a limitation. `auto_awesome` is left untouched everywhere it appears (create, regenerate, caption regenerate), where it consistently means "the AI generates".
+- **Why not (c):** it needs a device-detection service the app does not have, and a share sheet on any platform is understood from the neutral glyph. New machinery for an icon is not worth its maintenance.
+- **Every introduced name was verified against the shipped `material-symbols-outlined.woff2`,** by parsing its GSUB ligature table (4,268 ligatures), not against the Google Fonts catalogue. The bundled subset is the only thing that renders; a name it lacks shows as literal text.
+
 # Chapter 8 — Lessons learned
 
 Working notes about *how* I worked on this, kept so I don't repeat the mistakes.
