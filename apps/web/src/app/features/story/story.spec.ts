@@ -84,6 +84,17 @@ describe('Story', () => {
     expect(await (await render(true)).hasDroppedBanner()).toBe(true);
   });
 
+  it('marks the dropped-photo banner as information, not as enhancement', async () => {
+    // The banner reports that fewer photos were used; nothing was improved.
+    expect(await (await render(true)).getDroppedBannerIcon()).toBe('info');
+  });
+
+  it('marks the hand-off action with the platform-neutral share symbol', async () => {
+    // The app runs on Android and desktop too; the iOS share glyph is one
+    // platform's convention shown to everyone.
+    expect(await (await render()).getPostIcon()).toBe('share');
+  });
+
   it('starts over from the beginning', async () => {
     const harness = await render();
     await harness.clickStartOver();

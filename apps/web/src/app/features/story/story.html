@@ -62,9 +62,10 @@
 
       @if (partial() && !bannerDismissed() && !refining()) {
         <div
+          data-partial-banner
           class="drop-in absolute inset-x-3.5 top-[104px] z-30 flex items-center gap-2.5 rounded-2xl border border-white/10 bg-surface-container-high p-3 shadow-lg"
         >
-          <mat-icon class="text-primary">auto_fix_high</mat-icon>
+          <mat-icon class="text-primary">info</mat-icon>
           <span class="mat-label-large flex-1 text-on-surface"
             >1 photo didn't fit the story — we used {{ frameCount() }} of {{ pickedCount() }}.</span
           >
@@ -195,11 +196,12 @@
           >
             <button
               matButton="filled"
+              data-post
               class="w-full"
               [disabled]="exporting()"
               (click)="postToInstagram()"
             >
-              <mat-icon>ios_share</mat-icon>
+              <mat-icon>share</mat-icon>
               {{ exporting() ? 'Preparing…' : 'Post to Instagram' }}
             </button>
             <button matButton="tonal" class="w-full" (click)="enterRefine()">

@@ -1,5 +1,6 @@
 import { ComponentHarness, TestElement } from '@angular/cdk/testing';
 import { MatButtonHarness } from '@angular/material/button/testing';
+import { MatIconHarness } from '@angular/material/icon/testing';
 
 import { CaptionEditorHarness } from '../refine/caption-editor/caption-editor.harness';
 import { RefineFilmstripHarness } from '../refine/filmstrip/filmstrip.harness';
@@ -22,6 +23,10 @@ export class StoryHarness extends ComponentHarness {
   private readonly nextZone = this.locatorFor('button[aria-label="Next frame"]');
   private readonly prevZone = this.locatorFor('button[aria-label="Previous frame"]');
   private readonly banner = this.locatorForOptional('[aria-label="Dismiss notice"]');
+  private readonly bannerIcon = this.locatorFor(
+    MatIconHarness.with({ ancestor: '[data-partial-banner]' }),
+  );
+  private readonly postIcon = this.locatorFor(MatIconHarness.with({ ancestor: '[data-post]' }));
   private readonly startOverButton = this.locatorFor(MatButtonHarness.with({ text: /Start over/ }));
   private readonly refineButton = this.locatorFor(MatButtonHarness.with({ text: /Refine story/ }));
   private readonly doneButton = this.locatorFor(MatButtonHarness.with({ text: /Done/ }));
@@ -65,6 +70,11 @@ export class StoryHarness extends ComponentHarness {
     const view = await this.layoutView();
     if (!view) throw new Error('No composition is rendered on the current frame');
     return view;
+  }
+
+  /** The Material symbol on the primary hand-off action. */
+  async getPostIcon(): Promise<string | null> {
+    return (await this.postIcon()).getName();
   }
 
   /** Hand off to Instagram (renders + posts). */
@@ -116,6 +126,11 @@ export class StoryHarness extends ComponentHarness {
   /** Whether the "a photo was dropped" banner is showing. */
   async hasDroppedBanner(): Promise<boolean> {
     return (await this.banner()) !== null;
+  }
+
+  /** The Material symbol on the "a photo was dropped" banner. */
+  async getDroppedBannerIcon(): Promise<string | null> {
+    return (await this.bannerIcon()).getName();
   }
 
   /** Start the flow over. */
