@@ -118,5 +118,21 @@
     @if (limitNote(); as note) {
       <p data-limit-note class="mat-label-medium text-center text-on-surface-variant">{{ note }}</p>
     }
+
+    <!-- Where the photos actually go, said at the point they are parted with
+         (decision 7.41). The landing footer links the policy too, but this is
+         the screen that does the uploading. Opens in a new tab: the picker
+         holds photos, story line and tone in memory only, so navigating away
+         in this tab would discard the lot. -->
+    <p data-privacy class="mat-label-medium text-center text-on-surface-variant">
+      Your photos are sent to Google's Gemini to write the story.
+      <a
+        href="/privacy.html"
+        target="_blank"
+        rel="noopener"
+        class="text-primary underline underline-offset-2"
+        >Privacy policy</a
+      >
+    </p>
   </div>
 </section>

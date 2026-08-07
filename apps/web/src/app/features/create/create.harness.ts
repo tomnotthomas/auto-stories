@@ -11,6 +11,10 @@ export class CreateHarness extends ComponentHarness {
   static hostSelector = 'app-create';
 
   private readonly limitNote = this.locatorForOptional('[data-limit-note]');
+  // The privacy note is plain prose with a link — not a Material control, so
+  // locate it by selector.
+  private readonly privacyNote = this.locatorFor('[data-privacy]');
+  private readonly privacyLink = this.locatorFor('[data-privacy] a');
 
   private readonly title = this.locatorFor('h1');
   private readonly backButton = this.locatorFor(
@@ -81,5 +85,21 @@ export class CreateHarness extends ComponentHarness {
   async getLimitNote(): Promise<string | null> {
     const note = await this.limitNote();
     return note ? note.text() : null;
+  }
+
+  /** What the picker tells the user about where their photos go. */
+  async getPrivacyNote(): Promise<string> {
+    return (await this.privacyNote()).text();
+  }
+
+  /** Where the privacy policy link points. */
+  async getPrivacyHref(): Promise<string | null> {
+    return (await this.privacyLink()).getAttribute('href');
+  }
+
+  /** How the policy opens — the picker holds its state in memory, so this has
+   * to leave the app running. */
+  async getPrivacyTarget(): Promise<string | null> {
+    return (await this.privacyLink()).getAttribute('target');
   }
 }

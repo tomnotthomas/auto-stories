@@ -92,6 +92,26 @@ describe('Create', () => {
 
     expect(story.phase()).toBe('generating');
   });
+
+  describe('where the photos go (7.41)', () => {
+    // The upload happens here, so the disclosure belongs here — the landing
+    // footer is not where the user parts with their photos.
+    it('names the third party the photos are sent to', async () => {
+      expect(await harness.getPrivacyNote()).toContain('Google');
+    });
+
+    it('links to the privacy policy', async () => {
+      expect(await harness.getPrivacyHref()).toBe('/privacy.html');
+    });
+
+    it('opens the policy without discarding the picked photos', async () => {
+      // The picker holds photos, story line and tone in memory only. A
+      // same-tab navigation would throw all of it away — the very loss 7.39
+      // was written to prevent.
+      expect(await harness.getPrivacyTarget()).toBe('_blank');
+    });
+  });
+
   describe('the fair-use allowance (7.36)', () => {
     const limits = (over: Partial<Limits> = {}): Limits => ({
       remaining: 2,
