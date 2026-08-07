@@ -39,7 +39,7 @@ const COPY: Record<FailureCode, ErrorCopy> = {
     next: 'wait',
   },
   quota_exhausted: {
-    icon: 'battery_alert',
+    icon: 'data_usage',
     title: "Today's free stories are all used up",
     why: 'Everyone here shares one small free allowance a day, and today it has run out.',
     next: 'wait',
@@ -81,7 +81,7 @@ const COPY: Record<FailureCode, ErrorCopy> = {
     next: 'change-photos',
   },
   invalid_request: {
-    icon: 'error_outline',
+    icon: 'error',
     title: "That request wasn't valid",
     why: 'Something about the photos or the story line was off, so it never reached the model.',
     next: 'change-photos',

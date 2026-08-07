@@ -1,5 +1,6 @@
 import { ComponentHarness } from '@angular/cdk/testing';
 import { MatButtonHarness } from '@angular/material/button/testing';
+import { MatIconHarness } from '@angular/material/icon/testing';
 
 import { CaptionEditorHarness } from '../refine/caption-editor/caption-editor.harness';
 
@@ -14,6 +15,7 @@ export class ExampleHarness extends ComponentHarness {
 
   private readonly caption = this.locatorFor('.story-caption');
   private readonly cta = this.locatorFor(MatButtonHarness.with({ text: /Try it/ }));
+  private readonly ctaIcon = this.locatorFor(MatIconHarness.with({ ancestor: '[data-cta]' }));
   private readonly editor = this.locatorForOptional(CaptionEditorHarness);
   private readonly nextZone = this.locatorFor('button[aria-label="Next frame"]');
   private readonly prevZone = this.locatorFor('button[aria-label="Previous frame"]');
@@ -46,6 +48,11 @@ export class ExampleHarness extends ComponentHarness {
   /** Label of the "start creating" call-to-action. */
   async getCtaText(): Promise<string> {
     return (await this.cta()).getText();
+  }
+
+  /** The Material symbol the call-to-action wears. */
+  async getCtaIcon(): Promise<string | null> {
+    return (await this.ctaIcon()).getName();
   }
 
   /** Click the call-to-action that starts the real flow. */

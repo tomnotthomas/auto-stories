@@ -55,6 +55,32 @@ describe('copyFor', () => {
   });
 });
 
+describe('the face each failure wears', () => {
+  it('gives every failure an icon', () => {
+    for (const code of EVERY_FAILURE) {
+      expect(copyFor(code).icon.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('shows a spent allowance, not device power, when the daily quota runs out', () => {
+    expect(copyFor('quota_exhausted').icon).toBe('data_usage');
+  });
+
+  it('keeps the two shared-tier limits apart — they are different failures', () => {
+    expect(copyFor('quota_exhausted').icon).not.toBe(copyFor('rate_limited').icon);
+  });
+
+  it('names an invalid request with the canonical Material Symbols name', () => {
+    expect(copyFor('invalid_request').icon).toBe('error');
+  });
+
+  it('uses no deprecated Material Icons aliases', () => {
+    for (const code of EVERY_FAILURE) {
+      expect(copyFor(code).icon).not.toMatch(/_outline$/);
+    }
+  });
+});
+
 describe('retryTimeLabel', () => {
   it('states a time rather than "shortly"', () => {
     const label = retryTimeLabel('2026-08-06T15:00:00.000Z', 'en-GB');

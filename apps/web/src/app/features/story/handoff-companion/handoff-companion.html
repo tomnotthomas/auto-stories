@@ -3,8 +3,8 @@
 <div
   class="handoff-card absolute inset-x-4 bottom-6 z-40 flex flex-col gap-3 rounded-3xl bg-surface p-4 text-on-surface shadow-2xl"
 >
-  <div class="flex items-center gap-2">
-    <mat-icon class="text-primary">ios_share</mat-icon>
+  <div data-tray-heading class="flex items-center gap-2">
+    <mat-icon class="text-primary">share</mat-icon>
     <h2 class="mat-title-medium flex-1">Add in Instagram</h2>
     <button matIconButton data-tray-close aria-label="Not now" (click)="close()">
       <mat-icon>close</mat-icon>
@@ -55,8 +55,14 @@
     }
   }
 
-  <button matButton="filled" class="w-full" [disabled]="busy()" (click)="saveAndOpen()">
-    <mat-icon>ios_share</mat-icon>
+  <button
+    matButton="filled"
+    data-tray-save
+    class="w-full"
+    [disabled]="busy()"
+    (click)="saveAndOpen()"
+  >
+    <mat-icon>share</mat-icon>
     {{ busy() ? 'Preparing…' : 'Save & open Instagram' }}
   </button>
 </div>

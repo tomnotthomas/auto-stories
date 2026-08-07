@@ -101,6 +101,15 @@ describe('HandoffCompanion (card)', () => {
     expect(await harness.termTexts()).toEqual(['Best pastry?']);
   });
 
+  it('marks the hand-off with the platform-neutral share symbol', async () => {
+    // Heading and confirm both stand for the same hand-off, and neither is
+    // iOS-only: the app runs on Android and desktop too.
+    const harness = await render([[{ type: 'location', query: 'Tartine', confidence: 0.9 }]]);
+
+    expect(await harness.getHeadingIcon()).toBe('share');
+    expect(await harness.getSaveIcon()).toBe('share');
+  });
+
   it('emits save when the user confirms the hand-off', async () => {
     const harness = await render([[{ type: 'location', query: 'Tartine', confidence: 0.9 }]]);
 

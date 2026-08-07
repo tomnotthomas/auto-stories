@@ -27,6 +27,12 @@ describe('Example', () => {
     expect(await harness.getCtaText()).toContain('Try it with your photos');
   });
 
+  it('marks the call-to-action with the library picker, not the camera', async () => {
+    // The flow picks existing photos; it never opens the camera. Same symbol as
+    // the picker the button leads to.
+    expect(await harness.getCtaIcon()).toBe('add_photo_alternate');
+  });
+
   it('starts the create step when the call-to-action is clicked', async () => {
     await harness.clickCta();
     expect(story.phase()).toBe('create');

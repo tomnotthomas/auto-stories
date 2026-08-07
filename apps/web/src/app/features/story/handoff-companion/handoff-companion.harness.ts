@@ -1,5 +1,6 @@
 import { ComponentHarness } from '@angular/cdk/testing';
 import { MatButtonHarness } from '@angular/material/button/testing';
+import { MatIconHarness } from '@angular/material/icon/testing';
 
 /** Page-object harness for the hand-off card. Exposes intent; asserts nothing. */
 export class HandoffCompanionHarness extends ComponentHarness {
@@ -13,6 +14,12 @@ export class HandoffCompanionHarness extends ComponentHarness {
     MatButtonHarness.with({ text: /Save & open|Preparing/ }),
   );
   private readonly closeButton = this.locatorFor('[data-tray-close]');
+  private readonly headingIcon = this.locatorFor(
+    MatIconHarness.with({ ancestor: '[data-tray-heading]' }),
+  );
+  private readonly saveIcon = this.locatorFor(
+    MatIconHarness.with({ ancestor: '[data-tray-save]' }),
+  );
 
   /** How many add-on rows are shown (hero + the rest; dismissed ones excluded). */
   async itemCount(): Promise<number> {
@@ -38,6 +45,16 @@ export class HandoffCompanionHarness extends ComponentHarness {
   /** Whether the copy control at `index` has confirmed "Copied". */
   async isCopied(index: number): Promise<boolean> {
     return /Copied/.test(await (await this.copyButtons())[index].getText());
+  }
+
+  /** The Material symbol beside the card's heading. */
+  async getHeadingIcon(): Promise<string | null> {
+    return (await this.headingIcon()).getName();
+  }
+
+  /** The Material symbol on the confirm ("Save & open Instagram") action. */
+  async getSaveIcon(): Promise<string | null> {
+    return (await this.saveIcon()).getName();
   }
 
   /** Confirm — render + hand off to Instagram ("Save & open Instagram"). */
