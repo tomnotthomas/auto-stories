@@ -25,7 +25,7 @@ Move a finished story from the app onto the user's Instagram Story with the leas
 
 ## System architecture
 
-![Phase 2 system architecture: Angular web app → NestJS backend (in-memory queue) → multimodal AI model (vision + text); POST enqueues a job, the story is pushed back over SSE](diagrams/system-architecture.png)
+![Phase 2 system architecture: the Angular web app POSTs to /api/v1/generate; the NestJS backend queues the job and answers 202 { jobId }; a worker takes the next job and calls the multimodal AI model (vision + text), which streams the result back; job state goes back to the queue and out to the browser over SSE](diagrams/system-architecture.png)
 
 Generation is a background job so a 30-photo run can't hit Render's request timeout. `POST /api/v1/generate` enqueues the work in an **in-memory queue** (one job at a time — the free tier is a single container) and the finished story is pushed back over **Server-Sent Events**. The worker makes **one model call** for all N photos (up to 30) — `gemini-flash-latest` accepts far more than 30 images per request, so no per-photo pipeline is needed; the model selects 5–7, orders (EXIF capture time as a soft hint), and captions in a single pass. (Full reasoning: [decisions Chapter 6](../decisions.md#chapter-6--phase-2-longer-stories-without-timing-out).)
 

@@ -1,6 +1,6 @@
 # Auto Stories — Phase 2 Architecture: async generation
 
-How Phase 2 raises the pick to **30 photos** without hitting Render's request timeout. Generation moves from one synchronous HTTP call to an **async job**: the request enqueues work and returns immediately; the finished story is pushed back over **Server-Sent Events (SSE)**. Reasoning lives in [`decisions.md`](../decisions.md) (Chapter 6). This builds on the Phase 1 architecture ([phase-1/architecture.md](../phase-1/architecture.md)) and changes only the transport — the model call itself is unchanged.
+How Phase 2 raises the pick to **30 photos** without hitting Render's request timeout. Generation moves from one synchronous HTTP call to an **async job**: the request enqueues work and returns immediately; the finished story is pushed back over **Server-Sent Events (SSE)**. Reasoning lives in [`decisions.md`](../decisions.md) (Chapter 6). This builds on the Phase 1 architecture ([phase-1/architecture.md](../phase-1/architecture.md)) and changes only the transport — still one structured model call, now read as a stream so each pick reaches the client as the model writes it (7.30).
 
 ## Decisions at a glance
 
@@ -14,7 +14,7 @@ How Phase 2 raises the pick to **30 photos** without hitting Render's request ti
 
 ## System architecture
 
-![Phase 2 system architecture: Angular web app → NestJS backend (in-memory queue) → multimodal AI model; POST enqueues a job, the story is pushed back over SSE](diagrams/system-architecture.png)
+![Phase 2 system architecture: the Angular web app POSTs to /api/v1/generate; the NestJS backend queues the job and answers 202 { jobId }; a worker takes the next job and calls the multimodal AI model (vision + text), which streams the result back; job state goes back to the queue and out to the browser over SSE](diagrams/system-architecture.png)
 
 The browser never holds the API key (Phase 1, 3.1). The server stays stateless apart from the **in-memory job map**, which lives only for a job's lifetime — no database.
 
@@ -25,15 +25,18 @@ POST /api/v1/generate ──▶ JobService.enqueue()  ──▶ 202 { jobId }   
                               │  Map<jobId, BehaviorSubject<JobState>>
                               │  FIFO, one worker at a time (concurrency 1)
                               ▼
-             consumeDailyBudget() ▶ StoryGeneratorService.generate() ▶ update state
-                              │
+        JobService.drain() ▶ StoryGeneratorService.generate() ▶ update state
+                              │  fairUse.reserveCall() runs inside the generator,
+                              │  immediately before each model call (7.37)
+                              │  each frame is reported as the model streams it (7.30)
+                              ▼
 GET /api/v1/jobs/:id/events (SSE) ◀── BehaviorSubject replays current state on (re)connect
-   state:  queued ─▶ processing ─▶ done { result } | failed { error }
+   state:  queued ─▶ processing ─▶ processing { frames } … ─▶ done { result } | failed { error }
    stream completes on a terminal state; ~15s heartbeat comment keeps it open through Render's proxy
    unknown id (evicted / container spun down) ─▶ 404 ─▶ client shows "expired, generate again"
 ```
 
-Concurrency 1 serialises jobs, which bounds memory (up to 30 downscaled proxies per job) and protects the shared free Gemini key — the same intent as the daily budget cap (Phase 1, 4.1). The budget is reserved when the job actually runs, not at enqueue, so a queued job that never runs never spends it.
+Concurrency 1 serialises jobs, which bounds memory (up to 30 downscaled proxies per job) and protects the shared free Gemini key — the same intent as the daily budget cap (Phase 1, 4.1). The budget is reserved inside the generator immediately before each model call, not at enqueue — so a queued job that never runs never spends it, and a safety retry costs the extra call it actually makes (7.37).
 
 ## The generation contract
 
@@ -53,7 +56,7 @@ Concurrency 1 serialises jobs, which bounds memory (up to 30 downscaled proxies 
 | SSE connection | Render proxy idle-closes a quiet stream | ~15s heartbeat comment | nothing (transparent) |
 | SSE reconnect | job evicted / container spun down mid-job | job routes `404` | "This story expired — generate again" |
 | Job worker | model call throws (timeout / quota / safety) | caught → `failed { error }` pushed over SSE | existing typed error copy (Phase 1, 4.3) |
-| Enqueue | daily budget spent | `consumeDailyBudget` throws in the worker → `failed` | "At capacity today" |
+| Model call | daily budget spent | `fairUse.reserveCall()` throws before the call → `failed` | "At capacity today" |
 | Client | tab closed mid-job | job runs to completion, evicted after a short TTL | n/a |
 
 ## Deployment / ops
