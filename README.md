@@ -63,6 +63,7 @@ The frontend and backend share one contract: types in `packages/api-types` are g
 - [`docs/decisions.md`](docs/decisions.md) — decision log (Problem → Options → Decision → Why).
 - [`docs/phase-1/spec.md`](docs/phase-1/spec.md) — what Phase 1 builds (the built slice); [architecture](docs/phase-1/architecture.md) + diagrams alongside it.
 - [`docs/phase-2/spec.md`](docs/phase-2/spec.md), [`docs/phase-3/spec.md`](docs/phase-3/spec.md) — the specced-but-unbuilt roadmap.
+- [`docs/collaboration/`](docs/collaboration) — how we work: [API contract](docs/collaboration/api-contract.md) (start here), [git conventions](docs/collaboration/git-conventions.md), [Angular coding](docs/collaboration/angular-coding.md), [NestJS coding](docs/collaboration/nestjs-coding.md), [testing](docs/collaboration/testing.md).
 
 ## Deployment
 
